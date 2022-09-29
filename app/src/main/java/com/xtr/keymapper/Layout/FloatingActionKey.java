@@ -44,9 +44,9 @@ public class FloatingActionKey extends FrameLayout implements View.OnTouchListen
         MovableFloatingActionButton closeButton = new MovableFloatingActionButton(getContext());
         closeButton.setClickable(true);
 
-        LayoutParams x = new LayoutParams(20,20);
-        x.gravity = Gravity.BOTTOM | Gravity.END;
-        closeButton.setLayoutParams(x);
+        LayoutParams layoutParams = new LayoutParams(20,20);
+        layoutParams.gravity = Gravity.BOTTOM | Gravity.END;
+        closeButton.setLayoutParams(layoutParams);
         closeButton.setForegroundGravity(Gravity.BOTTOM | Gravity.END);
         closeButton.setElevation(2);
         closeButton.setPadding(0,0,0,0);
@@ -119,7 +119,7 @@ public class FloatingActionKey extends FrameLayout implements View.OnTouchListen
                 return performClick();
             }
             else { // A drag
-                key.    setButtonActive();
+                key.setButtonActive();
                 return true; // Consumed
             }
 
