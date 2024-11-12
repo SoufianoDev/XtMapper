@@ -353,7 +353,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
     private void addKey(KeymapProfileKey key) {
         MovableFloatingActionKey floatingKey = new MovableFloatingActionKey(context, key1 -> {
-            floatingKeysMap.remove(key1);
+            floatingKeysMap.remove(key1.frameView);
             mainView.removeView(key1.frameView);
         });
 
