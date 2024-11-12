@@ -36,4 +36,10 @@
         android:icon="@drawable/ic_baseline_done_36"
         android:title="@string/save"
         android:contentDescription="@string/save" />
+
+    <item
+        android:id="@+id/macro"
+        android:icon="@drawable/ic_baseline_mouse_36"
+        android:title="@string/macro"
+        android:contentDescription="@string/macro" />
 </menu>

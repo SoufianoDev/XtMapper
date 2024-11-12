@@ -43,6 +43,7 @@ import xtr.keymapper.keymap.KeymapConfig;
 import xtr.keymapper.keymap.KeymapProfile;
 import xtr.keymapper.keymap.KeymapProfileKey;
 import xtr.keymapper.keymap.KeymapProfiles;
+import xtr.keymapper.macro.MacroView;
 import xtr.keymapper.mouse.MouseAimConfig;
 import xtr.keymapper.server.RemoteServiceHelper;
 import xtr.keymapper.swipekey.SwipeKey;
@@ -195,8 +196,18 @@ public class EditorUI extends OnKeyEventListener.Stub {
         }
         else if (id == R.id.mouse_right) {
             addRightClick(defaultX, defaultY);
+        } else if (id == R.id.macro) {
+            addMacro();
         }
     }
+
+    private void addMacro() {
+        MacroView macroView = new MacroView(context, (view, savedState) -> {
+            mainView.removeView(view);
+        });
+        mainView.addView(macroView);
+    }
+
     public interface OnHideListener {
         void onHideView();
         boolean getEvent();
