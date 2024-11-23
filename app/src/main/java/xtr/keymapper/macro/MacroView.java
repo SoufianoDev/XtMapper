@@ -6,6 +6,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.view.InputDevice;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -17,7 +19,7 @@ public class MacroView extends View {
     private final Paint paintOuter;
     private final Paint paintInner;
     private final Path path;
-    private StringBuilder stringBuilder;
+    private final StringBuilder stringBuilder = new StringBuilder();
     private final OnFinishListener onFinishListener;
 
     public MacroView(Context context, OnFinishListener onFinishListener) {
@@ -39,7 +41,6 @@ public class MacroView extends View {
 
         // Set up path
         path = new Path();
-
     }
 
     @Override
@@ -47,6 +48,14 @@ public class MacroView extends View {
         super.onDraw(canvas);
         canvas.drawPath(path, paintOuter);  // Draw the path
         canvas.drawPath(path, paintInner);  // Draw the path
+    }
+
+    public boolean onKey(int keyCode, KeyEvent event) {
+        if (event.getSource() == InputDevice.SOURCE_KEYBOARD) {
+            clearCanvas();
+            onFinishListener.onFinishMacro(this, stringBuilder.toString());
+        }
+        return super.onKeyUp(keyCode, event);
     }
 
     @Override
@@ -57,16 +66,12 @@ public class MacroView extends View {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                stringBuilder = new StringBuilder();
                 path.moveTo(x, y);  // Start new path
             case MotionEvent.ACTION_MOVE:
                 path.lineTo(x, y);  // Draw line to current touch point
                 break;
             case MotionEvent.ACTION_UP:
-                onFinishListener.onFinishMacro(this, stringBuilder.toString());
-                stringBuilder = null;
-                clearCanvas();
-                return true;
+                path.moveTo(x, y);  // Start new path
             default:
                 return false;
         }

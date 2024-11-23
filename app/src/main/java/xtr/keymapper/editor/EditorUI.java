@@ -204,8 +204,10 @@ public class EditorUI extends OnKeyEventListener.Stub {
     private void addMacro() {
         MacroView macroView = new MacroView(context, (view, savedState) -> {
             mainView.removeView(view);
+            mainView.setOnKeyListener(this::onKey);
         });
         mainView.addView(macroView);
+        mainView.setOnKeyListener((v, keyCode, event) -> macroView.onKey(keyCode, event));
     }
 
     public interface OnHideListener {
