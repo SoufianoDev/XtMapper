@@ -107,5 +107,5 @@
     <string name="use_shizuku_for_activation">Use Shizuku for activation?</string>
     <string name="add_games">Add Games</string>
     <string name="macro">Macro</string>
-    <string name="loading">Loading…</string>
+    <string name="loading">"ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…"</string>
 </resources>
