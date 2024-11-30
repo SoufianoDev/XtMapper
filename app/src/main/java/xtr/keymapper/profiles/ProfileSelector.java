@@ -103,7 +103,9 @@ public class ProfileSelector {
     }
 
     public static void showAppSelectionDialog(Context context, OnAppSelectedListener listener) {
-        ProfilesApps appsView = new ProfilesApps(context);
+        ProfilesApps appsView = new ProfilesApps(context).asyncLoadApps((p, adapter) ->
+            p.binding.appsGrid.setAdapter(adapter)
+        );
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
         builder.setView(appsView.view);

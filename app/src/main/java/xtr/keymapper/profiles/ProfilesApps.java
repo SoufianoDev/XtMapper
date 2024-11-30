@@ -5,15 +5,19 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.UiThread;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import xtr.keymapper.databinding.AppViewBinding;
 import xtr.keymapper.databinding.FragmentProfilesAppsBinding;
@@ -24,10 +28,26 @@ public class ProfilesApps {
 
     private ProfileSelector.OnAppSelectedListener mListener;
 
+    interface OnAppsLoadedListener {
+        void onAppsLoaded(ProfilesApps profilesApps, AppsGridAdapter adapter);
+    }
+
 
     public ProfilesApps(Context context){
         view = createView(LayoutInflater.from(context));
-        onViewCreated(view);
+    }
+
+    @UiThread
+    ProfilesApps asyncLoadApps(OnAppsLoadedListener l) {
+        Context context = view.getContext();
+
+        new Thread(() -> {
+            AppsGridAdapter adapter = new AppsGridAdapter(context);
+            Handler mHandler = new Handler(Looper.getMainLooper());
+            mHandler.post(() -> l.onAppsLoaded(ProfilesApps.this, adapter));
+        }).start();
+
+        return this;
     }
 
     public void setListener(ProfileSelector.OnAppSelectedListener mListener) {
@@ -38,13 +58,6 @@ public class ProfilesApps {
         // Inflate the layout for this fragment
         binding = FragmentProfilesAppsBinding.inflate(inflater);
         return binding.getRoot();
-    }
-
-    public void onViewCreated(@NonNull View view) {
-        Context context = view.getContext();
-
-        AppsGridAdapter adapter = new AppsGridAdapter(context);
-        binding.appsGrid.setAdapter(adapter);
     }
 
     public void onDestroyView() {
