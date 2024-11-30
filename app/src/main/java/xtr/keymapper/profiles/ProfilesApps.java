@@ -17,7 +17,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executor;
 
 import xtr.keymapper.databinding.AppViewBinding;
 import xtr.keymapper.databinding.FragmentProfilesAppsBinding;
@@ -38,7 +37,7 @@ public class ProfilesApps {
     }
 
     @UiThread
-    ProfilesApps asyncLoadApps(OnAppsLoadedListener l) {
+    void asyncLoadApps(OnAppsLoadedListener l) {
         Context context = view.getContext();
 
         new Thread(() -> {
@@ -47,7 +46,6 @@ public class ProfilesApps {
             mHandler.post(() -> l.onAppsLoaded(ProfilesApps.this, adapter));
         }).start();
 
-        return this;
     }
 
     public void setListener(ProfileSelector.OnAppSelectedListener mListener) {
