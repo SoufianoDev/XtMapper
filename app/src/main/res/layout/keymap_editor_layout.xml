@@ -8,10 +8,10 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:contentPadding="16dp"
+        app:contentPadding="10dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toggleButtonGroup"
         android:id="@+id/catalog"
         app:cardBackgroundColor="@color/black"
         app:cardCornerRadius="40dp">
@@ -92,10 +92,10 @@
 
     </com.google.android.material.button.MaterialButtonToggleGroup>
 
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:contentPadding="8dp"
+        app:contentPadding="12dp"
         style="?attr/materialCardViewStyle"
         android:id="@+id/sliders"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -155,12 +155,12 @@
                 app:trackHeight="10dp" />
 
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:contentPadding="8dp"
+        app:contentPadding="12dp"
         style="?attr/materialCardViewStyle"
         android:id="@+id/misc"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -294,12 +294,12 @@
         </LinearLayout>
 
 
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 
-    <androidx.cardview.widget.CardView
+    <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:contentPadding="8dp"
+        app:contentPadding="12dp"
         style="?attr/materialCardViewStyle"
         android:id="@+id/shortcuts"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -478,5 +478,5 @@
 
         </LinearLayout>
 
-    </androidx.cardview.widget.CardView>
+    </com.google.android.material.card.MaterialCardView>
 </androidx.constraintlayout.widget.ConstraintLayout>

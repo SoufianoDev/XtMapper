@@ -87,10 +87,9 @@ public class EditorUI extends OnKeyEventListener.Stub {
         layoutInflater = context.getSystemService(LayoutInflater.class);
 
 
-        settingsFragment = new SettingsFragment(context);
+        settingsFragment = new SettingsFragment(context, startMode);
         mainView = settingsFragment.createView(layoutInflater);
 
-        settingsFragment.init(startMode);
         settingsFragment.inflateMenuResource(startMode, layoutInflater);
         settingsFragment.setOnActionSelectedListener(this::onActionSelected);
     }
@@ -285,7 +284,10 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
         // Keyboard keys
         floatingKeysMap.forEach((frameLayout, movableFloatingActionKey) -> linesToWrite.add(movableFloatingActionKey.getData()));
-        swipeKeyList.stream().map(swipeKeyView -> new SwipeKey(swipeKeyView).getData()).forEach(linesToWrite::add);
+        swipeKeyList.stream()
+                .map(SwipeKey::new)
+                .map(SwipeKey::getData)
+                .forEach(linesToWrite::add);
 
         // Save Config
         KeymapProfiles profiles = new KeymapProfiles(context);
@@ -391,7 +393,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
     }
 
     private void addKey(float x, float y) {
-        final KeymapProfileKey key = new KeymapProfileKey();
+        KeymapProfileKey key = new KeymapProfileKey();
         key.code = "KEY_X";
         key.x = x;
         key.y = y;
@@ -528,7 +530,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
         @Override
         public boolean onTouch(View v, MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_MOVE) {
-                resizeView(rootView, (int) event.getX(), (int) event.getY());
+                EditorUI.resizeView(rootView, (int) event.getX(), (int) event.getY());
                 // Resize View from center point
                 if (defaultPivotX > 0) {
                     float newPivotX = rootView.getPivotX() - defaultPivotX;

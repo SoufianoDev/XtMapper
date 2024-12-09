@@ -14,6 +14,7 @@ import android.widget.PopupMenu;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
 
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 
 import java.util.Map;
@@ -33,15 +34,18 @@ public class SettingsFragment {
     private Map<String, Integer> touchpadInputModeMap;
     private final Context context;
     private OnCardItemSelectedListener onCardItemSelectedListener;
+    private final int startMode;
 
-    public SettingsFragment(Context context) {
+    public SettingsFragment(Context context, int startMode) {
         this.context = context;
         keymapConfig = new KeymapConfig(context);
+        this.startMode = startMode;
     }
 
     public ViewGroup createView(@NonNull LayoutInflater inflater) {
         // Inflate the layout for this fragment
         binding = KeymapEditorLayoutBinding.inflate(inflater);
+        init();
         return binding.getRoot();
     }
 
@@ -56,12 +60,14 @@ public class SettingsFragment {
             } else if (checkedId == R.id.button_misc) {
                 binding.misc.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             } else if (checkedId == R.id.button_add) {
-                binding.catalog.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+                if (EditorUI.START_SETTINGS == startMode)
+                    onCardItemSelected(R.id.save);
+                else binding.catalog.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             }
         }
     };
 
-    public void init(int startMode) {
+    public void init() {
         binding.sliderMouse.setValue(keymapConfig.mouseSensitivity);
         binding.sliderScrollSpeed.setValue(keymapConfig.scrollSpeed);
         binding.sliderSwipeDelay.setValue(keymapConfig.swipeDelayMs);
@@ -89,7 +95,7 @@ public class SettingsFragment {
         mouseAimActions();
         loadTouchpadInputSettings();
 
-        final int[] pointerModeCodes = {KeymapConfig.POINTER_COMBINED, KeymapConfig.POINTER_OVERLAY, KeymapConfig.POINTER_SYSTEM};
+        int[] pointerModeCodes = {KeymapConfig.POINTER_COMBINED, KeymapConfig.POINTER_OVERLAY, KeymapConfig.POINTER_SYSTEM};
         String[] pointerModeNames = context.getResources().getStringArray(R.array.pointer_modes);
         pointerModeMap = IntStream.range(0, pointerModeCodes.length)
                 .boxed()
@@ -251,16 +257,14 @@ public class SettingsFragment {
                 }
 
                 KeymapEditorItemBinding itemBinding = KeymapEditorItemBinding.inflate(layoutInflater, parentView, true);
-                itemBinding.imageView.setImageDrawable(menuItem.getIcon());
-                itemBinding.title.setText(menuItem.getTitle());
-                itemBinding.description.setText(menuItem.getContentDescription());
-                itemBinding.getRoot().setOnClickListener(v -> onCardItemSelected(menuItem.getItemId()));
+                MaterialButton button = itemBinding.getRoot();
+                button.setIcon(menuItem.getIcon());
+                button.setText(menuItem.getTitle());
+                button.setContentDescription(menuItem.getContentDescription());
+                button.setOnClickListener(v -> onCardItemSelected(menuItem.getItemId()));
             }
         } else if (startMode == EditorUI.START_SETTINGS) {
-            KeymapEditorItemBinding itemBinding = KeymapEditorItemBinding.inflate(layoutInflater, binding.L1, true);
-            itemBinding.imageView.setImageResource(R.drawable.ic_baseline_done_36);
-            itemBinding.title.setText(R.string.save);
-            itemBinding.getRoot().setOnClickListener(v -> onCardItemSelected(R.id.save));
+            binding.buttonAdd.setIconResource(R.drawable.ic_baseline_done_36);
         }
 
     }
