@@ -33,7 +33,9 @@ public class ProfileSelector {
 
     public static void select(Context context, OnProfileSelectedListener listener, String packageName) {
         context.setTheme(R.style.Theme_XtMapper);
-        ArrayList<String> allProfiles = new ArrayList<>(new KeymapProfiles(context).getAllProfilesForApp(packageName).keySet());
+        ArrayList<String> allProfiles = new ArrayList<>(new KeymapProfiles(context)
+                .getAllProfilesForApp(packageName)
+                .keySet());
 
         if (allProfiles.size() == 1) {
             listener.onProfileSelected(allProfiles.get(0));
@@ -103,22 +105,20 @@ public class ProfileSelector {
     }
 
     public static void showAppSelectionDialog(Context context, OnAppSelectedListener listener) {
-        ProfilesApps appsView = new ProfilesApps(context);
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
-        builder.setView(R.layout.loading);
+        ProfilesApps.asyncLoadAppsAndThen(context, builder,
+                (p, adapter) -> {
+                    p.binding.appsGrid.setAdapter(adapter);
+                    builder.setView(p.appsView);
+                    AlertDialog dialog = showDialog(builder);
 
-        appsView.asyncLoadApps((p, adapter) -> {
-            p.binding.appsGrid.setAdapter(adapter);
-            builder.setView(p.view);
-        });
+                    p.setListener(packageName -> {
+                        listener.onAppSelected(packageName);
+                        p.onDestroyView();
+                        dialog.dismiss();
+                    });
+                });
 
-        AlertDialog dialog = showDialog(builder);
-
-        appsView.setListener(packageName -> {
-            listener.onAppSelected(packageName);
-            appsView.onDestroyView();
-            dialog.dismiss();
-        });
     }
 
     private static AlertDialog showDialog(MaterialAlertDialogBuilder builder) {

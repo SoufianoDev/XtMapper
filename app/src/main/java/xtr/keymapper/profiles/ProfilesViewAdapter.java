@@ -31,7 +31,7 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
     private final ArrayList<RecyclerData> recyclerDataArrayList = new ArrayList<>();
     private final OnItemRemovedListener callback;
     private final ProfileSelectedCallback profileSelectedCallback;
-    private MaterialCardView lastCheckedCard = null;
+    private MaterialCardView lastCheckedCard;
 
     public interface ProfileSelectedCallback {
         void onProfileSelected(String profileName);
@@ -58,8 +58,8 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
      * Initialize the dataset of the Adapter.
      */
     public ProfilesViewAdapter(Context context, OnItemRemovedListener l, ProfileSelectedCallback cb) {
-        this.callback = l;
-        this.profileSelectedCallback = cb;
+        callback = l;
+        profileSelectedCallback = cb;
         if (context == null) return;
         KeymapProfiles keymapProfiles = new KeymapProfiles(context);
         keymapProfiles.sharedPref.registerOnSharedPreferenceChangeListener(this);
@@ -88,14 +88,14 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
 
     // Replace the contents of a view (invoked by the layout manager)
     @Override
-    public void onBindViewHolder(ViewHolder viewHolder, final int position) {
+    public void onBindViewHolder(ViewHolder viewHolder, int position) {
         // Get element from dataset at this position and set the contents of the view
         RecyclerData recyclerData = recyclerDataArrayList.get(position);
         viewHolder.binding.profileName.setText(recyclerData.profileName);
         viewHolder.binding.profileText.setText(recyclerData.description);
         viewHolder.binding.appIcon.setIcon(recyclerData.icon);
 
-        final String profileName = recyclerData.profileName;
+        String profileName = recyclerData.profileName;
 
         Context context = viewHolder.itemView.getContext();
         KeymapProfiles keymapProfiles = new KeymapProfiles(context);
@@ -116,16 +116,19 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
 
         // Show dialog for user to select app for a profile from a grid of apps
         viewHolder.binding.appIcon.setOnClickListener(view -> {
-            ProfilesApps appsView = new ProfilesApps(view.getContext());
-
             MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
-            AlertDialog dialog = builder.setView(appsView.view).show();
+            ProfilesApps.asyncLoadAppsAndThen(context, builder,
+                    (p, adapter) -> {
+                        p.binding.appsGrid.setAdapter(adapter);
+                        builder.setView(p.appsView);
+                        AlertDialog dialog = builder.show();
 
-            appsView.setListener(packageName -> {
-                keymapProfiles.setProfilePackageName(recyclerData.profileName, packageName);
-                appsView.onDestroyView();
-                dialog.dismiss();
-            });
+                        p.setListener(packageName -> {
+                            keymapProfiles.setProfilePackageName(recyclerData.profileName, packageName);
+                            p.onDestroyView();
+                            dialog.dismiss();
+                        });
+                    });
         });
 
         viewHolder.binding.enableSwitch.setChecked(keymapProfiles.isProfileEnabled(recyclerData.profileName));
@@ -146,12 +149,12 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
 
     private static class RecyclerData {
         public RecyclerData(String packageName, Context context, String profileName) {
-            this.description = new KeymapProfiles(context).sharedPref.getStringSet(profileName, new HashSet<>()).toString();
+            description = new KeymapProfiles(context).sharedPref.getStringSet(profileName, new HashSet<>()).toString();
             this.profileName = profileName;
             try {
-                this.icon = context.getPackageManager().getApplicationIcon(packageName);
+                icon = context.getPackageManager().getApplicationIcon(packageName);
             } catch (PackageManager.NameNotFoundException e) {
-                this.icon = AppCompatResources.getDrawable(context, R.mipmap.ic_launcher_foreground);
+                icon = AppCompatResources.getDrawable(context, R.mipmap.ic_launcher_foreground);
             }
         }
 

@@ -15,15 +15,18 @@ import androidx.annotation.NonNull;
 import androidx.annotation.UiThread;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
 import java.util.ArrayList;
 import java.util.List;
 
+import xtr.keymapper.R;
 import xtr.keymapper.databinding.AppViewBinding;
 import xtr.keymapper.databinding.FragmentProfilesAppsBinding;
 
 public class ProfilesApps {
     public FragmentProfilesAppsBinding binding;
-    public final View view;
+    public final View appsView;
 
     private ProfileSelector.OnAppSelectedListener mListener;
 
@@ -32,27 +35,33 @@ public class ProfilesApps {
     }
 
 
-    public ProfilesApps(Context context){
-        view = createView(LayoutInflater.from(context));
+    private ProfilesApps(Context context){
+        appsView = createView(LayoutInflater.from(context));
     }
 
     @UiThread
     void asyncLoadApps(OnAppsLoadedListener l) {
-        Context context = view.getContext();
+        Context context = appsView.getContext();
 
         new Thread(() -> {
             AppsGridAdapter adapter = new AppsGridAdapter(context);
             Handler mHandler = new Handler(Looper.getMainLooper());
-            mHandler.post(() -> l.onAppsLoaded(ProfilesApps.this, adapter));
+            mHandler.post(() -> l.onAppsLoaded(this, adapter));
         }).start();
 
+    }
+
+    public static void asyncLoadAppsAndThen(Context context, MaterialAlertDialogBuilder builder, OnAppsLoadedListener onAppsLoadedListener) {
+        builder.setView(R.layout.loading);
+        ProfilesApps mProfilesApps = new ProfilesApps(context);
+        mProfilesApps.asyncLoadApps(onAppsLoadedListener);
     }
 
     public void setListener(ProfileSelector.OnAppSelectedListener mListener) {
         this.mListener = mListener;
     }
 
-    public View createView(@NonNull LayoutInflater inflater) {
+    View createView(@NonNull LayoutInflater inflater) {
         // Inflate the layout for this fragment
         binding = FragmentProfilesAppsBinding.inflate(inflater);
         return binding.getRoot();
