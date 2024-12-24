@@ -37,12 +37,16 @@ To share your thoughts on XtMapper/ ask any questions please create a post at ht
 
 ## Using on waydroid
 https://xtr126.github.io/XtMapper-docs/waydroid
-
 ## Credits
 @guobao2333 - [Chinese translation](https://github.com/Xtr126/XtMapper/pull/101)  
 @muhammadbahaa2001 - [Arabic translation](https://github.com/Xtr126/XtMapper/pull/106)  
 @KSMaan45 - [Punjabi translation](https://github.com/Xtr126/XtMapper/pull/109)  
-I would like to thank everyone not mentioned here who took their time reporting bugs in time and making suggestions.
+
+
+Help us translate on [Crowdin](https://crowdin.com/project/xtmapper/) or GitHub  
+
+
+And everyone else not mentioned here who took their time reporting bugs and making suggestions.
 
 Open source libraries used:
 - [Starlight](https://github.com/withastro/starlight) - Documentation framework  
