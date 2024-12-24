@@ -21,11 +21,11 @@
             android:id="@+id/import_export_button"
             android:layout_width="match_parent"
             android:layout_height="80dp"
+            android:textSize="16sp"
             android:layout_marginVertical="4dp"
-            android:drawablePadding="110dp"
             android:text="@string/import_export"
             app:icon="@android:drawable/stat_notify_sync"
-            app:iconSize="24dp" />
+            app:iconSize="28dp" />
 
         <com.google.android.material.button.MaterialButton
             style="@style/Widget.Material3.Button.ElevatedButton"
@@ -33,16 +33,17 @@
             android:layout_width="match_parent"
             android:layout_height="80dp"
             android:layout_marginVertical="4dp"
-            android:drawablePadding="110dp"
+            android:textSize="16sp"
             android:text="@string/edit_keymap"
             app:icon="@drawable/ic_create_white_36dp"
-            app:iconSize="24dp" />
+            app:iconSize="28dp" />
 
         <com.google.android.material.button.MaterialButton
             style="@style/Widget.Material3.Button.ElevatedButton"
             android:id="@+id/launch_app"
             android:layout_width="match_parent"
             android:layout_height="80dp"
+            android:textSize="16sp"
             android:layout_marginVertical="4dp"
             android:text="@string/launch_app"
             app:icon="@drawable/ic_start_button"
@@ -66,19 +67,21 @@
             android:layout_width="match_parent"
             android:layout_height="80dp"
             android:layout_marginVertical="4dp"
+            android:textSize="16sp"
             android:text="@string/configure"
             app:icon="@drawable/ic_baseline_settings_24"
-            app:iconSize="26dp" />
+            app:iconSize="28dp" />
 
         <com.google.android.material.button.MaterialButton
             style="@style/Widget.Material3.Button.ElevatedButton"
             android:id="@+id/start_pointer"
             android:layout_width="match_parent"
             android:layout_height="80dp"
+            android:textSize="16sp"
             android:layout_marginVertical="4dp"
             android:text="@string/start"
             app:icon="@drawable/ic_pointer_arrow"
-            app:iconSize="24dp"/>
+            app:iconSize="26dp"/>
 
         <com.google.android.material.button.MaterialButton
             style="@style/Widget.Material3.Button.ElevatedButton"
@@ -86,9 +89,10 @@
             android:layout_width="match_parent"
             android:layout_height="80dp"
             android:layout_marginVertical="4dp"
+            android:textSize="16sp"
             android:text="@string/help"
             app:icon="@drawable/ic_baseline_help_outline_24"
-            app:iconSize="30dp" />
+            app:iconSize="32dp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
