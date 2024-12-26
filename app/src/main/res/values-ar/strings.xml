@@ -109,4 +109,5 @@
     <string name="add_games">Add Games</string>
     <string name="macro">Macro</string>
     <string name="loading">"جارٍ التحميل…"</string>
+    <string name="camera">Camera</string>
 </resources>
