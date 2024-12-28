@@ -33,6 +33,9 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
     private final ProfileSelectedCallback profileSelectedCallback;
     private MaterialCardView lastCheckedCard;
 
+    /**
+     * Interface to MainActivity for notifying when a profile is selected by user
+     */
     public interface ProfileSelectedCallback {
         void onProfileSelected(String profileName);
     }
@@ -62,8 +65,10 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
         profileSelectedCallback = cb;
         if (context == null) return;
         KeymapProfiles keymapProfiles = new KeymapProfiles(context);
+        // Reset the adapter and load data again after sharedPreferences change
         keymapProfiles.sharedPref.registerOnSharedPreferenceChangeListener(this);
 
+        // Add items to adapter for all saved keymap profiles
         new KeymapProfiles(context).getAllProfiles().forEach((profileName, profile) -> {
             if(profileName != null)
                 recyclerDataArrayList.add(new RecyclerData(profile.packageName, context, profileName));
@@ -86,7 +91,13 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
         return new ViewHolder(itemBinding);
     }
 
-    // Replace the contents of a view (invoked by the layout manager)
+    /**
+     * @param viewHolder The ViewHolder which should be updated to represent the contents of the
+     *                   item at the given position in the data set.
+     * @param position   The position of the item within the adapter's data set.
+     *
+     * Setting up the CardView showing information about the profile and action buttons
+     */
     @Override
     public void onBindViewHolder(ViewHolder viewHolder, int position) {
         // Get element from dataset at this position and set the contents of the view
@@ -133,6 +144,8 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
 
         viewHolder.binding.enableSwitch.setChecked(keymapProfiles.isProfileEnabled(recyclerData.profileName));
         viewHolder.binding.enableSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> keymapProfiles.setProfileEnabled(recyclerData.profileName, isChecked));
+
+        // Make CardView selectable by user, one at a time
         viewHolder.binding.card.setOnClickListener(v -> {
             if (lastCheckedCard != null) lastCheckedCard.setChecked(false);
             viewHolder.binding.card.setChecked(true);
@@ -147,6 +160,9 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
         return recyclerDataArrayList.size();
     }
 
+    /**
+     * Data class to store package name, icon of the app and the contents of the profile as text
+     */
     private static class RecyclerData {
         public RecyclerData(String packageName, Context context, String profileName) {
             description = new KeymapProfiles(context).sharedPref.getStringSet(profileName, new HashSet<>()).toString();
