@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.UiThread;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -30,31 +31,40 @@ public class ProfilesApps {
 
     private ProfileSelector.OnAppSelectedListener mListener;
 
-    interface OnAppsLoadedListener {
-        void onAppsLoaded(ProfilesApps profilesApps, AppsGridAdapter adapter);
-    }
-
 
     private ProfilesApps(Context context){
         appsView = createView(LayoutInflater.from(context));
     }
 
+    interface OnAppsLoadedListener {
+        void onAppsLoaded(ProfilesApps profilesApps, AppsGridAdapter adapter, AlertDialog dialog);
+    }
+
+    /**
+     * Loading apps is a time consuming process on slow devices with a large number of apps.
+     * We show a visual loading indicator while loading the apps in a separate thread
+     * @param context UI context
+     * @param builder builder for creating a dialog with visual loading indicator and showing
+     * @param onAppsLoadedListener Called when finished loading apps
+     */
     @UiThread
-    void asyncLoadApps(OnAppsLoadedListener l) {
+    public static void asyncLoadAppsAndThen(Context context, MaterialAlertDialogBuilder builder, OnAppsLoadedListener onAppsLoadedListener) {
+        builder.setView(R.layout.loading);
+        AlertDialog dialog = ProfileSelector.showDialog(builder);
+        ProfilesApps mProfilesApps = new ProfilesApps(context);
+        mProfilesApps.asyncLoadApps(onAppsLoadedListener, dialog);
+    }
+
+    @UiThread
+    void asyncLoadApps(OnAppsLoadedListener l, AlertDialog dialog) {
         Context context = appsView.getContext();
 
         new Thread(() -> {
             AppsGridAdapter adapter = new AppsGridAdapter(context);
             Handler mHandler = new Handler(Looper.getMainLooper());
-            mHandler.post(() -> l.onAppsLoaded(this, adapter));
+            mHandler.post(() -> l.onAppsLoaded(this, adapter, dialog));
         }).start();
 
-    }
-
-    public static void asyncLoadAppsAndThen(Context context, MaterialAlertDialogBuilder builder, OnAppsLoadedListener onAppsLoadedListener) {
-        builder.setView(R.layout.loading);
-        ProfilesApps mProfilesApps = new ProfilesApps(context);
-        mProfilesApps.asyncLoadApps(onAppsLoadedListener);
     }
 
     public void setListener(ProfileSelector.OnAppSelectedListener mListener) {

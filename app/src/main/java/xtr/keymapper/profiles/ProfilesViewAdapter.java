@@ -125,14 +125,13 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
                     .show();
         });
 
-        // Show dialog for user to select app for a profile from a grid of apps
+        // Show dialog for user to select app for a profile from a list of apps
         viewHolder.binding.appIcon.setOnClickListener(view -> {
             MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
             ProfilesApps.asyncLoadAppsAndThen(context, builder,
-                    (p, adapter) -> {
+                    (p, adapter, dialog) -> {
                         p.binding.appsGrid.setAdapter(adapter);
-                        builder.setView(p.appsView);
-                        AlertDialog dialog = builder.show();
+                        dialog.setView(p.appsView);
 
                         p.setListener(packageName -> {
                             keymapProfiles.setProfilePackageName(recyclerData.profileName, packageName);

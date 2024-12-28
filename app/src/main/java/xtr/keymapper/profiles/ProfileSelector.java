@@ -104,13 +104,13 @@ public class ProfileSelector {
         showDialog(builder);
     }
 
+    // Show a dialog with a list of apps and callback when an app is selected
     public static void showAppSelectionDialog(Context context, OnAppSelectedListener listener) {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
         ProfilesApps.asyncLoadAppsAndThen(context, builder,
-                (p, adapter) -> {
+                (p, adapter, dialog) -> {
                     p.binding.appsGrid.setAdapter(adapter);
-                    builder.setView(p.appsView);
-                    AlertDialog dialog = showDialog(builder);
+                    dialog.setView(p.appsView);
 
                     p.setListener(packageName -> {
                         listener.onAppSelected(packageName);
@@ -121,7 +121,7 @@ public class ProfileSelector {
 
     }
 
-    private static AlertDialog showDialog(MaterialAlertDialogBuilder builder) {
+    protected static AlertDialog showDialog(MaterialAlertDialogBuilder builder) {
         AlertDialog dialog = builder.create();
         if (Settings.canDrawOverlays(dialog.getContext()))
             dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
