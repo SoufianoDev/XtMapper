@@ -72,6 +72,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
     private MovableFrameLayout dpadUdlr;
     private final SettingsFragment settingsFragment;
     private final ViewGroup mainView;
+    private final ViewGroup keysContainerView;
     public static final int START_SETTINGS = 0;
     public static final int START_EDITOR = 1;
 
@@ -89,6 +90,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
         settingsFragment = new SettingsFragment(context, startMode);
         mainView = settingsFragment.createView(layoutInflater);
+        keysContainerView = settingsFragment.binding.keyContainer;
 
         settingsFragment.inflateMenuResource(startMode, layoutInflater);
         settingsFragment.setOnActionSelectedListener(this::onActionSelected);
@@ -156,7 +158,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
 
     /**
-     * Called when a CardView has been clicked.
+     * Called when a button in catalog has been clicked.
      *
      * @param id the relevant id of the menu item for the card.
      */
@@ -202,11 +204,11 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
     private void addMacro() {
         MacroView macroView = new MacroView(context, (view, savedState) -> {
-            mainView.removeView(view);
-            mainView.setOnKeyListener(this::onKey);
+            keysContainerView.removeView(view);
+            keysContainerView.setOnKeyListener(this::onKey);
         });
-        mainView.addView(macroView);
-        mainView.setOnKeyListener((v, keyCode, event) -> macroView.onKey(keyCode, event));
+        keysContainerView.addView(macroView);
+        keysContainerView.setOnKeyListener((v, keyCode, event) -> macroView.onKey(keyCode, event));
     }
 
     public interface OnHideListener {
@@ -218,7 +220,8 @@ public class EditorUI extends OnKeyEventListener.Stub {
     public void hideView() {
         saveKeymap();
         settingsFragment.onDestroyView();
-        removeView(mainView);
+        removeView(keysContainerView);
+        removeView(keysContainerView);
         if (onHideListener != null) onHideListener.onHideView();
         else RemoteServiceHelper.reloadKeymap(context);
     }
@@ -234,7 +237,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
         // Add Keyboard keys as Views
         profile.keys.forEach(this::addKey);
         profile.swipeKeys.forEach(swipeKey -> {
-            SwipeKeyView swipeKeyView = new SwipeKeyView(mainView, swipeKey, this::removeSwipeKey, this::onSwipeKeyClick);
+            SwipeKeyView swipeKeyView = new SwipeKeyView(keysContainerView, swipeKey, this::removeSwipeKey, this::onSwipeKeyClick);
             swipeKeyList.add(swipeKeyView);
             swipeKeyViewMap.put(swipeKeyView.button1.frameView, swipeKeyView.button1);
             swipeKeyViewMap.put(swipeKeyView.button2.frameView, swipeKeyView.button2);
@@ -313,11 +316,11 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
     private void addArrowKeysDpad(float x, float y) {
         if (dpadUdlr == null) {
-            DpadArrowsBinding binding = DpadArrowsBinding.inflate(layoutInflater, mainView, true);
+            DpadArrowsBinding binding = DpadArrowsBinding.inflate(layoutInflater, keysContainerView, true);
             dpadUdlr = binding.getRoot();
 
             binding.closeButton.setOnClickListener(v -> {
-                mainView.removeView(dpadUdlr);
+                keysContainerView.removeView(dpadUdlr);
                 dpadUdlr = null;
             });
             binding.resizeHandle.setOnTouchListener(new ResizeableDpadView(dpadUdlr));
@@ -327,11 +330,11 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
     private void addDpad(int i, float x, float y) {
         if (dpadArray[i] == null) {
-            dpadBindingArray[i] = DpadBinding.inflate(layoutInflater, mainView, true);
+            dpadBindingArray[i] = DpadBinding.inflate(layoutInflater, keysContainerView, true);
             dpadArray[i] = dpadBindingArray[i].getRoot();
 
             dpadBindingArray[i].closeButton.setOnClickListener(v -> {
-                mainView.removeView(dpadArray[i]);
+                keysContainerView.removeView(dpadArray[i]);
                 dpadArray[i] = null;
             });
             dpadBindingArray[i].resizeHandle.setOnTouchListener(new ResizeableDpadView(dpadArray[i]));
@@ -369,7 +372,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
     private void addKey(KeymapProfileKey key) {
         MovableFloatingActionKey floatingKey = new MovableFloatingActionKey(context, key1 -> {
             floatingKeysMap.remove(key1.frameView);
-            mainView.removeView(key1.frameView);
+            keysContainerView.removeView(key1.frameView);
         });
 
         floatingKey.setText(key.code.substring(4));
@@ -380,7 +383,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
                 .start();
         floatingKey.setOnClickListener(this::onFloatingKeyClick);
 
-        mainView.addView(floatingKey.frameView);
+        keysContainerView.addView(floatingKey.frameView);
         floatingKeysMap.put(floatingKey.frameView, floatingKey);
     }
 
@@ -432,11 +435,11 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
     private void addCrosshair(float x, float y) {
         if (crosshair == null) {
-            CrosshairBinding binding = CrosshairBinding.inflate(layoutInflater, mainView, true);
+            CrosshairBinding binding = CrosshairBinding.inflate(layoutInflater, keysContainerView, true);
             crosshair = binding.getRoot();
 
             binding.closeButton.setOnClickListener(v -> {
-                mainView.removeView(crosshair);
+                keysContainerView.removeView(crosshair);
                 crosshair = null;
             });
             binding.expandButton.setOnClickListener(v -> {
@@ -473,7 +476,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
             leftClick = new MovableFloatingActionKey(context);
             leftClick.frameView.setBackgroundResource(R.drawable.ic_baseline_mouse_36);
             leftClick.setText(R.string.left_click);
-            mainView.addView(leftClick.frameView);
+            keysContainerView.addView(leftClick.frameView);
         }
         leftClick.frameView.animate().x(x).y(y)
                 .setDuration(500)
@@ -483,12 +486,12 @@ public class EditorUI extends OnKeyEventListener.Stub {
     private void addRightClick(float x, float y) {
         if (rightClick == null) {
             rightClick = new MovableFloatingActionKey(context, key -> {
-                mainView.removeView(rightClick.frameView);
+                keysContainerView.removeView(rightClick.frameView);
                 rightClick = null;
             });
             rightClick.frameView.setBackgroundResource(R.drawable.ic_baseline_mouse_36);
             rightClick.setText(R.string.right_click);
-            mainView.addView(rightClick.frameView);
+            keysContainerView.addView(rightClick.frameView);
         }
         rightClick.frameView.animate().x(x).y(y)
                 .setDuration(500)
@@ -496,7 +499,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
     }
 
     private void addSwipeKey() {
-        SwipeKeyView swipeKeyView = new SwipeKeyView(mainView, swipeKeyViewMap::remove, this::onSwipeKeyClick);
+        SwipeKeyView swipeKeyView = new SwipeKeyView(keysContainerView, swipeKeyViewMap::remove, this::onSwipeKeyClick);
         swipeKeyList.add(swipeKeyView);
         swipeKeyViewMap.put(swipeKeyView.button1.frameView, swipeKeyView.button1);
         swipeKeyViewMap.put(swipeKeyView.button2.frameView, swipeKeyView.button2);
@@ -515,7 +518,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
 
         @SuppressLint("ClickableViewAccessibility")
         public ResizableArea(){
-            ResizableBinding binding1 = ResizableBinding.inflate(layoutInflater, mainView, true);
+            ResizableBinding binding1 = ResizableBinding.inflate(layoutInflater, keysContainerView, true);
             rootView = binding1.getRoot();
             binding1.dragHandle.setOnTouchListener(this);
             binding1.saveButton.setOnClickListener(this);
@@ -553,7 +556,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
             profile.mouseAimConfig.width = rootView.getPivotX();
             profile.mouseAimConfig.height = rootView.getPivotY();
 
-            mainView.removeView(rootView);
+            keysContainerView.removeView(rootView);
             rootView.invalidate();
         }
         private void moveView(){

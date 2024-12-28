@@ -29,7 +29,7 @@ import xtr.keymapper.keymap.KeymapConfig;
 
 public class SettingsFragment {
     private final KeymapConfig keymapConfig;
-    private KeymapEditorLayoutBinding binding;
+    protected KeymapEditorLayoutBinding binding;
     private Map<String, Integer> pointerModeMap;
     private Map<String, Integer> touchpadInputModeMap;
     private final Context context;
