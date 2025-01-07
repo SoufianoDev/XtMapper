@@ -51,6 +51,8 @@
             android:name=".editor.EditorActivity"
             android:exported="true"
             android:excludeFromRecents="true"
+            android:resizeableActivity="false"
+            android:launchMode="singleInstance"
             android:theme="@style/Theme.XtMapper.EditorUI">
         </activity>
 
