@@ -20,7 +20,7 @@ import xtr.keymapper.activity.MainActivity;
 import xtr.keymapper.keymap.KeymapConfig;
 import xtr.keymapper.server.RemoteServiceHelper;
 
-public class EditorActivity extends Activity implements EditorUI.OnHideListener {
+public class EditorActivity extends Activity implements EditorCallback {
     public static final String PROFILE_NAME = "profile";
     private EditorUI editor;
     private IRemoteService mService;

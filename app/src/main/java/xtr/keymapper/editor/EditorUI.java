@@ -43,6 +43,7 @@ import xtr.keymapper.keymap.KeymapConfig;
 import xtr.keymapper.keymap.KeymapProfile;
 import xtr.keymapper.keymap.KeymapProfileKey;
 import xtr.keymapper.keymap.KeymapProfiles;
+import xtr.keymapper.macro.MacroStatus;
 import xtr.keymapper.macro.MacroView;
 import xtr.keymapper.mouse.MouseAimConfig;
 import xtr.keymapper.server.RemoteServiceHelper;
@@ -64,7 +65,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
     private final MovableFrameLayout[] dpadArray = new MovableFrameLayout[MAX_DPADS];
     private final DpadBinding[] dpadBindingArray = new DpadBinding[MAX_DPADS];
     private final Context context;
-    private final OnHideListener onHideListener;
+    private final EditorCallback editorCallback;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final String profileName;
     private KeymapProfile profile;
@@ -80,13 +81,12 @@ public class EditorUI extends OnKeyEventListener.Stub {
         void setText(String key);
     }
 
-    public EditorUI (Context context, OnHideListener onHideListener, String profileName, int startMode) {
+    public EditorUI (Context context, EditorCallback editorCallback, String profileName, int startMode) {
         this.context = context;
-        this.onHideListener = onHideListener;
+        this.editorCallback = editorCallback;
         this.profileName = profileName;
 
         layoutInflater = context.getSystemService(LayoutInflater.class);
-
 
         settingsFragment = new SettingsFragment(context, startMode);
         mainView = settingsFragment.createView(layoutInflater);
@@ -107,7 +107,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
                     ((Activity)context).addContentView(mainView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             }
 
-        if (onHideListener != null && !onHideListener.getEvent()) {
+        if (editorCallback != null && !editorCallback.getEvent()) {
             mainView.setOnKeyListener(this::onKey);
             mainView.setFocusable(true);
         }
@@ -129,6 +129,10 @@ public class EditorUI extends OnKeyEventListener.Stub {
         overlayOpen = true;
     }
 
+    /**
+     * For events received by view
+     * @return true if we consume the event
+     */
     public boolean onKey(View v, int keyCode, KeyEvent event) {
         if (keyInFocus != null) {
             String key = String.valueOf(event.getDisplayLabel());
@@ -140,6 +144,10 @@ public class EditorUI extends OnKeyEventListener.Stub {
         return false;
     }
 
+    /**
+     * For key events received from getevent running in remote process
+     * @param event A line of output from getevent -ql
+     */
     @Override
     public void onKeyEvent(String event) {
         // line: /dev/input/event3 EV_KEY KEY_X DOWN
@@ -239,8 +247,7 @@ public class EditorUI extends OnKeyEventListener.Stub {
         saveKeymap();
         settingsFragment.onDestroyView();
         removeView(keysContainerView);
-        removeView(keysContainerView);
-        if (onHideListener != null) onHideListener.onHideView();
+        if (editorCallback != null) editorCallback.onHideView();
         else RemoteServiceHelper.reloadKeymap(context);
     }
 

@@ -16,7 +16,7 @@ import xtr.keymapper.server.RemoteServiceHelper;
 public class EditorService extends Service {
     private EditorUI editor;
 
-    private final EditorUI.OnHideListener onHideListener = new EditorUI.OnHideListener() {
+    private final EditorCallback editorCallback = new EditorCallback() {
         @Override
         public void onHideView() {
             RemoteServiceHelper.getInstance(EditorService.this, service -> {
@@ -50,7 +50,7 @@ public class EditorService extends Service {
         KeymapConfig keymapConfig = new KeymapConfig(this);
         if (keymapConfig.editorOverlay) {
             Context context = new ContextThemeWrapper(EditorService.this, R.style.Theme_XtMapper);
-            editor = new EditorUI(context, onHideListener, selectedProfile, EditorUI.START_EDITOR);
+            editor = new EditorUI(context, editorCallback, selectedProfile, EditorUI.START_EDITOR);
 
             RemoteServiceHelper.getInstance(EditorService.this, remoteService -> {
                 try {
