@@ -59,10 +59,18 @@ public class MainActivity extends AppCompatActivity implements ProfilesViewAdapt
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        // User has enabled shizuku or not
         KeymapConfig keymapConfig = new KeymapConfig(this);
         RemoteServiceHelper.useShizuku = keymapConfig.useShizuku;
         Server.setupServer(this, mCallback);
 
+        /*
+        * If user has not enabled shizuku from settings
+        * Then Check for root access
+        *   - if root access is granted then auto-start
+        *   - if root access is not granted check if shizuku app is installed and prompt user to enable shizuku
+        * Or if user has enabled shizuku then check shizuku permission
+        */
         if(!RemoteServiceHelper.useShizuku) {
             Shell.getShell(shell -> {
                 RemoteServiceHelper.getInstance(this, null);
@@ -79,8 +87,10 @@ public class MainActivity extends AppCompatActivity implements ProfilesViewAdapt
         } else if (!(Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED)) {
              alertShizukuNotAuthorized();
         }
+
         setupButtons();
 
+        // Check for if this activity was started with am shell command
         String data = getIntent().getStringExtra("data");
         if (data != null) {
             if (data.equals(SHELL_INIT)) {
@@ -125,6 +135,7 @@ public class MainActivity extends AppCompatActivity implements ProfilesViewAdapt
     public void startPointer(){
         stopped = false;
         checkOverlayPermission(this);
+        // Start service with selected profile if display on top permission is granted
         if(Settings.canDrawOverlays(this)) {
             Intent intent = new Intent(this, TouchPointer.class);
             intent.putExtra(EditorActivity.PROFILE_NAME, selectedProfileName);
@@ -184,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements ProfilesViewAdapt
 
     public static void checkOverlayPermission(Context context){
         if (!Settings.canDrawOverlays(context)) {
-            // send user to the device settings
+            // Send user to the device settings
             Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
             context.startActivity(intent);
         }
