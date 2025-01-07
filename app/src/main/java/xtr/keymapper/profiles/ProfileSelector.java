@@ -108,9 +108,10 @@ public class ProfileSelector {
     public static void showAppSelectionDialog(Context context, OnAppSelectedListener listener) {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
         ProfilesApps.asyncLoadAppsAndThen(context, builder,
-                (p, adapter, dialog) -> {
+                (p, adapter, loadingDialog) -> {
                     p.binding.appsGrid.setAdapter(adapter);
-                    dialog.setView(p.appsView);
+                    loadingDialog.dismiss();
+                    AlertDialog dialog = builder.setView(p.appsView).show();
 
                     p.setListener(packageName -> {
                         listener.onAppSelected(packageName);

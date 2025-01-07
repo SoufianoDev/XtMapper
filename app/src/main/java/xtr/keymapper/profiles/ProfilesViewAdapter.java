@@ -92,10 +92,8 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
     }
 
     /**
-     * @param viewHolder The ViewHolder which should be updated to represent the contents of the
-     *                   item at the given position in the data set.
+     * @param viewHolder The ViewHolder which should be updated to represent the contents of the item at the given position in the data set.
      * @param position   The position of the item within the adapter's data set.
-     *
      * Setting up the CardView showing information about the profile and action buttons
      */
     @Override
@@ -129,10 +127,15 @@ public class ProfilesViewAdapter extends RecyclerView.Adapter<ProfilesViewAdapte
         viewHolder.binding.appIcon.setOnClickListener(view -> {
             MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
             ProfilesApps.asyncLoadAppsAndThen(context, builder,
-                    (p, adapter, dialog) -> {
-                        p.binding.appsGrid.setAdapter(adapter);
-                        dialog.setView(p.appsView);
+                    (p, adapter, loadingDialog) -> {
+                        loadingDialog.dismiss();
 
+                        // Finished loading apps
+                        p.binding.appsGrid.setAdapter(adapter);
+
+                        AlertDialog dialog = builder.setView(p.appsView).show();
+
+                        // Change associated app of profile
                         p.setListener(packageName -> {
                             keymapProfiles.setProfilePackageName(recyclerData.profileName, packageName);
                             p.onDestroyView();
