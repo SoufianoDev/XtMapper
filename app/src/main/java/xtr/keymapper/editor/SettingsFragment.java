@@ -269,6 +269,18 @@ public class SettingsFragment {
 
     }
 
+    void hideButtons() {
+        binding.L3.setVisibility(View.GONE);
+        binding.L2.setVisibility(View.GONE);
+        binding.L1.setVisibility(View.GONE);
+    }
+
+    void unHideButtons() {
+        binding.L3.setVisibility(View.VISIBLE);
+        binding.L2.setVisibility(View.VISIBLE);
+        binding.L1.setVisibility(View.VISIBLE);
+    }
+
     private void onCardItemSelected(int itemId) {
         if (onCardItemSelectedListener != null)
             onCardItemSelectedListener.onActionSelected(itemId);

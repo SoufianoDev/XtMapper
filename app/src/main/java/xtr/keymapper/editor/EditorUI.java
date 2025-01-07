@@ -202,19 +202,37 @@ public class EditorUI extends OnKeyEventListener.Stub {
         }
     }
 
+    /**
+     * MacroStatus for displaying elapsed time
+     * Stop when receiving any keyboard input from User
+     * MacroView for visualization
+     */
     private void addMacro() {
-        MacroView macroView = new MacroView(context, (view, savedState) -> {
-            keysContainerView.removeView(view);
-            keysContainerView.setOnKeyListener(this::onKey);
+
+        if (editorCallback != null && editorCallback.getEvent()) {
+            mainView.setFocusable(true);
+        }
+        MacroStatus macroStatus = new MacroStatus(context, settingsFragment.binding.catalog);
+        MacroView macroView = new MacroView(context, (macroView1, savedState) -> {
+            // Stop counting time in stopwatch
+            macroStatus.stop();
+
+            // Remove the macro view with visualization
+            keysContainerView.removeView(macroView1);
+            macroView1.invalidate();
+
+            // Redirect keyboard input
+            mainView.setOnKeyListener(EditorUI.this::onKey);
+            settingsFragment.unHideButtons();
+            if (editorCallback != null && !editorCallback.getEvent()) mainView.setFocusable(false);
         });
+        // Hide existing buttons in catalog and show after finish
+        settingsFragment.hideButtons();
+        macroStatus.start();
+
         keysContainerView.addView(macroView);
-        keysContainerView.setOnKeyListener((v, keyCode, event) -> macroView.onKey(keyCode, event));
-    }
-
-    public interface OnHideListener {
-        void onHideView();
-        boolean getEvent();
-
+        // Redirect keyboard input
+        mainView.setOnKeyListener((v, keyCode, event) -> macroView.onKey(event));
     }
 
     public void hideView() {

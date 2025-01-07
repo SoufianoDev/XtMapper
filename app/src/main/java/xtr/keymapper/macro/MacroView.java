@@ -13,6 +13,9 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 
+/**
+ * Custom View for visualization
+ */
 public class MacroView extends View {
 
     private static final char DELIMITER = ',';
@@ -50,12 +53,13 @@ public class MacroView extends View {
         canvas.drawPath(path, paintInner);  // Draw the path
     }
 
-    public boolean onKey(int keyCode, KeyEvent event) {
+    public boolean onKey(KeyEvent event) {
         if (event.getSource() == InputDevice.SOURCE_KEYBOARD) {
             clearCanvas();
             onFinishListener.onFinishMacro(this, stringBuilder.toString());
+            return true;
         }
-        return super.onKeyUp(keyCode, event);
+        return false;
     }
 
     @Override
@@ -96,6 +100,10 @@ public class MacroView extends View {
 
 
     public interface OnFinishListener {
+        /**
+         * @param macroView View with the macro visuals
+         * @param savedState Log with events recorded in macro
+         */
         void onFinishMacro(MacroView macroView, String savedState);
     }
 }
