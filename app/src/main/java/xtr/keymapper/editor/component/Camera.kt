@@ -65,7 +65,7 @@ class Camera(callback: EditorUiComponentCallback, context: Context, x: Float, y:
 
         // SoufianoDev: Load Current Values Into Configuration UI
         with(binding) {
-            key.setText(currentCamera.triggerKeyCode.toString())
+            key.setText(currentCamera.triggerKeyCode)
             toggleSwitch.isChecked = currentCamera.toggle
             sliderXSensitivity.value = currentCamera.xSensitivity
             sliderYSensitivity.value = currentCamera.ySensitivity

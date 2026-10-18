@@ -35,10 +35,7 @@ jobs:
       - name: Build debug APK
         run: ./gradlew --no-daemon :app:assembleDebug
 
-      # Known pre-existing lint errors (EditorService MissingSuperCall, unconstrained
-      # camera/crosshair layouts, EditorUI WrongConstant) — reported, never blocking
-      - name: Lint (non-blocking, pre-existing failures)
-        continue-on-error: true
+      - name: Lint
         run: ./gradlew --no-daemon :app:lintDebug
 
       - name: Upload test reports

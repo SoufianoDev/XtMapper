@@ -62,14 +62,14 @@ internal class EditorUiComponentList : ArrayList<EditorUiComponent>() {
         // SoufianoDev: Batch Load Physical Keys Into The UI Editor Space.
         fun addKeys(keys: ArrayList<xtr.keymapper.keymap.element.Key>) {
             keys.forEach { key ->
-                if (key != null) add(Key(mCallback, context, key))
+                add(Key(mCallback, context, key))
             }
         }
 
         // SoufianoDev: Batch Load Swipe Gestures Into The UI Editor Space.
         fun addSwipeKeys(swipeKeys: ArrayList<xtr.keymapper.keymap.element.SwipeKey>) {
             swipeKeys.forEach { swipeKey ->
-                if (swipeKey != null) add(SwipeKey(mCallback, context, swipeKey))
+                add(SwipeKey(mCallback, context, swipeKey))
             }
         }
 

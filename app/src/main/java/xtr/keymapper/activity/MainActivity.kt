@@ -145,9 +145,9 @@ class MainActivity : AppCompatActivity() {
         val remoteServiceCallback = object : RemoteServiceHelper.RootRemoteServiceCallback {
             var editorUi: EditorUI? = EditorUI(context, { editorUi = null }, null, EditorUI.START_SETTINGS, null)
 
-            override fun onConnection(remoteService: IRemoteService?) {
-                if (remoteService != null && editorUi != null) try {
-                    editorUi!!.registerOnKeyEventListener(remoteService)
+            override fun onConnection(service: IRemoteService?) {
+                if (service != null && editorUi != null) try {
+                    editorUi!!.registerOnKeyEventListener(service)
                 } catch (e: RemoteException) {
                     Log.e("MainActivity", e.message, e)
                     editorUi!!.unregisterOnKeyEventListener()
