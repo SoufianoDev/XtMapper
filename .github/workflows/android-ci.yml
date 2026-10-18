@@ -1,0 +1,70 @@
+name: Android CI
+
+on:
+  push:
+    branches:
+      - unit-tests
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Run unit tests
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
+      - name: Build debug APK
+        run: ./gradlew --no-daemon :app:assembleDebug
+
+      # Known pre-existing lint errors (EditorService MissingSuperCall, unconstrained
+      # camera/crosshair layouts, EditorUI WrongConstant) — reported, never blocking
+      - name: Lint (non-blocking, pre-existing failures)
+        continue-on-error: true
+        run: ./gradlew --no-daemon :app:lintDebug
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            app/build/reports/tests
+            app/build/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7
