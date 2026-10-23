@@ -105,7 +105,6 @@ private fun KeymapperApp(
     onImportProfiles: () -> Unit = {},
     onToggleOverlay: () -> Unit = {},
     onSettings: () -> Unit = {},
-    onLogFolder: () -> Unit = {},
 ) {
     val currentState = state.value
 
@@ -133,7 +132,6 @@ private fun KeymapperApp(
                     AppTopBarRow(
                         onSettings = onSettings,
                         onHelp = onHelp,
-                        onLogFolder = onLogFolder,
                     )
                 }
 
@@ -345,9 +343,6 @@ private fun GameKeyMapperActivityContent(activity: MainActivity) {
         },
         onSettings = {
             activity.openSettingsFromCompose()
-        },
-        onLogFolder = {
-            activity.openLogFolderFromCompose()
         }
     )
 }
@@ -963,7 +958,6 @@ private fun AppTopBarRow(
     modifier: Modifier = Modifier,
     onSettings: () -> Unit,
     onHelp: () -> Unit,
-    onLogFolder: () -> Unit = {}
 ) {
     Row(
         modifier = modifier
@@ -980,13 +974,6 @@ private fun AppTopBarRow(
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ActionButton(
-                icon = R.drawable.ic_baseline_folder_24,
-                label = stringResource(R.string.log_folder_title),
-                onClick = onLogFolder,
-                tint = KeymapperTheme.TextSecondary
-            )
-
             ActionButton(
                 icon = R.drawable.ic_baseline_help_outline_24,
                 label = stringResource(R.string.help),
