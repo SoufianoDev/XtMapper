@@ -12,18 +12,37 @@ import android.os.SystemProperties
 import android.util.Log
 import xtr.keymapper.BuildConfig
 import xtr.keymapper.activity.MainActivity
+import xtr.keymapper.log.Role
+import xtr.keymapper.log.XtLogger
 import java.lang.reflect.Method
 
 object RemoteServiceShell {
+
+    private const val TAG = "xtmapper-server"
+
     @JvmStatic
     fun main(args: Array<String>) {
+        // First statement: logging is available before anything else so even
+        // startup failures below can be recorded (uid/role based storage).
+        XtLogger.initStandalone(Role.SHELL)
+        XtLogger.debug(TAG, "app_process server starting (args=${args.joinToString(",")})")
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             println("Unsupported Android version")
+            XtLogger.endSession("Unsupported Android version")
             return
         }
 
         try {
-            RemoteService.loadLibraries()
+            try {
+                RemoteService.loadLibraries()
+            } catch (t: Throwable) {
+                // Native load failure kills the process in existing behavior;
+                // rethrowing preserves that while the failure is now logged.
+                XtLogger.fatal(TAG, "native library load failed", t)
+                throw t
+            }
+            XtLogger.info(TAG, "native libraries loaded")
             Looper.prepareMainLooper()
             val mService = RemoteService(getContext())
             mService.startedFromShell = true
@@ -41,12 +60,20 @@ object RemoteServiceShell {
                     else -> println("Invalid argument: $arg")
                 }
             }
+            XtLogger.info(TAG, "server configuration ready wayland=${mService.isWaylandClient}")
             Selinux.real.relax()
             // Hooks run only on System.exit (crash handler, stopServer exit) — Android does NOT
             // run them when the process is killed with SIGTERM (e.g. pkill); a clean stop is
             // restored by RemoteService.stopServer instead
             Runtime.getRuntime().addShutdownHook(
                 Thread { ProcessBuilder("setenforce", "1").start() }
+            )
+            // Session close best effort: runs when the JVM exits normally and when
+            // stopServer ends the process via System.exit. SIGKILL/SIGTERM kill the
+            // process without running hooks; the next session reports that as
+            // "did not close cleanly".
+            Runtime.getRuntime().addShutdownHook(
+                Thread { XtLogger.endSession("Shell server exiting") }
             )
             ServiceManager.addService("xtmapper", mService)
 
@@ -71,7 +98,11 @@ object RemoteServiceShell {
                 MainActivity.SHELL_INIT).inheritIO().start()
 
         } catch (e: Exception) {
-            Log.e(RemoteService.TAG, e.message, e)
+            Log.e(TAG, e.message, e)
+            XtLogger.error(TAG, "server startup failed", e)
+            // Bounded flush before the existing exit(1) behavior.
+            XtLogger.flush(2_000)
+            XtLogger.endSession("Startup failed")
             System.exit(1)
         }
         Looper.loop()

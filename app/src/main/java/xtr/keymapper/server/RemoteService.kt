@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.Process
 import android.os.RemoteException
 import android.util.Log
 import android.view.Display
@@ -28,6 +29,9 @@ import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.databinding.CursorBinding
 import xtr.keymapper.keymap.KeymapConfig
 import xtr.keymapper.keymap.KeymapProfile
+import xtr.keymapper.log.Role
+import xtr.keymapper.log.SessionStates
+import xtr.keymapper.log.XtLogger
 import xtr.keymapper.server.event.KeyEventHandler
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -72,6 +76,18 @@ class RemoteService(context: Context) : IRemoteService.Stub() {
     }
 
     fun init() {
+        // Initialize the logging role in processes not managed by an explicit
+        // entry point: the Shizuku user-service (uid 2000) and, as a fallback,
+        // any uid-0 process that did not arrive through RootRemoteService. The
+        // main app process was initialized by App.onCreate; the shell entry
+        // point initialized SHELL logging before this code can ever run.
+        if (!XtLogger.isInitialized) {
+            when (Process.myUid()) {
+                2000 -> XtLogger.initStandalone(Role.SHIZUKU)
+                0 -> XtLogger.initStandalone(Role.ROOT)
+                else -> Unit
+            }
+        }
         val pm = context.packageManager
         val packageName = context.packageName
         try {
@@ -85,6 +101,12 @@ class RemoteService(context: Context) : IRemoteService.Stub() {
         }
 
         Looper.getMainLooper().thread.setUncaughtExceptionHandler { t, e ->
+            // Record the terminal failure first (bounded flush); then the
+            // already existing am-start relay below keeps its exact behavior.
+            try {
+                XtLogger.fatal(TAG, "uncaught exception on thread ${t.name}", e)
+            } catch (ignored: Exception) {
+            }
             try {
                 val crashInfo = ApplicationErrorReport.CrashInfo(e)
 
@@ -237,6 +259,7 @@ class RemoteService(context: Context) : IRemoteService.Stub() {
         displayId: Int
     ) {
         enforceCaller()
+        XtLogger.info(TAG, "startServer requested displayId=$displayId pointerMode=${keymapConfig.pointerMode}")
         cb.asBinder().linkToDeath(mStartServerDeathRecipient, 0)
         mHandler.post {
             val service = inputService
@@ -307,6 +330,10 @@ class RemoteService(context: Context) : IRemoteService.Stub() {
         }
 
         if (!startedFromShell && exitProcess) {
+            XtLogger.info(TAG, "server stopped; exiting process")
+            // Close the session with an explicit END marker before the existing
+            // System.exit — bounded (never hangs), additive only.
+            XtLogger.endSession(SessionStates.STATUS_SERVICE_STOP)
             System.exit(0)
         } else if (service != null && !isWaylandClient) {
             service.stopEvents = true
