@@ -105,6 +105,7 @@ private fun KeymapperApp(
     onImportProfiles: () -> Unit = {},
     onToggleOverlay: () -> Unit = {},
     onSettings: () -> Unit = {},
+    onLogs: () -> Unit = {},
 ) {
     val currentState = state.value
 
@@ -132,6 +133,7 @@ private fun KeymapperApp(
                     AppTopBarRow(
                         onSettings = onSettings,
                         onHelp = onHelp,
+                        onLogs = onLogs,
                     )
                 }
 
@@ -157,6 +159,10 @@ private fun KeymapperApp(
                                     onToggleService = onToggleService,
                                     onFixPermission = onFixPermission
                                 )
+                            }
+
+                            TextButton(onClick = onLogs, modifier = Modifier.fillMaxWidth()) {
+                                Text(stringResource(R.string.logs))
                             }
 
                             Spacer(modifier = Modifier.height(20.dp))
@@ -343,7 +349,8 @@ private fun GameKeyMapperActivityContent(activity: MainActivity) {
         },
         onSettings = {
             activity.openSettingsFromCompose()
-        }
+        },
+        onLogs = { activity.openLogsFromCompose() },
     )
 }
 
@@ -958,6 +965,7 @@ private fun AppTopBarRow(
     modifier: Modifier = Modifier,
     onSettings: () -> Unit,
     onHelp: () -> Unit,
+    onLogs: () -> Unit,
 ) {
     Row(
         modifier = modifier
@@ -987,6 +995,10 @@ private fun AppTopBarRow(
                 onClick = onSettings,
                 tint = KeymapperTheme.Accent
             )
+
+            TextButton(onClick = onLogs, modifier = Modifier.height(36.dp)) {
+                Text(stringResource(R.string.logs), fontSize = 12.sp)
+            }
         }
     }
 }
