@@ -11,6 +11,7 @@ import android.os.ServiceManager
 import android.os.SystemProperties
 import android.util.Log
 import xtr.keymapper.BuildConfig
+import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.log.Role
 import xtr.keymapper.log.XtLogger
@@ -22,8 +23,10 @@ object RemoteServiceShell {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        // First statement: logging is available before anything else so even
-        // startup failures below can be recorded (uid/role based storage).
+        // Classification must precede logging: the SHELL session header renders
+        // Environment.name during initStandalone.
+        Environment.launchSignal = args.contains(Environment.CLI_ARG)
+        // Logging next so even startup failures below can be recorded (uid/role based storage).
         XtLogger.initStandalone(Role.SHELL)
         XtLogger.debug(TAG, "app_process server starting (args=${args.joinToString(",")})")
 
@@ -57,6 +60,8 @@ object RemoteServiceShell {
                     }
                     "--no-auto-launch" -> launchApp = false
                     "--no-logcat" -> noLogcat = true
+                    // Already applied above.
+                    Environment.CLI_ARG -> {}
                     else -> println("Invalid argument: $arg")
                 }
             }
@@ -68,10 +73,8 @@ object RemoteServiceShell {
             Runtime.getRuntime().addShutdownHook(
                 Thread { ProcessBuilder("setenforce", "1").start() }
             )
-            // Session close best effort: runs when the JVM exits normally and when
-            // stopServer ends the process via System.exit. SIGKILL/SIGTERM kill the
-            // process without running hooks; the next session reports that as
-            // "did not close cleanly".
+            // Session close on JVM exit (normal exit and System.exit). SIGTERM/SIGKILL
+            // skip hooks, so the next session reports "did not close cleanly".
             Runtime.getRuntime().addShutdownHook(
                 Thread { XtLogger.endSession("Shell server exiting") }
             )
@@ -92,10 +95,13 @@ object RemoteServiceShell {
                 ProcessBuilder("logcat", "-v", "color", "--pid=" + android.os.Process.myPid()).inheritIO().start()
             }
 
+            // Launch-context signal, kept separate from data=shell.
             if (launchApp) ProcessBuilder("am", "start", "-a", "android.intent.action.MAIN", "-n",
                 ComponentName(mService.context, MainActivity::class.java).flattenToString(),
                 "--es", "data",
-                MainActivity.SHELL_INIT).inheritIO().start()
+                MainActivity.SHELL_INIT,
+                "--ez", Environment.INTENT_EXTRA,
+                Environment.launchSignal.toString()).inheritIO().start()
 
         } catch (e: Exception) {
             Log.e(TAG, e.message, e)
