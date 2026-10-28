@@ -1,0 +1,53 @@
+name: XtLogger diagnostic coverage
+
+on:
+  push:
+    branches:
+      - test/xtlogger-diagnostic-coverage-20261028
+  pull_request:
+    branches:
+      - dev
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xtlogger-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-and-build:
+    name: Unit tests and debug APK build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK and NDK
+        uses: premex-ab/setup-android-cli@35c853708c8a6981651bb0060a17e01fac0143b1
+        with:
+          packages: |
+            platforms/android-37
+            build-tools/37.0.0
+            ndk/28.0.13004108
+            platform-tools
+          no-metrics: 'true'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests and build debug APK
+        run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
