@@ -98,6 +98,9 @@ object RemoteServiceHelper {
         private val requestGeneration: Long,
         private val requestedShizuku: Boolean,
     ) : ServiceConnection {
+        @Volatile
+        private var connectedBinder: IBinder? = null
+
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             // An older asynchronous bind may complete after the user switched modes.
             // Do not cache or deliver its Binder to the new editor/service instance.
@@ -108,6 +111,7 @@ object RemoteServiceHelper {
                 return
             }
 
+            connectedBinder = service
             val remote = IRemoteService.Stub.asInterface(service)
             RemoteServiceHelper.service = remote
             RemoteServiceHelper.forceSelectedBackend = false
@@ -122,8 +126,13 @@ object RemoteServiceHelper {
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
-            RemoteServiceHelper.service = null
-            cb.onConnection(null)
+            // A disconnect from a superseded connection must not erase the newer
+            // backend's Binder or notify a callback belonging to the old generation.
+            if (requestGeneration != RemoteServiceHelper.backendGeneration) return
+            if (RemoteServiceHelper.service?.asBinder() == connectedBinder) {
+                RemoteServiceHelper.service = null
+                cb.onConnection(null)
+            }
         }
     }
 
