@@ -38,11 +38,14 @@ import java.io.File
 import java.io.InputStreamReader
 import java.lang.reflect.Method
 
-class RemoteService(context: Context) : IRemoteService.Stub() {
+class RemoteService @JvmOverloads constructor(
+    context: Context,
+    initialIsWaylandClient: Boolean = false
+) : IRemoteService.Stub() {
     private var currentDevice = ""
     internal var inputService: InputService? = null
     private var mOnKeyEventListener: OnKeyEventListener? = null
-    internal var isWaylandClient = false
+    internal var isWaylandClient = initialIsWaylandClient
     private var activityObserverService: ActivityObserverService? = null
     internal var nativeLibraryDir: String = System.getProperty("java.library.path").orEmpty()
     private var cursorView: View? = null
