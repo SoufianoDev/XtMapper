@@ -1,5 +1,6 @@
 package xtr.keymapper.editor
 
+import xtr.keymapper.log.DiagnosticLog
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -109,6 +110,7 @@ class EditorUI(
     }
 
     fun unregisterOnKeyEventListener() {
+        DiagnosticLog.info("EditorUI", "key_capture_listener_unregister_requested", "profile" to profileName, "remoteServiceAvailable" to (mService != null))
         settingsOverlay!!.onUnRegisterKeyEventListener()
         if (mService != null) {
             try {
@@ -123,6 +125,7 @@ class EditorUI(
 
     @Throws(RemoteException::class)
     fun registerOnKeyEventListener(service: IRemoteService?) {
+        DiagnosticLog.info("EditorUI", "key_capture_listener_register_requested", "profile" to profileName, "serviceAvailable" to (service != null))
         mService = service
         mService!!.registerOnKeyEventListener(this)
         settingsOverlay!!.onRegisterKeyEventListener()
@@ -134,6 +137,7 @@ class EditorUI(
     }
 
     fun open(overlayWindow: Boolean) {
+        DiagnosticLog.info("EditorUI", "editor_open_requested", "profile" to profileName, "startMode" to startMode, "overlayWindow" to overlayWindow, "serviceContext" to (context !is Activity))
         settingsOverlay!!.overlayWindow = overlayWindow
         if (mainView!!.windowToken == null && mainView.parent == null) if (overlayWindow) openOverlayWindow()
         else {
@@ -247,6 +251,9 @@ class EditorUI(
     fun onKey(v: View?, keyCode: Int, event: KeyEvent): Boolean {
         if (event.action != KeyEvent.ACTION_DOWN) return false
         val key = KeyUtils.resolveKeyName(keyCode, event) ?: return false
+        if (macroDialog != null || keyInFocus != null) {
+            DiagnosticLog.debug("EditorUI", "editor_key_captured", "key" to key, "macroDialogActive" to (macroDialog != null), "keyFieldFocused" to (keyInFocus != null))
+        }
         if (macroDialog != null) {
             macroDialog!!.onKey(key)
             return true
@@ -295,6 +302,7 @@ class EditorUI(
      * @param id the relevant id of the menu item for the card.
      */
     fun onActionSelected(id: Int) {
+        DiagnosticLog.info("EditorUI", "catalog_action_selected", "actionId" to id, "profile" to profileName)
         // X y coordinates of center of container/screen
         val (realWidth, realHeight) = getRealScreenDimensions()
         val defaultX = if (keysContainerView.width > 0) keysContainerView.width / 2f else realWidth / 2f
@@ -328,6 +336,7 @@ class EditorUI(
     }
 
     private fun showMacroDialog() {
+        DiagnosticLog.info("EditorUI", "macro_dialog_opened", "profile" to profileName)
         macroDialog = MacroDialog(context, overlayOpen, profile!!)
         macroDialog!!.show(View.OnClickListener { v: View? ->
             if (v != null) addMacro()
@@ -344,6 +353,7 @@ class EditorUI(
      * MacroView for visualization
      */
     private fun addMacro() {
+        DiagnosticLog.info("EditorUI", "macro_recording_started", "profile" to profileName)
         // Stop a previous floating-key capture before macro recording consumes key events.
         keyInFocus = null
         if (mService != null) {
@@ -368,6 +378,7 @@ class EditorUI(
             })
             settingsOverlay.unHideButtons()
             if (mService == null) mainView.setFocusable(false)
+            DiagnosticLog.info("EditorUI", "macro_recording_finished", "profile" to profileName)
             showMacroDialog()
         })
         // Hide existing buttons in catalog till macro finish
@@ -387,6 +398,7 @@ class EditorUI(
 
     /** saves, unregisters listeners, removes views, and triggers Activity or service cleanup. */
     fun closeEditor() {
+        DiagnosticLog.info("EditorUI", "editor_close_requested", "profile" to profileName, "startMode" to startMode, "componentCount" to editorUiComponents.size)
         if (startMode == START_EDITOR) saveKeymap()
         if (startMode != SHOW_KEYMAP_ONLY) {
             unregisterOnKeyEventListener()
@@ -424,6 +436,7 @@ class EditorUI(
      */
     fun loadKeymapAndObserveSizeChanges() {
         profileBackup = KeymapProfiles(context).sharedPref.getStringSet(profileName, null)?.toSet()
+        DiagnosticLog.info("EditorUI", "editor_profile_snapshot_loaded", "profile" to profileName, "backupLineCount" to (profileBackup?.size ?: 0))
         keysContainerView.addOnLayoutChangeListener { _, left: Int, top: Int, right: Int, bottom: Int, oldLeft: Int, oldTop: Int, oldRight: Int, oldBottom: Int ->
             val oldWidth = oldRight - oldLeft
             val oldHeight = oldBottom - oldTop
@@ -432,6 +445,7 @@ class EditorUI(
             // Only reload if screen orientation genuinely flipped between portrait and landscape
             val orientationChanged = oldWidth > 0 && oldHeight > 0 && (oldWidth > oldHeight) != (newWidth > newHeight)
             if (orientationChanged && profile != null) {
+                DiagnosticLog.info("EditorUI", "editor_orientation_changed", "profile" to profileName, "oldWidth" to oldWidth, "oldHeight" to oldHeight, "newWidth" to newWidth, "newHeight" to newHeight, "componentCount" to editorUiComponents.size)
                 // Snapshot live edits in their pre-rotation coordinate space; the layout
                 // callback runs after new bounds are applied. Keep this snapshot in memory so
                 // rotation preserves edits without changing the saved profile or Reset baseline.
@@ -460,6 +474,7 @@ class EditorUI(
 
     private fun loadKeymap(profileToLoad: KeymapProfile? = null) {
         profile = profileToLoad ?: KeymapProfiles(context).getProfile(profileName, false)
+        DiagnosticLog.info("EditorUI", "editor_keymap_loaded", "profile" to profileName, "package" to profile!!.packageName, "enabled" to !profile!!.disabled, "keyCount" to profile!!.keys.size, "dpadCount" to profile!!.dpadArray.count { it != null }, "swipeKeyCount" to profile!!.swipeKeys.size, "shiftKeyCount" to profile!!.shiftKeys.size, "macroCount" to profile!!.macroIdMap.size, "screenWidth" to profile!!.xRes, "screenHeight" to profile!!.yRes)
 
         val (realWidth, realHeight) = getRealScreenDimensions()
         val targetWidth = if (keysContainerView.width > 0 && Math.abs(keysContainerView.width - realWidth) <= 200) realWidth.toFloat() else if (keysContainerView.width > 0) keysContainerView.width.toFloat() else realWidth.toFloat()
@@ -505,7 +520,11 @@ class EditorUI(
      * docs/editor-lifecycle.md for the save call sites and the resize/animation timing risk.
      */
     private fun saveKeymap(widthOverride: Int? = null, heightOverride: Int? = null) {
-        if (startMode == SHOW_KEYMAP_ONLY) return
+        if (startMode == SHOW_KEYMAP_ONLY) {
+            DiagnosticLog.debug("EditorUI", "keymap_save_skipped", "profile" to profileName, "reason" to "show_keymap_only_mode")
+            return
+        }
+        DiagnosticLog.info("EditorUI", "keymap_save_started", "profile" to profileName, "componentCount" to editorUiComponents.size, "widthOverride" to widthOverride, "heightOverride" to heightOverride)
 
         val linesToWrite = ArrayList<String?>()
 
@@ -522,6 +541,7 @@ class EditorUI(
         val saveWidth = widthOverride ?: if (keysContainerView.width > 0 && Math.abs(keysContainerView.width - realWidth) <= 200) realWidth else if (keysContainerView.width > 0) keysContainerView.width else realWidth
         val saveHeight = heightOverride ?: if (keysContainerView.height > 0 && Math.abs(keysContainerView.height - realHeight) <= 200) realHeight else if (keysContainerView.height > 0) keysContainerView.height else realHeight
 
+        DiagnosticLog.info("EditorUI", "keymap_save_completed", "profile" to profileName, "package" to profile!!.packageName, "enabled" to !profile!!.disabled, "componentCount" to editorUiComponents.size, "lineCount" to linesToWrite.size, "screenWidth" to saveWidth, "screenHeight" to saveHeight)
         profiles.saveProfile(
             profileName, linesToWrite, profile!!.packageName, !profile!!.disabled,
             saveWidth, saveHeight
@@ -541,6 +561,7 @@ class EditorUI(
     }
 
     private fun handleImportAction() {
+        DiagnosticLog.info("EditorUI", "clipboard_import_requested", "profile" to profileName)
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         val clipData = clipboard?.primaryClip
         if (clipData != null && clipData.itemCount > 0) {
@@ -553,6 +574,7 @@ class EditorUI(
                     KeymapProfiles.parse(lines)
                 } catch (e: RuntimeException) {
                     XtLogger.warn("EditorUI", "Rejected malformed keymap clipboard data", e)
+                    DiagnosticLog.warn("EditorUI", "clipboard_import_rejected", "reason" to "malformed_keymap", "lineCount" to lines.size)
                     android.widget.Toast.makeText(
                         context,
                         R.string.error_import_failed,
@@ -576,6 +598,7 @@ class EditorUI(
                 if (importedProfile.xRes <= 0) importedProfile.xRes = currentProfile.xRes
                 if (importedProfile.yRes <= 0) importedProfile.yRes = currentProfile.yRes
 
+                DiagnosticLog.info("EditorUI", "clipboard_import_parsed", "profile" to profileName, "lineCount" to lines.size, "importedPackage" to importedProfile.packageName, "enabled" to !importedProfile.disabled)
                 reloadKeymap(importedProfile)
                 saveKeymap()
                 android.widget.Toast.makeText(context, "Keymap imported from clipboard", android.widget.Toast.LENGTH_SHORT).show()
@@ -583,14 +606,17 @@ class EditorUI(
                 return
             }
         }
+        DiagnosticLog.warn("EditorUI", "clipboard_import_rejected", "reason" to "empty_or_missing_clipboard_config")
         android.widget.Toast.makeText(context, "No valid config found on clipboard", android.widget.Toast.LENGTH_SHORT).show()
     }
 
     private fun handleExportAction() {
         val configString = generateConfigString()
+        DiagnosticLog.info("EditorUI", "clipboard_export_requested", "profile" to profileName, "lineCount" to configString.lines().count { it.isNotBlank() }, "characterCount" to configString.length)
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         val clip = android.content.ClipData.newPlainText("XtMapper Config", configString)
         clipboard?.setPrimaryClip(clip)
+        DiagnosticLog.info("EditorUI", "clipboard_export_completed", "clipboardAvailable" to (clipboard != null), "characterCount" to configString.length)
         android.widget.Toast.makeText(context, "Configuration copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
     }
 
@@ -641,6 +667,7 @@ class EditorUI(
     }
 
     private fun closeImportExportDialog() {
+        DiagnosticLog.debug("EditorUI", "clipboard_import_export_dialog_closed", "profile" to profileName)
         val view = importExportComposeView ?: return
 
         (view.parent as? ViewGroup)?.removeView(view)
@@ -657,6 +684,7 @@ class EditorUI(
         override val keysContainerView: ViewGroup get() = this@EditorUI.keysContainerView
 
         override fun removeComponent(component: EditorUiComponent?, vararg viewsToRemove: View?) {
+            DiagnosticLog.info("EditorUI", "keymap_component_removed", "profile" to profileName, "componentType" to component?.javaClass?.simpleName, "viewsRemoved" to viewsToRemove.size, "componentCountBefore" to editorUiComponents.size)
             for (view in viewsToRemove) {
                 keysContainerView.removeView(view)
             }

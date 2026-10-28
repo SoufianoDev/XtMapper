@@ -1,5 +1,6 @@
 package xtr.keymapper.editor
 
+import xtr.keymapper.log.DiagnosticLog
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
@@ -26,6 +27,7 @@ class EditorService : ComposeLifecycleService() {
         val selectedProfile = intent?.getStringExtra(EditorActivity.PROFILE_NAME)
             ?: xtr.keymapper.TouchPointer.currentSelectedProfile
             ?: "Default"
+        DiagnosticLog.info("EditorService", "service_start_requested", "profile" to selectedProfile, "flags" to flags, "startId" to startId)
 
         val keymapConfig = KeymapConfig(this)
         RemoteServiceHelper.useShizuku = keymapConfig.isShizukuMode
@@ -49,6 +51,7 @@ class EditorService : ComposeLifecycleService() {
             )
 
             RemoteServiceHelper.getInstance(this) { remoteService ->
+                DiagnosticLog.info("EditorService", "remote_service_callback", "available" to (remoteService != null), "profile" to selectedProfile)
                 if (remoteService == null) {
                     Log.w("EditorService", "Remote input service unavailable; skipping key listener registration")
                     return@getInstance
@@ -78,6 +81,7 @@ class EditorService : ComposeLifecycleService() {
     }
 
     override fun onBind(intent: Intent): IBinder? {
+        DiagnosticLog.debug("EditorService", "service_bind_requested")
         super.onBind(intent)
         return null
     }

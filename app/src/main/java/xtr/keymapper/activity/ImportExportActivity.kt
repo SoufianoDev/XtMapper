@@ -1,5 +1,6 @@
 package xtr.keymapper.activity
 
+import xtr.keymapper.log.DiagnosticLog
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -38,6 +39,7 @@ class ImportExportActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DiagnosticLog.info("ImportExport", "backup_screen_opened", "savedInstanceState" to (savedInstanceState != null))
         binding = ActivityImportExportBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -72,10 +74,13 @@ class ImportExportActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerView(allChecked: Boolean) {
-        binding.profiles.adapter = ProfilesViewAdapter(this, allChecked)
+        val adapter = ProfilesViewAdapter(this, allChecked)
+        binding.profiles.adapter = adapter
+        DiagnosticLog.info("ImportExport", "backup_profile_list_loaded", "profileCount" to adapter.itemCount, "allChecked" to allChecked)
     }
 
     private fun openZipFile() {
+        DiagnosticLog.info("ImportExport", "import_file_picker_requested")
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "application/zip"
             addCategory(Intent.CATEGORY_OPENABLE)
@@ -91,7 +96,11 @@ class ImportExportActivity : AppCompatActivity() {
     }
 
     private fun exportProfiles(profileNames: List<String>) {
-        if (profileNames.isEmpty()) return
+        if (profileNames.isEmpty()) {
+            DiagnosticLog.warn("ImportExport", "export_skipped", "reason" to "no_profiles_selected")
+            return
+        }
+        DiagnosticLog.info("ImportExport", "export_started", "profileCount" to profileNames.size)
         val keymapProfiles = KeymapProfiles(this)
 
         try {
@@ -109,6 +118,7 @@ class ImportExportActivity : AppCompatActivity() {
                 }
             }
             byteArrayOutputStream = baos
+            DiagnosticLog.info("ImportExport", "export_archive_prepared", "profileCount" to profileNames.size, "bytes" to baos.size())
 
             val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 // SoufianoDev: Use Localized Default Filename From Strings.xml
@@ -125,6 +135,7 @@ class ImportExportActivity : AppCompatActivity() {
             }
 
         } catch (e: IOException) {
+            DiagnosticLog.error("ImportExport", "export_failed", e, "profileCount" to profileNames.size)
             Log.e("ImportExport", "Export process failed", e)
             // SoufianoDev: Snackbar With Localized Strings (Retry Action)
             Snackbar.make(binding.root, getString(R.string.error_export_failed), Snackbar.LENGTH_LONG)
@@ -156,14 +167,17 @@ class ImportExportActivity : AppCompatActivity() {
 
     // SoufianoDev: Helper Method For Atomic Write
     private fun writeBytesToUri(uri: Uri, bytes: ByteArray) {
+        DiagnosticLog.info("ImportExport", "archive_write_started", "bytes" to bytes.size)
         try {
             contentResolver.openOutputStream(uri)?.use { os ->
                 os.write(bytes)
             }
             byteArrayOutputStream = null
+            DiagnosticLog.info("ImportExport", "archive_write_completed", "bytes" to bytes.size)
             // SoufianoDev: Localized Success Message
             Snackbar.make(binding.root, getString(R.string.msg_backup_saved), Snackbar.LENGTH_SHORT).show()
         } catch (e: IOException) {
+            DiagnosticLog.error("ImportExport", "archive_write_failed", e, "bytes" to bytes.size)
             Log.e("ImportExport", "Failed to write bytes to URI", e)
             // SoufianoDev: Retry Writing From SnackBar Action (Localized UI)
             Snackbar.make(binding.root, getString(R.string.error_save_failed), Snackbar.LENGTH_LONG)
@@ -174,7 +188,10 @@ class ImportExportActivity : AppCompatActivity() {
 
     @SuppressLint("UseKtx")
     private fun importProfiles(dataUri: Uri) {
+        DiagnosticLog.info("ImportExport", "import_started", "sourceUriPresent" to true)
         var imported = 0
+        var skippedExisting = 0
+        var entriesSeen = 0
         try {
             contentResolver.openInputStream(dataUri)?.use { inputStream ->
                 ZipInputStream(inputStream).use { zis ->
@@ -182,9 +199,12 @@ class ImportExportActivity : AppCompatActivity() {
                     val profilesManager = KeymapProfiles(this)
 
                     while (zipEntry != null) {
+                        entriesSeen++
                         val profileName = zipEntry.name
                         // Never overwrite an existing local profile with an imported one
                         if (profilesManager.sharedPref.contains(profileName)) {
+                            skippedExisting++
+                            DiagnosticLog.warn("ImportExport", "import_profile_skipped", "profile" to profileName, "reason" to "already_exists")
                             zis.closeEntry()
                             zipEntry = zis.nextEntry
                             continue
@@ -204,6 +224,7 @@ class ImportExportActivity : AppCompatActivity() {
                             putStringSet(profileName, stringSet)
                         }
                         imported++
+                        DiagnosticLog.info("ImportExport", "import_profile_completed", "profile" to profileName, "lineCount" to stringSet.size)
 
                         zis.closeEntry()
                         zipEntry = zis.nextEntry
@@ -214,7 +235,9 @@ class ImportExportActivity : AppCompatActivity() {
                 if (imported > 0) R.string.msg_profiles_imported
                 else R.string.msg_all_profiles_exist
             Snackbar.make(binding.root, getString(msg), Snackbar.LENGTH_SHORT).show()
+            DiagnosticLog.info("ImportExport", "import_completed", "entriesSeen" to entriesSeen, "imported" to imported, "skippedExisting" to skippedExisting)
         } catch (e: IOException) {
+            DiagnosticLog.error("ImportExport", "import_failed", e, "entriesSeen" to entriesSeen, "imported" to imported, "skippedExisting" to skippedExisting)
             Log.e("ImportExport", "Import failed from URI", e)
             // SoufianoDev: Localized Fail/Retry Logic
             Snackbar.make(binding.root, getString(R.string.error_import_failed), Snackbar.LENGTH_LONG)
@@ -262,6 +285,7 @@ class ImportExportActivity : AppCompatActivity() {
                     } else {
                         selectedProfileNames.remove(data.name)
                     }
+                    DiagnosticLog.debug("ImportExport", "backup_profile_selection_changed", "profile" to data.name, "selected" to card.isChecked, "selectedCount" to selectedProfileNames.size)
                 }
             }
         }

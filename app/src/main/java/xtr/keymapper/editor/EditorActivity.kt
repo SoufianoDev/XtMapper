@@ -1,5 +1,6 @@
 package xtr.keymapper.editor
 
+import xtr.keymapper.log.DiagnosticLog
 import android.os.Build
 import android.os.Bundle
 import android.os.RemoteException
@@ -29,7 +30,9 @@ class EditorActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val selectedProfile = intent.getStringExtra(PROFILE_NAME)
+        DiagnosticLog.info("EditorActivity", "activity_created", "profile" to selectedProfile, "savedInstanceState" to (savedInstanceState != null), "overlayPermission" to Settings.canDrawOverlays(this))
         if (selectedProfile == null) {
+            DiagnosticLog.warn("EditorActivity", "activity_start_aborted", "reason" to "profile_extra_missing")
             finish()
             return
         }
@@ -74,6 +77,7 @@ class EditorActivity : ComponentActivity() {
     }
 
     private fun onConnection(service: IRemoteService?) {
+        DiagnosticLog.info("EditorActivity", "remote_service_callback", "available" to (service != null), "editorAlive" to (editor != null))
         if (editor != null) {
             val keymapConfig = KeymapConfig(this)
 
@@ -81,6 +85,7 @@ class EditorActivity : ComponentActivity() {
                 try {
                     editor!!.registerOnKeyEventListener(service)
                 } catch (e: RemoteException) {
+                    DiagnosticLog.error("EditorActivity", "key_listener_registration_failed", e, "profile" to intent.getStringExtra(PROFILE_NAME))
                     Log.e("editorActivity", e.message, e)
                 }
             } else if (!xtr.keymapper.TouchPointer.isRunning) {
@@ -98,6 +103,7 @@ class EditorActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        DiagnosticLog.info("EditorActivity", "activity_destroyed", "editorAlive" to (editor != null), "isChangingConfigurations" to isChangingConfigurations)
         super.onDestroy()
         if (editor != null) editor!!.closeEditor()
         editor = null
