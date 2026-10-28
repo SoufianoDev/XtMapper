@@ -1,5 +1,6 @@
 package xtr.keymapper.server
 
+import xtr.keymapper.log.DiagnosticLog
 import android.os.Handler
 import android.os.Looper
 import android.os.RemoteException
@@ -50,6 +51,7 @@ class InputService @Throws(RemoteException::class) constructor(
         private set
 
     init {
+        DiagnosticLog.info(RemoteService.TAG, "input_service_init_started", "package" to profile.packageName, "profileEnabled" to !profile.disabled, "screenWidth" to screenWidth, "screenHeight" to screenHeight, "displayId" to displayId, "pointerMode" to keymapConfig.pointerMode, "touchpadInputMode" to keymapConfig.touchpadInputMode, "waylandClient" to isWaylandClient, "keyCount" to profile.keys.size, "dpadCount" to profile.dpadArray.count { it != null }, "swipeKeyCount" to profile.swipeKeys.size, "shiftKeyCount" to profile.shiftKeys.size, "macroCount" to profile.macroIdMap.size)
         profile.scale(screenWidth.toFloat(), screenHeight.toFloat())
         this.currentPointerMode = keymapConfig.pointerMode
         if (currentPointerMode != KeymapConfig.POINTER_OVERLAY) {
@@ -77,16 +79,25 @@ class InputService @Throws(RemoteException::class) constructor(
         touchJitter.setScreenDimensions(screenWidth, screenHeight)
 
         if (keymapConfig.isRootMode && keymapConfig.blockKeyboardInput && !isWaylandClient) {
+            DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_start_requested", "reason" to "initialization", "mappingPaused" to stopEvents)
             try {
                 isKeyboardGrabbed = startKeyboardGrab()
                 isKeyboardBlocked = isKeyboardGrabbed
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_start_result", "success" to isKeyboardGrabbed, "blocked" to isKeyboardBlocked, "reason" to "initialization")
             } catch (e: Exception) {
+                DiagnosticLog.error(RemoteService.TAG, "keyboard_grab_start_failed", e, "reason" to "initialization")
                 XtLogger.error(RemoteService.TAG, "Failed to start keyboard grab", e)
             }
+        } else {
+            DiagnosticLog.debug(RemoteService.TAG, "keyboard_grab_skipped", "rootMode" to keymapConfig.isRootMode, "blockKeyboardInput" to keymapConfig.blockKeyboardInput, "waylandClient" to isWaylandClient)
         }
+        DiagnosticLog.info(RemoteService.TAG, "input_service_init_completed", "keyboardGrabbed" to isKeyboardGrabbed, "keyboardBlocked" to isKeyboardBlocked, "touchpadInputMode" to touchpadInputMode)
     }
 
     override fun injectEvent(x: Float, y: Float, action: Int, pointerId: Int) {
+        if (action != MOVE) {
+            DiagnosticLog.debug(RemoteService.TAG, "touch_injection_transition", "action" to if (action == DOWN) "down" else if (action == UP) "up" else action, "pointerId" to pointerId, "x" to x, "y" to y, "mappingPaused" to stopEvents, "pointerMode" to currentPointerMode)
+        }
         val target = touchJitter.wrapCoordinates(x, y, action, pointerId)
         when (action) {
             UP -> input.injectTouch(MotionEvent.ACTION_UP, pointerId, 0.0f, target.x, target.y)
@@ -113,7 +124,9 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     override fun pauseResumeKeymap() {
+        val wasStopped = stopEvents
         stopEvents = !stopEvents
+        DiagnosticLog.info(RemoteService.TAG, "input_mapping_state_changed", "previouslyPaused" to wasStopped, "paused" to stopEvents, "keyboardGrabbed" to isKeyboardGrabbed, "keyboardBlocked" to isKeyboardBlocked, "waylandClient" to isWaylandClient)
         if (!isWaylandClient) {
             setMouseLock(!stopEvents)
             if (isKeyboardGrabbed) {
@@ -123,25 +136,34 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     override fun toggleKeyboardBlock() {
-        if (!keymapConfig.isRootMode || isWaylandClient) return
+        DiagnosticLog.info(RemoteService.TAG, "keyboard_block_toggle_requested", "rootMode" to keymapConfig.isRootMode, "waylandClient" to isWaylandClient, "grabbedBefore" to isKeyboardGrabbed, "blockedBefore" to isKeyboardBlocked, "mappingPaused" to stopEvents)
+        if (!keymapConfig.isRootMode || isWaylandClient) {
+            DiagnosticLog.warn(RemoteService.TAG, "keyboard_block_toggle_ignored", "reason" to if (!keymapConfig.isRootMode) "not_root_mode" else "wayland_client")
+            return
+        }
         if (!isKeyboardGrabbed) {
             try {
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_start_requested", "reason" to "manual_toggle")
                 isKeyboardGrabbed = startKeyboardGrab()
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_start_result", "success" to isKeyboardGrabbed, "reason" to "manual_toggle")
                 if (!isKeyboardGrabbed) {
                     XtLogger.warn(RemoteService.TAG, "startKeyboardGrab returned false, no keyboard device grabbed")
                     return
                 }
                 isKeyboardBlocked = true
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_block_state_changed", "blocked" to true, "mappingPaused" to stopEvents)
                 // A new grab starts locked natively. Honour the existing pause state
                 // immediately so a grab started while paused does not swallow all typing.
                 setKeyboardGrabLock(!stopEvents)
             } catch (e: Exception) {
+                DiagnosticLog.error(RemoteService.TAG, "keyboard_grab_start_failed", e, "reason" to "manual_toggle")
                 XtLogger.error(RemoteService.TAG, "Failed to start keyboard grab", e)
                 return
             }
         } else {
             isKeyboardBlocked = !isKeyboardBlocked
             setKeyboardGrabLock(isKeyboardBlocked && !stopEvents)
+            DiagnosticLog.info(RemoteService.TAG, "keyboard_block_state_changed", "blocked" to isKeyboardBlocked, "mappingPaused" to stopEvents)
         }
         try {
             mCallback.alertKeyboardBlocked(isKeyboardBlocked && !stopEvents)
@@ -209,9 +231,11 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     fun reloadKeymap() {
+        DiagnosticLog.info(RemoteService.TAG, "input_keymap_reload_started")
         try {
             this.keymapProfile = mCallback.requestKeymapProfile()
             this.keymapConfig = mCallback.requestKeymapConfig()
+            DiagnosticLog.info(RemoteService.TAG, "input_keymap_reload_received", "package" to keymapProfile.packageName, "profileEnabled" to !keymapProfile.disabled, "keyCount" to keymapProfile.keys.size, "dpadCount" to keymapProfile.dpadArray.count { it != null }, "swipeKeyCount" to keymapProfile.swipeKeys.size, "shiftKeyCount" to keymapProfile.shiftKeys.size, "macroCount" to keymapProfile.macroIdMap.size, "pointerMode" to keymapConfig.pointerMode, "blockKeyboardInput" to keymapConfig.blockKeyboardInput)
             // Release existing pointers with their original offsets before clearing
             // jitter state; then apply the newly loaded settings to future strokes.
             this.stop()
@@ -229,11 +253,13 @@ class InputService @Throws(RemoteException::class) constructor(
                 }
             }
         } catch (e: Exception) {
+            DiagnosticLog.error(RemoteService.TAG, "input_keymap_reload_failed", e)
             XtLogger.error(RemoteService.TAG, "Keyboard/input operation failed", e)
         }
     }
 
     fun stop() {
+        DiagnosticLog.info(RemoteService.TAG, "input_service_stop_started", "keyboardGrabbed" to isKeyboardGrabbed, "keyboardBlocked" to isKeyboardBlocked, "mappingPaused" to stopEvents)
         if (isKeyboardGrabbed) {
             try {
                 stopKeyboardGrab()
@@ -242,9 +268,11 @@ class InputService @Throws(RemoteException::class) constructor(
             }
             isKeyboardGrabbed = false
             isKeyboardBlocked = false
+            DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_stopped")
         }
         keyEventHandler.stop()
         mouseEventHandler.stop()
+        DiagnosticLog.info(RemoteService.TAG, "input_service_stop_completed")
     }
 
     fun stopTouchpad() {
@@ -282,6 +310,10 @@ class InputService @Throws(RemoteException::class) constructor(
      * Called from native code to send mouse event to client
      */
     fun sendMouseEvent(code: Int, value: Int) {
+        // Do not log REL_X/REL_Y: those events arrive at movement frequency.
+        if (code != REL_X && code != REL_Y) {
+            DiagnosticLog.debug(RemoteService.TAG, "mouse_input_transition", "code" to code, "value" to value, "mappingPaused" to stopEvents)
+        }
         if (!stopEvents) mouseEventHandler.handleEvent(code, value)
     }
 
@@ -290,6 +322,7 @@ class InputService @Throws(RemoteException::class) constructor(
      */
     fun sendKeyboardEvent(codeName: String, action: Int) {
         val actionStr = if (action == DOWN) "DOWN" else "UP"
+        DiagnosticLog.debug(RemoteService.TAG, "grabbed_keyboard_event", "keyCode" to codeName, "action" to actionStr, "mappingPaused" to stopEvents, "keyboardBlocked" to isKeyboardBlocked, "route" to if (shouldHandleMappedKeyboardEvent(stopEvents, isKeyboardBlocked)) "mapped" else "shortcut_only")
         val line = "EV_KEY $codeName $actionStr"
         try {
             if (shouldHandleMappedKeyboardEvent(stopEvents, isKeyboardBlocked)) {

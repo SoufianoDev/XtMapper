@@ -1,5 +1,6 @@
 package xtr.keymapper.server.event
 
+import xtr.keymapper.log.DiagnosticLog
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.RemoteException
@@ -89,6 +90,8 @@ class KeyEventHandler(private val mInput: IInputInterface) {
         val event = getEvent(line) ?: return
 
         val keymapConfig = mInput.keymapConfig
+        val directMatchCount = mInput.keymapProfile.keys.count { it.code == event.code }
+        DiagnosticLog.debug("KeyEventHandler", "key_event_parsed", "keyCode" to event.code, "action" to if (event.action == InputService.DOWN) "down" else "up", "directMappingMatches" to directMatchCount, "dpadHandlerCount" to (dpadHandlers?.count { it != null } ?: 0), "swipeHandlerCount" to (swipeKeyHandlers?.size ?: 0), "shiftHandlerCount" to (shiftKeyHandlers?.size ?: 0), "macroCount" to mInput.keymapProfile.macroIdMap.size)
 
         detectCtrlAltKeys(event)
         if (event.action == InputService.DOWN) if (handleKeyboardShortcuts(event.code)) return
@@ -126,7 +129,9 @@ class KeyEventHandler(private val mInput: IInputInterface) {
         if (macroIdMap.isNotEmpty())
             macroIdMap.forEach { (macroId, macro) ->
                 if (event.code == "KEY_" + macro.triggerKey) Thread {
+                    DiagnosticLog.info("KeyEventHandler", "macro_execution_started", "macroId" to macroId, "triggerCode" to event.code)
                     macro.runMacro(mInput, pidProvider.getPid(macroId))
+                    DiagnosticLog.info("KeyEventHandler", "macro_execution_completed", "macroId" to macroId)
                     pidProvider.releasePidFor(macroId)
                 }.start()
             }
@@ -162,24 +167,28 @@ class KeyEventHandler(private val mInput: IInputInterface) {
 
         if (keymapConfig.launchEditorShortcutKeyModifier == modifier)
             if (keycode == keymapConfig.launchEditorShortcutKey) {
+                DiagnosticLog.info("KeyEventHandler", "keyboard_shortcut_triggered", "action" to "launch_editor", "modifier" to modifier, "keyCode" to keycode)
                 mInput.callback.launchEditor()
                 return true
             }
 
         if (keymapConfig.pauseResumeShortcutKeyModifier == modifier)
             if (keycode == keymapConfig.pauseResumeShortcutKey) {
+                DiagnosticLog.info("KeyEventHandler", "keyboard_shortcut_triggered", "action" to "pause_resume_mapping", "modifier" to modifier, "keyCode" to keycode)
                 mInput.pauseResumeKeymap()
                 return true
             }
 
         if (keymapConfig.switchProfileShortcutKeyModifier == modifier)
             if (keycode == keymapConfig.switchProfileShortcutKey) {
+                DiagnosticLog.info("KeyEventHandler", "keyboard_shortcut_triggered", "action" to "switch_profile", "modifier" to modifier, "keyCode" to keycode)
                 mInput.callback.switchProfiles()
                 return true
             }
 
         if (keymapConfig.isRootMode && keymapConfig.blockKeyboardShortcutKeyModifier == modifier)
             if (keycode == keymapConfig.blockKeyboardShortcutKey) {
+                DiagnosticLog.info("KeyEventHandler", "keyboard_shortcut_triggered", "action" to "toggle_keyboard_block", "modifier" to modifier, "keyCode" to keycode)
                 mInput.toggleKeyboardBlock()
                 return true
             }

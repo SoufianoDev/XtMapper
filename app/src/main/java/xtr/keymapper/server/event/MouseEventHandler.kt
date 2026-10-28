@@ -1,5 +1,6 @@
 package xtr.keymapper.server.event
 
+import xtr.keymapper.log.DiagnosticLog
 import android.os.RemoteException
 import xtr.keymapper.InputEventCodes.BTN_EXTRA
 import xtr.keymapper.InputEventCodes.BTN_MIDDLE
@@ -74,11 +75,15 @@ class MouseEventHandler(private val mInput: IInputInterface) {
     }
 
     private fun triggerMouseAimOrCamera(instance: MouseAimHandler?): Boolean {
-        if (instance == null) return false
+        if (instance == null) {
+            DiagnosticLog.warn(RemoteService.TAG, "mouse_mode_toggle_ignored", "reason" to "handler_not_configured")
+            return false
+        }
 
         synchronized(this) {
             mouseAimOrCameraHandler = instance
             mouseAimActive = !mouseAimActive
+            DiagnosticLog.info(RemoteService.TAG, "mouse_aim_or_camera_toggled", "active" to mouseAimActive, "handlerType" to instance.javaClass.simpleName, "pointerDown" to pointer_down)
 
             if (mouseAimActive) {
                 stopMouseWalk()
@@ -103,6 +108,7 @@ class MouseEventHandler(private val mInput: IInputInterface) {
     }
 
     fun init(width: Int, height: Int) {
+        DiagnosticLog.info(RemoteService.TAG, "mouse_handler_init_started", "width" to width, "height" to height, "hasMouseAim" to (mInput.keymapProfile.mouseAimConfig != null), "hasCamera" to (mInput.keymapProfile.camera != null), "hasMouseWalk" to (mInput.keymapProfile.mouseWalk != null), "hasRightClickMapping" to (mInput.keymapProfile.rightClick != null), "ctrlMouseWheelZoom" to mInput.keymapConfig.ctrlMouseWheelZoom)
         this.width = width
         this.height = height
 
@@ -135,6 +141,7 @@ class MouseEventHandler(private val mInput: IInputInterface) {
 
         sensitivity = keymapConfig.mouseSensitivity!!
         scroll_speed_multiplier = keymapConfig.scrollSpeed!!
+        DiagnosticLog.info(RemoteService.TAG, "mouse_handler_init_completed", "width" to width, "height" to height, "sensitivity" to sensitivity, "scrollMultiplier" to scroll_speed_multiplier)
     }
 
     // Consolidated coordinate update – single injection per movement
@@ -163,6 +170,7 @@ class MouseEventHandler(private val mInput: IInputInterface) {
     }
 
     private fun startMouseWalk() {
+        DiagnosticLog.info(RemoteService.TAG, "mouse_walk_start_requested", "handlerAvailable" to (mouseWalkHandler != null), "aimActive" to mouseAimActive, "pointerDown" to pointer_down)
         if (mouseAimOrCameraHandler != null && mouseAimActive) {
             triggerMouseAimOrCamera(mouseAimOrCameraHandler)
         }
@@ -170,11 +178,13 @@ class MouseEventHandler(private val mInput: IInputInterface) {
         mouseWalkHandler?.let {
             it.resetPointer()
             mouseWalkActive = true
+            DiagnosticLog.info(RemoteService.TAG, "mouse_walk_started", "x" to x1, "y" to y1)
         }
     }
 
     private fun stopMouseWalk() {
         if (mouseWalkActive && mouseWalkHandler != null) {
+            DiagnosticLog.info(RemoteService.TAG, "mouse_walk_stop_requested", "x" to x1, "y" to y1)
             mouseWalkHandler!!.stop()
             mouseWalkActive = false
         }
