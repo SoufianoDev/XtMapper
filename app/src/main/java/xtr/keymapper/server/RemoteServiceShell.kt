@@ -9,7 +9,6 @@ import android.os.Build
 import android.os.Looper
 import android.os.ServiceManager
 import android.os.SystemProperties
-import android.util.Log
 import xtr.keymapper.BuildConfig
 import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
@@ -108,7 +107,6 @@ object RemoteServiceShell {
                 Environment.launchSignal.toString()).inheritIO().start()
 
         } catch (e: Exception) {
-            Log.e(TAG, e.message, e)
             XtLogger.error(TAG, "server startup failed", e)
             // Bounded flush before the existing exit(1) behavior.
             XtLogger.flush(2_000)
@@ -135,7 +133,7 @@ object RemoteServiceShell {
         try {
             context = systemContext.createPackageContext(BuildConfig.APPLICATION_ID, flags)
         } catch (e: PackageManager.NameNotFoundException) {
-            Log.e(RemoteService.TAG, e.message, e)
+            XtLogger.error(RemoteService.TAG, "Failed to create package context for the shell process", e)
         }
         return getContextImpl(context!!)
     }
