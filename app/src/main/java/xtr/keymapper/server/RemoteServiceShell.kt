@@ -14,6 +14,7 @@ import xtr.keymapper.BuildConfig
 import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.log.Role
+import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
 import java.lang.reflect.Method
 
@@ -32,7 +33,7 @@ object RemoteServiceShell {
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             println("Unsupported Android version")
-            XtLogger.endSession("Unsupported Android version")
+            XtLogger.endSession(SessionStates.STATUS_CRASH_RELAYED)
             return
         }
 
@@ -76,10 +77,10 @@ object RemoteServiceShell {
             Runtime.getRuntime().addShutdownHook(
                 Thread { ProcessBuilder("setenforce", "1").start() }
             )
-            // Session close on JVM exit (normal exit and System.exit). SIGTERM/SIGKILL
-            // skip hooks, so the next session reports "did not close cleanly".
+            // A shell process that reaches JVM shutdown without the explicit normal-stop
+            // path must not be reported as clean. Normal stop closes the session before exit.
             Runtime.getRuntime().addShutdownHook(
-                Thread { XtLogger.endSession("Shell server exiting") }
+                Thread { XtLogger.endSession(SessionStates.STATUS_CRASH_RELAYED) }
             )
             ServiceManager.addService("xtmapper", mService)
 
@@ -111,7 +112,7 @@ object RemoteServiceShell {
             XtLogger.error(TAG, "server startup failed", e)
             // Bounded flush before the existing exit(1) behavior.
             XtLogger.flush(2_000)
-            XtLogger.endSession("Startup failed")
+            XtLogger.endSession(SessionStates.STATUS_CRASH_RELAYED)
             System.exit(1)
         }
         Looper.loop()
