@@ -13,7 +13,6 @@ import xtr.keymapper.BuildConfig
 import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.log.Role
-import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
 import java.lang.reflect.Method
 
@@ -70,16 +69,11 @@ object RemoteServiceShell {
             }
             XtLogger.info(TAG, "server configuration ready wayland=${mService.isWaylandClient}")
             Selinux.real.relax()
-            // Hooks run only on System.exit (crash handler, stopServer exit) — Android does NOT
-            // run them when the process is killed with SIGTERM (e.g. pkill); a clean stop is
-            // restored by RemoteService.stopServer instead
+            // Restore SELinux enforcement on JVM shutdown. Normal server shutdown writes
+            // its own SESSION END marker in RemoteService.stopServer; this hook must not write
+            // one because it also runs after abnormal System.exit paths.
             Runtime.getRuntime().addShutdownHook(
                 Thread { ProcessBuilder("setenforce", "1").start() }
-            )
-            // A shell process that reaches JVM shutdown without the explicit normal-stop
-            // path must not be reported as clean. Normal stop closes the session before exit.
-            Runtime.getRuntime().addShutdownHook(
-                Thread { XtLogger.endSession(SessionStates.STATUS_UNEXPECTED_EXIT) }
             )
             ServiceManager.addService("xtmapper", mService)
 
@@ -107,10 +101,10 @@ object RemoteServiceShell {
                 Environment.launchSignal.toString()).inheritIO().start()
 
         } catch (e: Exception) {
-            XtLogger.error(TAG, "server startup failed", e)
-            // Bounded flush before the existing exit(1) behavior.
+            // Startup is terminating abnormally. Persist a fatal record but leave the
+            // session without an END marker so the next launch reports an unclean exit.
+            XtLogger.fatal(TAG, "server startup failed", e)
             XtLogger.flush(2_000)
-            XtLogger.endSession(SessionStates.STATUS_STARTUP_FAILED)
             System.exit(1)
         }
         Looper.loop()
