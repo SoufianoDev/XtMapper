@@ -1,5 +1,6 @@
 package xtr.keymapper.server
 
+import xtr.keymapper.log.DiagnosticLog
 import android.app.ActivityManager
 import android.app.IActivityManager
 import android.content.Context.ACTIVITY_SERVICE
@@ -15,12 +16,14 @@ class ActivityObserverService(observer: ActivityObserver) : Runnable {
     private val am: IActivityManager = IActivityManager.Stub.asInterface(ServiceManager.getService(ACTIVITY_SERVICE))
     private var mHandlerThread: HandlerThread? = null
     private var mHandler: Handler? = null
+    private var lastReportedPackage: String? = null
 
     init {
         mHandlerThread = HandlerThread("activity_observer").also {
             it.start()
             mHandler = Handler(it.looper)
         }
+        DiagnosticLog.info(RemoteService.TAG, "activity_observer_started", "pollIntervalMs" to 5000, "callbackAvailable" to (mCallback != null))
         // Send activity to client app every 5 seconds
         mHandler!!.post(this)
     }
@@ -44,6 +47,10 @@ class ActivityObserverService(observer: ActivityObserver) : Runnable {
             if (targetPackage != null) {
                 val callback = mCallback
                 if (callback != null) {
+                    if (targetPackage != lastReportedPackage) {
+                        DiagnosticLog.info(RemoteService.TAG, "foreground_package_observed", "previous" to lastReportedPackage, "package" to targetPackage)
+                        lastReportedPackage = targetPackage
+                    }
                     callback.onForegroundActivitiesChanged(targetPackage)
                     mHandler?.postDelayed(this, 5000)
                 } else {
@@ -59,6 +66,7 @@ class ActivityObserverService(observer: ActivityObserver) : Runnable {
     }
 
     fun stop() {
+        DiagnosticLog.info(RemoteService.TAG, "activity_observer_stopped", "lastPackage" to lastReportedPackage)
         mCallback = null
         mHandler = null
         mHandlerThread?.quit()

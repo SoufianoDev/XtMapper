@@ -1,5 +1,7 @@
 package xtr.keymapper.server
 
+import xtr.keymapper.log.DiagnosticLog
+import android.os.SystemClock
 import android.app.ApplicationErrorReport
 import android.content.ComponentName
 import android.content.Context
@@ -100,14 +102,17 @@ class RemoteService @JvmOverloads constructor(
     }
 
     fun init() {
+        DiagnosticLog.info(TAG, "server_init_started", "uid" to Process.myUid(), "pid" to Process.myPid(), "waylandClient" to isWaylandClient, "startedFromShell" to startedFromShell, "sdkInt" to Build.VERSION.SDK_INT)
         val pm = context.packageManager
         val packageName = context.packageName
         try {
             val ai = pm.getApplicationInfo(packageName, 0)
             nativeLibraryDir = ai.nativeLibraryDir
+            DiagnosticLog.info(TAG, "native_library_directory_resolved", "available" to nativeLibraryDir.isNotBlank(), "waylandClient" to isWaylandClient)
             if (!isWaylandClient) Thread { start_getevent() }.start()
             else mHandler.post { start_getevent() }
         } catch (e: PackageManager.NameNotFoundException) {
+            DiagnosticLog.error(TAG, "native_library_directory_resolution_failed", e, "package" to packageName)
             XtLogger.error(TAG, "Unable to resolve app native library directory", e)
             throw RuntimeException(e)
         }
@@ -203,6 +208,7 @@ class RemoteService @JvmOverloads constructor(
      * Executes getevent command and processes the output or reads from stdin if wayland client
      */
     private fun start_getevent() {
+        DiagnosticLog.info(TAG, "input_event_reader_started", "mode" to if (isWaylandClient) "wayland_stdin" else "getevent", "nativeLibraryAvailable" to nativeLibraryDir.isNotBlank())
         try {
             val getevent: BufferedReader
             if (isWaylandClient) {
@@ -213,7 +219,9 @@ class RemoteService @JvmOverloads constructor(
                 getevent = BufferedReader(InputStreamReader(proc.inputStream))
             }
             var line: String?
+            var linesRead = 0L
             while (getevent.readLine().also { line = it } != null) {
+                linesRead++
                 val data = line!!.split(":".toRegex()).dropLastWhile { it.isEmpty() }
                     .toTypedArray() // split a string like "/dev/input/event2: EV_REL REL_X ffffffff"
                 if (addNewDevices(data)) {
@@ -245,6 +253,7 @@ class RemoteService @JvmOverloads constructor(
                 }
             }
         } catch (e: Exception) {
+            DiagnosticLog.error(TAG, "input_event_reader_failed", e)
             XtLogger.error(TAG, "Input event reader failed", e)
         }
     }
@@ -266,14 +275,16 @@ class RemoteService @JvmOverloads constructor(
         }
         if (currentDevice != evdev)
             if (input_event[1] == "EV_REL") {
-                println("add mouse device: $evdev")
-                inputService?.openDevice(evdev)
+                DiagnosticLog.info(TAG, "mouse_device_selected", "device" to evdev, "previousDevice" to currentDevice)
+                val result = inputService?.openDevice(evdev)
+                DiagnosticLog.info(TAG, "mouse_device_open_result", "device" to evdev, "result" to result)
                 currentDevice = evdev
             }
         return true
     }
 
     private val mStartServerDeathRecipient = IBinder.DeathRecipient {
+        DiagnosticLog.error(TAG, "client_callback_binder_died", null, "hasInputService" to (inputService != null), "currentDevice" to currentDevice)
         // Release native keyboard grabs before dropping the only reference to the service.
         // Keep the server shutdown path running even if InputService cleanup fails.
         try {
@@ -304,11 +315,15 @@ class RemoteService @JvmOverloads constructor(
         displayId: Int
     ) {
         enforceCaller()
+        val queuedAt = SystemClock.elapsedRealtime()
+        DiagnosticLog.info(TAG, "server_init_queued", "package" to profile.packageName, "profileEnabled" to !profile.disabled, "displayId" to displayId, "pointerMode" to keymapConfig.pointerMode, "screenWidth" to screenWidth, "screenHeight" to screenHeight, "keyCount" to profile.keys.size, "dpadCount" to profile.dpadArray.count { it != null }, "swipeKeyCount" to profile.swipeKeys.size, "shiftKeyCount" to profile.shiftKeys.size, "macroCount" to profile.macroIdMap.size, "waylandClient" to isWaylandClient)
         XtLogger.info(TAG, "startServer requested displayId=$displayId pointerMode=${keymapConfig.pointerMode}")
         cb.asBinder().linkToDeath(mStartServerDeathRecipient, 0)
         mHandler.post {
+            DiagnosticLog.info(TAG, "server_init_task_started", "package" to profile.packageName, "elapsedSinceQueueMs" to (SystemClock.elapsedRealtime() - queuedAt))
             val service = inputService
             if (service != null) {
+                DiagnosticLog.info(TAG, "previous_input_service_cleanup_started", "waylandClient" to isWaylandClient)
                 if (isWaylandClient) {
                     service.hideCursor()
                     service.stop()
@@ -323,10 +338,12 @@ class RemoteService @JvmOverloads constructor(
                 cursorView = null
             }
             try {
+                DiagnosticLog.info(TAG, "input_service_construction_started", "package" to profile.packageName, "screenWidth" to screenWidth, "screenHeight" to screenHeight, "pointerMode" to keymapConfig.pointerMode)
                 val newService = InputService(
                     profile, keymapConfig, cb, screenWidth, screenHeight,
                     cursorView, isWaylandClient, displayId
                 )
+                DiagnosticLog.info(TAG, "input_service_constructed", "package" to profile.packageName, "keyboardGrabbed" to newService.isKeyboardGrabbed, "keyboardBlocked" to newService.isKeyboardBlocked)
                 newService.keyListener = { line ->
                     try {
                         mOnKeyEventListener?.onKeyEvent(line)
@@ -340,6 +357,7 @@ class RemoteService @JvmOverloads constructor(
                     newService.openDevice(currentDevice)
                 }
             } catch (e: RemoteException) {
+                DiagnosticLog.error(TAG, "input_service_construction_failed", e, "package" to profile.packageName)
                 throw RuntimeException(e)
             }
             // Launch app/game
@@ -351,10 +369,13 @@ class RemoteService @JvmOverloads constructor(
                         "am", "start", "-a", "android.intent.action.MAIN", "-n",
                         launchIntent.component!!.flattenToString()
                     ).start()
+                    DiagnosticLog.info(TAG, "profile_application_launch_requested", "package" to profile.packageName, "component" to launchIntent.component!!.flattenToString())
                 } catch (e: Exception) {
+                    DiagnosticLog.error(TAG, "profile_application_launch_failed", e, "package" to profile.packageName)
                     throw RuntimeException(e)
                 }
             }
+            DiagnosticLog.info(TAG, "server_init_task_completed", "package" to profile.packageName, "inputServiceInstalled" to (inputService != null), "elapsedSinceQueueMs" to (SystemClock.elapsedRealtime() - queuedAt), "note" to "internal_init_only_not_app_handshake")
         }
     }
 
@@ -365,10 +386,12 @@ class RemoteService @JvmOverloads constructor(
 
     override fun stopServer() {
         enforceCaller()
+        DiagnosticLog.info(TAG, "server_stop_queued", "exitProcess" to true, "hasInputService" to (inputService != null))
         mHandler.post { stopServer(true) }
     }
 
     private fun stopServer(exitProcess: Boolean) {
+        DiagnosticLog.info(TAG, "server_stop_started", "exitProcess" to exitProcess, "hasInputService" to (inputService != null), "waylandClient" to isWaylandClient, "startedFromShell" to startedFromShell)
         // Restore enforcing only if this app actually relaxed SELinux (shell entry
         // point); startedFromShell is also set by the system-app path, which never does
         if (exitProcess && !Selinux.real.restore()) {
@@ -396,6 +419,7 @@ class RemoteService @JvmOverloads constructor(
             service.destroyUinputDev()
             service.callback.asBinder().unlinkToDeath(mStartServerDeathRecipient, 0)
             inputService = null
+            DiagnosticLog.info(TAG, "input_service_cleanup_completed")
         }
     }
 
@@ -406,24 +430,30 @@ class RemoteService @JvmOverloads constructor(
     @Throws(RemoteException::class)
     override fun registerOnKeyEventListener(l: OnKeyEventListener) {
         enforceCaller()
+        DiagnosticLog.info(TAG, "key_event_listener_register_requested")
         l.asBinder().linkToDeath(mKeyEventListenerDeathRecipient, 0)
         mOnKeyEventListener = l
+        DiagnosticLog.info(TAG, "key_event_listener_registered")
     }
 
     override fun unregisterOnKeyEventListener(l: OnKeyEventListener?) {
         enforceCaller()
+        DiagnosticLog.info(TAG, "key_event_listener_unregistered", "hadListener" to (mOnKeyEventListener != null))
         l?.asBinder()?.unlinkToDeath(mKeyEventListenerDeathRecipient, 0)
         mOnKeyEventListener = null
     }
 
     override fun registerActivityObserver(callback: ActivityObserver) {
         enforceCaller()
+        DiagnosticLog.info(TAG, "activity_observer_register_requested", "alreadyRegistered" to (activityObserverService != null))
         activityObserverService?.stop()
         activityObserverService = ActivityObserverService(callback)
+        DiagnosticLog.info(TAG, "activity_observer_registered")
     }
 
     override fun unregisterActivityObserver(callback: ActivityObserver) {
         enforceCaller()
+        DiagnosticLog.info(TAG, "activity_observer_unregistered", "wasRegistered" to (activityObserverService != null))
         activityObserverService?.stop()
         activityObserverService = null
     }
@@ -436,10 +466,14 @@ class RemoteService @JvmOverloads constructor(
         // startServer() creates/replaces InputService on this same handler. Queue the
         // pause too, so a pending start cannot install a fresh, unpaused service after
         // the caller has asked to disable mapping for the foreground app.
+        DiagnosticLog.debug(TAG, "pause_mapping_queued", "hasInputService" to (inputService != null))
         mHandler.post {
             val service = inputService
             if (service != null && !service.stopEvents) {
                 service.pauseResumeKeymap()
+                DiagnosticLog.info(TAG, "mapping_paused", "hasInputService" to true)
+            } else {
+                DiagnosticLog.debug(TAG, "mapping_pause_noop", "hasInputService" to (service != null), "alreadyPaused" to (service?.stopEvents == true))
             }
         }
     }
@@ -447,10 +481,14 @@ class RemoteService @JvmOverloads constructor(
     override fun resumeMouse() {
         enforceCaller()
         // Keep pause/resume state changes ordered with startServer() on the same handler.
+        DiagnosticLog.debug(TAG, "resume_mapping_queued", "hasInputService" to (inputService != null))
         mHandler.post {
             val service = inputService
             if (service != null && service.stopEvents) {
                 service.pauseResumeKeymap()
+                DiagnosticLog.info(TAG, "mapping_resumed", "hasInputService" to true)
+            } else {
+                DiagnosticLog.debug(TAG, "mapping_resume_noop", "hasInputService" to (service != null), "alreadyRunning" to (service?.stopEvents == false))
             }
         }
     }
@@ -460,6 +498,7 @@ class RemoteService @JvmOverloads constructor(
      */
     override fun reloadKeymap() {
         enforceCaller()
+        DiagnosticLog.info(TAG, "keymap_reload_requested", "hasInputService" to (inputService != null))
         inputService?.reloadKeymap()
     }
 
