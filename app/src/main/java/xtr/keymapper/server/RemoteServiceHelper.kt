@@ -90,10 +90,17 @@ object RemoteServiceHelper {
 
     @JvmStatic
     fun runIfActive(context: Context, runnable: Runnable) {
+        DiagnosticLog.debug("RemoteServiceHelper", "run_if_active_requested")
         getInstance(context) { service ->
             try {
-                if (service != null && service.isActive) runnable.run()
-            } catch (_: RemoteException) {
+                if (service != null && service.isActive) {
+                    DiagnosticLog.debug("RemoteServiceHelper", "run_if_active_callback", "serviceActive" to true)
+                    runnable.run()
+                } else {
+                    DiagnosticLog.debug("RemoteServiceHelper", "run_if_active_skipped", "serviceAvailable" to (service != null), "serviceActive" to (service?.isActive == true))
+                }
+            } catch (e: RemoteException) {
+                DiagnosticLog.warn("RemoteServiceHelper", "run_if_active_failed", "error" to e.message)
             }
         }
     }
@@ -143,6 +150,7 @@ object RemoteServiceHelper {
             RemoteServiceHelper.forceSelectedBackend = false
             try {
                 service.linkToDeath({
+                    DiagnosticLog.error("RemoteServiceHelper", "service_binder_died", null, "component" to name.flattenToString(), "backend" to if (requestedShizuku) "shizuku" else "root", "requestGeneration" to requestGeneration)
                     if (RemoteServiceHelper.service?.asBinder() == service) {
                         RemoteServiceHelper.service = null
                     }
@@ -151,6 +159,14 @@ object RemoteServiceHelper {
                 DiagnosticLog.warn("RemoteServiceHelper", "service_death_link_failed", "error" to e.message, "component" to name.flattenToString())
             }
             cb.onConnection(remote)
+        }
+
+        override fun onBindingDied(name: ComponentName) {
+            DiagnosticLog.error("RemoteServiceHelper", "service_binding_died", null, "component" to name.flattenToString(), "requestGeneration" to requestGeneration, "currentGeneration" to RemoteServiceHelper.backendGeneration, "backend" to if (requestedShizuku) "shizuku" else "root")
+        }
+
+        override fun onNullBinding(name: ComponentName) {
+            DiagnosticLog.error("RemoteServiceHelper", "service_null_binding", null, "component" to name.flattenToString(), "requestGeneration" to requestGeneration, "backend" to if (requestedShizuku) "shizuku" else "root")
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
@@ -171,10 +187,16 @@ object RemoteServiceHelper {
 
     private fun getInstance() {
         if (service == null) {
-            service = IRemoteService.Stub.asInterface(ServiceManager.getService("xtmapper"))
+            val binder = ServiceManager.getService("xtmapper")
+            DiagnosticLog.debug("RemoteServiceHelper", "service_manager_lookup", "serviceName" to "xtmapper", "binderAvailable" to (binder != null), "binderAlive" to (binder?.isBinderAlive == true))
+            service = IRemoteService.Stub.asInterface(binder)
             try {
-                service?.asBinder()?.linkToDeath({ service = null }, 0)
-            } catch (_: RemoteException) {
+                service?.asBinder()?.linkToDeath({
+                    DiagnosticLog.warn("RemoteServiceHelper", "service_manager_binder_died")
+                    service = null
+                }, 0)
+            } catch (e: RemoteException) {
+                DiagnosticLog.warn("RemoteServiceHelper", "service_manager_death_link_failed", "error" to e.message)
             }
         }
     }
@@ -185,7 +207,12 @@ object RemoteServiceHelper {
             .processNameSuffix("service")
             .debuggable(BuildConfig.DEBUG)
             .version(BuildConfig.VERSION_CODE)
-        Shizuku.bindUserService(userServiceArgs, connection)
+        try {
+            Shizuku.bindUserService(userServiceArgs, connection)
+        } catch (e: Exception) {
+            DiagnosticLog.error("RemoteServiceHelper", "shizuku_bind_threw", e, "component" to userServiceArgs.component.flattenToString())
+            throw e
+        }
     }
 
     @JvmStatic
@@ -281,7 +308,12 @@ object RemoteServiceHelper {
             if (rootGranted) {
                 val intent = Intent(context, RootRemoteService::class.java)
                 DiagnosticLog.info("RemoteServiceHelper", "service_bind_requested", "backend" to "root", "generation" to backendGeneration)
-                RootService.bind(intent, connection)
+                try {
+                    RootService.bind(intent, connection)
+                } catch (e: Exception) {
+                    DiagnosticLog.error("RemoteServiceHelper", "root_service_bind_threw", e, "component" to intent.component?.flattenToString())
+                    throw e
+                }
             } else {
                 DiagnosticLog.warn("RemoteServiceHelper", "service_bind_rejected", "backend" to "root", "reason" to "root_not_granted")
                 callback.onConnection(null)

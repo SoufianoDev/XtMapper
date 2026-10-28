@@ -55,10 +55,14 @@ class InputService @Throws(RemoteException::class) constructor(
         profile.scale(screenWidth.toFloat(), screenHeight.toFloat())
         this.currentPointerMode = keymapConfig.pointerMode
         if (currentPointerMode != KeymapConfig.POINTER_OVERLAY) {
-            initMouseCursor(screenWidth, screenHeight)
+            val cursorInitResult = initMouseCursor(screenWidth, screenHeight)
+            DiagnosticLog.info(RemoteService.TAG, "virtual_cursor_initialized", "result" to cursorInitResult, "screenWidth" to screenWidth, "screenHeight" to screenHeight, "pointerMode" to currentPointerMode)
             // Reduce visibility of system pointer
             cursorSetX(0)
             cursorSetY(0)
+            DiagnosticLog.info(RemoteService.TAG, "virtual_cursor_reset_to_origin", "x" to 0, "y" to 0, "reason" to "input_service_initialization", "pointerMode" to currentPointerMode)
+        } else {
+            DiagnosticLog.info(RemoteService.TAG, "virtual_cursor_initialization_skipped", "reason" to "overlay_pointer_mode", "screenWidth" to screenWidth, "screenHeight" to screenHeight)
         }
         if (currentPointerMode != KeymapConfig.POINTER_SYSTEM) showCursor()
 
@@ -112,14 +116,17 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     override fun injectRightClickEvent(x: Float, y: Float, pointerId: Int, pressed: Boolean) {
+        DiagnosticLog.debug(RemoteService.TAG, "mouse_button_injection", "button" to "right", "pressed" to pressed, "pointerId" to pointerId, "x" to x, "y" to y, "mappingPaused" to stopEvents)
         input.injectMouseClick(pointerId.toLong(), x, y, pressed, MotionEvent.BUTTON_SECONDARY)
     }
 
     override fun injectMiddleClickEvent(x: Float, y: Float, pointerId: Int, pressed: Boolean) {
+        DiagnosticLog.debug(RemoteService.TAG, "mouse_button_injection", "button" to "middle", "pressed" to pressed, "pointerId" to pointerId, "x" to x, "y" to y, "mappingPaused" to stopEvents)
         input.injectMouseClick(pointerId.toLong(), x, y, pressed, MotionEvent.BUTTON_TERTIARY)
     }
 
     override fun injectScroll(x: Float, y: Float, value: Float) {
+        DiagnosticLog.debugRateLimited(RemoteService.TAG, "scroll_injection", "scroll", "x" to x, "y" to y, "value" to value, "mappingPaused" to stopEvents)
         input.onScrollEvent(x, y, value)
     }
 
@@ -173,6 +180,7 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     override fun moveCursorX(x: Int) {
+        DiagnosticLog.debugRateLimited(RemoteService.TAG, "cursor_x_position_sample", "x", "x" to x, "pointerMode" to currentPointerMode, "overlayCursor" to (cursorView != null), "noPointersDown" to input.noPointersDown(), "mappingPaused" to stopEvents)
         val view = cursorView
         if (view != null) {
             mHandler.post { view.x = x.toFloat() }
@@ -189,6 +197,7 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     override fun moveCursorY(y: Int) {
+        DiagnosticLog.debugRateLimited(RemoteService.TAG, "cursor_y_position_sample", "y", "y" to y, "pointerMode" to currentPointerMode, "overlayCursor" to (cursorView != null), "noPointersDown" to input.noPointersDown(), "mappingPaused" to stopEvents)
         val view = cursorView
         if (view != null) {
             mHandler.post { view.y = y.toFloat() }
@@ -205,6 +214,7 @@ class InputService @Throws(RemoteException::class) constructor(
     }
 
     override fun hideCursor() {
+        DiagnosticLog.info(RemoteService.TAG, "cursor_hide_requested", "pointerMode" to currentPointerMode, "overlayCursor" to (cursorView != null))
         val view = cursorView
         if (view != null) {
             mHandler.post { view.visibility = View.GONE }
@@ -212,12 +222,14 @@ class InputService @Throws(RemoteException::class) constructor(
             try {
                 mCallback.disablePointer()
             } catch (e: RemoteException) {
+                DiagnosticLog.error(RemoteService.TAG, "cursor_hide_callback_failed", e)
                 throw RuntimeException(e)
             }
         }
     }
 
     override fun showCursor() {
+        DiagnosticLog.info(RemoteService.TAG, "cursor_show_requested", "pointerMode" to currentPointerMode, "overlayCursor" to (cursorView != null))
         val view = cursorView
         if (view != null) {
             mHandler.post { view.visibility = View.VISIBLE }
@@ -225,6 +237,7 @@ class InputService @Throws(RemoteException::class) constructor(
             try {
                 mCallback.enablePointer()
             } catch (e: RemoteException) {
+                DiagnosticLog.error(RemoteService.TAG, "cursor_show_callback_failed", e)
                 throw RuntimeException(e)
             }
         }
@@ -244,13 +257,18 @@ class InputService @Throws(RemoteException::class) constructor(
             keyEventHandler.init()
             mouseEventHandler.init()
             if (keymapConfig.isRootMode && keymapConfig.blockKeyboardInput && !isWaylandClient) {
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_start_requested", "reason" to "keymap_reload")
                 try {
                     isKeyboardGrabbed = startKeyboardGrab()
                     isKeyboardBlocked = isKeyboardGrabbed
+                    DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_start_result", "success" to isKeyboardGrabbed, "reason" to "keymap_reload")
                     if (isKeyboardGrabbed) setKeyboardGrabLock(!stopEvents)
                 } catch (e: Exception) {
+                    DiagnosticLog.error(RemoteService.TAG, "keyboard_grab_start_failed", e, "reason" to "keymap_reload")
                     XtLogger.error(RemoteService.TAG, "Failed to start keyboard grab", e)
                 }
+            } else {
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_skipped", "reason" to "keymap_reload_config", "rootMode" to keymapConfig.isRootMode, "blockKeyboardInput" to keymapConfig.blockKeyboardInput, "waylandClient" to isWaylandClient)
             }
         } catch (e: Exception) {
             DiagnosticLog.error(RemoteService.TAG, "input_keymap_reload_failed", e)
@@ -263,7 +281,9 @@ class InputService @Throws(RemoteException::class) constructor(
         if (isKeyboardGrabbed) {
             try {
                 stopKeyboardGrab()
+                DiagnosticLog.info(RemoteService.TAG, "keyboard_grab_stop_completed")
             } catch (e: Exception) {
+                DiagnosticLog.error(RemoteService.TAG, "keyboard_grab_stop_failed", e)
                 XtLogger.error(RemoteService.TAG, "Failed to stop keyboard grab", e)
             }
             isKeyboardGrabbed = false
