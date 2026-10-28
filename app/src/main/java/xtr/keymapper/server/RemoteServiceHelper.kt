@@ -210,7 +210,7 @@ object RemoteServiceHelper {
         try {
             Shizuku.bindUserService(userServiceArgs, connection)
         } catch (e: Exception) {
-            DiagnosticLog.error("RemoteServiceHelper", "shizuku_bind_threw", e, "component" to userServiceArgs.component.flattenToString())
+            DiagnosticLog.error("RemoteServiceHelper", "shizuku_bind_threw", e, "component" to RemoteService::class.java.name)
             throw e
         }
     }
