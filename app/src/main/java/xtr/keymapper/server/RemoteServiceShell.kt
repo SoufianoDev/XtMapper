@@ -70,9 +70,11 @@ object RemoteServiceShell {
             }
             XtLogger.info(TAG, "server configuration ready wayland=${mService.isWaylandClient}")
             Selinux.real.relax()
-            // Restore SELinux enforcement on JVM shutdown.
+            // Restore only if Selinux positively recorded a change that may need reverting.
+            // Calling the helper also verifies the result; never force Enforcing when the
+            // initial state was already Permissive or could not be determined.
             Runtime.getRuntime().addShutdownHook(
-                Thread { ProcessBuilder("setenforce", "1").start() }
+                Thread { Selinux.real.restore() }
             )
             // Normal exits may close the session here, but a fatal process must remain open
             // so the next launch reports an unclean previous session instead of a false END.
