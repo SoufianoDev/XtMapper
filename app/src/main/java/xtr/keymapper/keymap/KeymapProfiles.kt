@@ -1,5 +1,6 @@
 package xtr.keymapper.keymap
 
+import xtr.keymapper.log.DiagnosticLog
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
@@ -52,7 +53,10 @@ class KeymapProfiles @JvmOverloads constructor(
         val designated = sharedPref.getString(designationKey, null)
         val profiles = getAllProfilesForApp(packageName)
         if (profiles.isEmpty()) {
-            if (designated != null) sharedPref.edit().remove(designationKey).apply()
+            if (designated != null) {
+                DiagnosticLog.warn("KeymapProfiles", "stale_designation_removed", "package" to packageName, "profile" to designated, "reason" to "no_profiles_for_package")
+                sharedPref.edit().remove(designationKey).apply()
+            }
             return null
         }
         if (designated != null && profiles.containsKey(designated)) {
@@ -62,14 +66,17 @@ class KeymapProfiles @JvmOverloads constructor(
             }
             // Keep a user's existing designation when that profile is temporarily disabled.
             // Return an enabled fallback for this launch, but do not persist over their choice.
-            return profiles.entries.firstOrNull { !it.value.disabled }?.key
+            val fallback = profiles.entries.firstOrNull { !it.value.disabled }?.key
                 ?: profiles.keys.firstOrNull()
+            DiagnosticLog.info("KeymapProfiles", "designated_profile_fallback", "package" to packageName, "requested" to designated, "resolved" to fallback, "requestedDisabled" to (profile?.disabled == true))
+            return fallback
         }
 
         val fallback = profiles.entries.firstOrNull { !it.value.disabled }?.key
             ?: profiles.keys.firstOrNull()
         if (fallback != null) {
             // Repair stale or disabled designations so future saves can keep the choice stable.
+            DiagnosticLog.info("KeymapProfiles", "designated_profile_repaired", "package" to packageName, "previous" to designated, "resolved" to fallback)
             setDesignatedProfileForApp(packageName, fallback)
         } else if (designated != null) {
             sharedPref.edit().remove(designationKey).apply()
@@ -79,11 +86,19 @@ class KeymapProfiles @JvmOverloads constructor(
 
     fun setDesignatedProfileForApp(packageName: String?, profileName: String?) {
         if (!packageName.isNullOrEmpty() && profileName != null) {
-            sharedPref.edit().putString("designated_profile_$packageName", profileName).apply()
+            val key = "designated_profile_$packageName"
+            val previous = sharedPref.getString(key, null)
+            if (previous != profileName) {
+                DiagnosticLog.info("KeymapProfiles", "designated_profile_changed", "package" to packageName, "previous" to previous, "profile" to profileName)
+                sharedPref.edit().putString(key, profileName).apply()
+            }
+        } else {
+            DiagnosticLog.warn("KeymapProfiles", "designated_profile_rejected", "package" to packageName, "profile" to profileName, "reason" to "missing_package_or_profile")
         }
     }
 
     fun renameProfile(profileName: String, newProfile: String) {
+        DiagnosticLog.info("KeymapProfiles", "profile_rename_requested", "previous" to profileName, "new" to newProfile, "exists" to profileExists(profileName))
         val designatedKeys = sharedPref.all
             .filter { (key, value) -> key.startsWith("designated_profile_") && value == profileName }
             .keys
@@ -100,7 +115,13 @@ class KeymapProfiles @JvmOverloads constructor(
     }
 
     fun setProfilePackageName(profileName: String?, packageName: String) {
-        val stringSet = sharedPref.getStringSet(profileName, null) ?: return
+        val stringSet = sharedPref.getStringSet(profileName, null)
+        if (stringSet == null) {
+            DiagnosticLog.warn("KeymapProfiles", "profile_package_change_rejected", "profile" to profileName, "newPackage" to packageName, "reason" to "profile_missing")
+            return
+        }
+        val previous = getProfile(stringSet).packageName
+        DiagnosticLog.info("KeymapProfiles", "profile_package_changed", "profile" to profileName, "previousPackage" to previous, "newPackage" to packageName)
         saveProfile(profileName, ArrayList<String?>(stringSet), packageName, stringSet.contains("ENABLED"), 0, 0)
     }
 
@@ -131,25 +152,40 @@ class KeymapProfiles @JvmOverloads constructor(
     }
 
     internal fun recordStartupProfileSelection(profileName: String?, isShellInit: Boolean) {
+        DiagnosticLog.info("KeymapProfiles", "startup_profile_resolved", "profile" to profileName, "source" to if (isShellInit) "trusted_shell_default" else "last_selected_or_default")
         if (!isShellInit) setLastSelectedProfile(profileName)
     }
 
     fun setLastSelectedProfile(profileName: String?) {
         if (!profileName.isNullOrEmpty()) {
-            sharedPref.edit().putString(KEY_LAST_SELECTED_PROFILE, profileName).apply()
+            val previous = sharedPref.getString(KEY_LAST_SELECTED_PROFILE, null)
+            if (previous != profileName) {
+                DiagnosticLog.info("KeymapProfiles", "last_selected_profile_changed", "previous" to previous, "profile" to profileName)
+                sharedPref.edit().putString(KEY_LAST_SELECTED_PROFILE, profileName).apply()
+            }
+        } else {
+            DiagnosticLog.warn("KeymapProfiles", "last_selected_profile_rejected", "reason" to "empty_profile_name")
         }
     }
 
     @Suppress("UNCHECKED_CAST")
     fun setProfileEnabled(profileName: String, enabled: Boolean) {
-        val stringSet = sharedPref.getStringSet(profileName, null) ?: return
+        val stringSet = sharedPref.getStringSet(profileName, null)
+        if (stringSet == null) {
+            DiagnosticLog.warn("KeymapProfiles", "profile_enable_change_rejected", "profile" to profileName, "enabled" to enabled, "reason" to "profile_missing")
+            return
+        }
+        DiagnosticLog.info("KeymapProfiles", "profile_enable_change_requested", "profile" to profileName, "enabled" to enabled)
         var packageName: String? = null
         for (line in stringSet) {
             val data = line.split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
             if (data[0] == "APPLICATION" && data.size >= 2)
                 packageName = data[1]
         }
-        if (packageName == null) return
+        if (packageName == null) {
+            DiagnosticLog.warn("KeymapProfiles", "profile_enable_change_rejected", "profile" to profileName, "enabled" to enabled, "reason" to "package_missing")
+            return
+        }
 
         for ((key, value) in sharedPref.all) {
             if (key.startsWith("designated_profile_") || key == KEY_LAST_SELECTED_PROFILE) continue
@@ -171,6 +207,7 @@ class KeymapProfiles @JvmOverloads constructor(
         xRes: Int,
         yRes: Int
     ) {
+        DiagnosticLog.info("KeymapProfiles", "profile_save_requested", "profile" to profileName, "package" to packageName, "enabled" to enabled, "exists" to profileExists(profileName), "lineCount" to lines.size, "screenWidth" to xRes, "screenHeight" to yRes)
         lines.removeIf { it!!.contains("APPLICATION") }
         lines.add("APPLICATION $packageName")
 
@@ -194,6 +231,7 @@ class KeymapProfiles @JvmOverloads constructor(
     }
 
     fun deleteProfile(profileName: String?) {
+        DiagnosticLog.info("KeymapProfiles", "profile_delete_requested", "profile" to profileName, "exists" to profileExists(profileName))
         val editor = sharedPref.edit().remove(profileName)
         if (profileName != null) {
             if (sharedPref.getString(KEY_LAST_SELECTED_PROFILE, null) == profileName) {
@@ -210,8 +248,12 @@ class KeymapProfiles @JvmOverloads constructor(
 
     fun getProfile(profileName: String?, loadMacros: Boolean): KeymapProfile {
         val stringSet = sharedPref.getStringSet(profileName, null)
+        if (!profileName.isNullOrEmpty() && stringSet == null) {
+            DiagnosticLog.warn("KeymapProfiles", "profile_load_missing", "profile" to profileName, "loadMacros" to loadMacros)
+        }
         val keymapProfile = getProfile(stringSet)
         if (loadMacros) keymapProfile.loadMacros(context)
+        DiagnosticLog.debug("KeymapProfiles", "profile_loaded", "profile" to profileName, "package" to keymapProfile.packageName, "enabled" to !keymapProfile.disabled, "lineCount" to (stringSet?.size ?: 0), "macroCount" to keymapProfile.macroIdMap.size, "loadMacros" to loadMacros)
         return keymapProfile
     }
 

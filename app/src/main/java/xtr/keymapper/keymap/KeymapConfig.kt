@@ -1,5 +1,6 @@
 package xtr.keymapper.keymap
 
+import xtr.keymapper.log.DiagnosticLog
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
@@ -249,6 +250,7 @@ class KeymapConfig : Parcelable {
     }
 
     fun applySharedPrefs() {
+        DiagnosticLog.info("KeymapConfig", "configuration_saved", "inputMode" to if (isShizukuMode) "shizuku" else "root", "pointerMode" to pointerMode, "touchpadInputMode" to touchpadInputMode, "autoProfilingEnabled" to !disableAutoProfiling, "editorOverlay" to editorOverlay, "showControls" to showControls, "blockKeyboardInput" to blockKeyboardInput, "touchJitter" to touchJitter, "mouseSensitivity" to mouseSensitivity, "scrollSpeed" to scrollSpeed, "swipeDelayMs" to swipeDelayMs, "shiftTransitionMs" to shiftTransitionMs, "launchEditorShortcut" to "$launchEditorShortcutKeyModifier+$launchEditorShortcutKey", "pauseResumeShortcut" to "$pauseResumeShortcutKeyModifier+$pauseResumeShortcutKey", "switchProfileShortcut" to "$switchProfileShortcutKeyModifier+$switchProfileShortcutKey", "blockKeyboardShortcut" to "$blockKeyboardShortcutKeyModifier+$blockKeyboardShortcutKey") 
         sharedPref!!.edit().putFloat("mouse_sensitivity_multiplier", mouseSensitivity!!)
             .putFloat("scroll_speed_multiplier", scrollSpeed!!)
             .putBoolean("ctrl_mouse_wheel_zoom", ctrlMouseWheelZoom)

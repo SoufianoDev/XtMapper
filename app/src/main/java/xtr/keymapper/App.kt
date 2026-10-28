@@ -1,5 +1,8 @@
 package xtr.keymapper
 
+import xtr.keymapper.log.DiagnosticLog
+import android.os.Process
+import android.os.Build
 import android.app.Application
 import xtr.keymapper.log.XtLogger
 
@@ -13,6 +16,6 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         XtLogger.init(this)
-        XtLogger.info("App", "application process started (version ${BuildConfig.VERSION_NAME})")
+        DiagnosticLog.info("App", "process_started", "version" to BuildConfig.VERSION_NAME, "buildType" to BuildConfig.BUILD_TYPE, "pid" to Process.myPid(), "sdkInt" to Build.VERSION.SDK_INT, "androidVersion" to Build.VERSION.RELEASE, "environment" to Environment.name, "fileSinkAvailable" to XtLogger.isFileSinkAvailable)
     }
 }

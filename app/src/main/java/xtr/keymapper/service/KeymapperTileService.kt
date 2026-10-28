@@ -1,5 +1,6 @@
 package xtr.keymapper.service
 
+import xtr.keymapper.log.DiagnosticLog
 import android.app.PendingIntent
 import android.content.ComponentName
 import android.content.Context
@@ -28,8 +29,10 @@ class KeymapperTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val running = TouchPointer.isRunning
+        DiagnosticLog.info("QuickSettings", "tile_clicked", "pointerRunning" to running, "backendConnected" to TouchPointer.backendConnected, "profile" to TouchPointer.currentSelectedProfile)
 
         if (running) {
+            DiagnosticLog.info("QuickSettings", "tile_stop_requested", "hasActiveInstance" to (TouchPointer.activeInstance != null))
             val instance = TouchPointer.activeInstance
             if (instance != null) {
                 instance.stopKeymapper()
@@ -44,6 +47,7 @@ class KeymapperTileService : TileService() {
             Toast.makeText(this, "XtMapper stopped", Toast.LENGTH_SHORT).show()
         } else {
             if (!Settings.canDrawOverlays(this)) {
+                DiagnosticLog.warn("QuickSettings", "tile_start_blocked", "reason" to "overlay_permission_missing")
                 val intent = Intent(this, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
@@ -54,6 +58,7 @@ class KeymapperTileService : TileService() {
 
             val selectedProfile = TouchPointer.currentSelectedProfile
                 ?: KeymapProfiles(this).getLastSelectedProfile()
+            DiagnosticLog.info("QuickSettings", "tile_start_requested", "profile" to selectedProfile, "inputMode" to if (KeymapConfig(this).isShizukuMode) "shizuku" else "root")
             val startIntent = Intent(this, TouchPointer::class.java).apply {
                 putExtra(EditorActivity.PROFILE_NAME, selectedProfile)
             }
@@ -81,18 +86,24 @@ class KeymapperTileService : TileService() {
         profileName: String? = TouchPointer.currentSelectedProfile ?: KeymapProfiles(this).getLastSelectedProfile()
     ) {
         val tile = qsTile ?: return
-        tile.state = if (isActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.label = getString(R.string.quick_settings_tile_name)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            tile.subtitle = if (isActive) {
+        val nextState = if (isActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+        val nextSubtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (isActive) {
                 if (!profileName.isNullOrEmpty()) profileName else "Active"
             } else if (TouchPointer.isRunning) {
                 "Connecting"
             } else {
                 "Off"
             }
+        } else null
+        val changed = tile.state != nextState ||
+            (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && tile.subtitle != nextSubtitle)
+        if (changed) {
+            DiagnosticLog.info("QuickSettings", "tile_state_changed", "state" to if (isActive) "active" else "inactive", "subtitle" to nextSubtitle, "pointerRunning" to TouchPointer.isRunning, "backendConnected" to TouchPointer.backendConnected, "profile" to profileName)
         }
+        tile.state = nextState
+        tile.label = getString(R.string.quick_settings_tile_name)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) tile.subtitle = nextSubtitle
         tile.updateTile()
     }
 
@@ -101,7 +112,7 @@ class KeymapperTileService : TileService() {
             try {
                 requestListeningState(context, ComponentName(context, KeymapperTileService::class.java))
             } catch (e: Exception) {
-                Log.w("KeymapperTileService", "Failed to request listening state: ${e.message}")
+                DiagnosticLog.warn("QuickSettings", "tile_listening_state_request_failed", "error" to e.message)
             }
         }
     }

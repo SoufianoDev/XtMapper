@@ -1,5 +1,7 @@
 package xtr.keymapper.profiles
 
+import xtr.keymapper.log.DiagnosticLog
+import android.os.SystemClock
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -37,9 +39,12 @@ class ProfilesApps private constructor(context: Context) {
     @UiThread
     private fun asyncLoadApps(onAppsLoadedListener: OnAppsLoadedListener, dialog: AlertDialog) {
         val context = appsView.context
+        val startedAt = SystemClock.elapsedRealtime()
+        DiagnosticLog.info("ProfilesApps", "app_catalog_load_started")
 
         Thread {
             val adapter = AppsGridAdapter(context)
+            DiagnosticLog.info("ProfilesApps", "app_catalog_loaded", "count" to adapter.itemCount, "elapsedMs" to (SystemClock.elapsedRealtime() - startedAt))
             val mHandler = Handler(Looper.getMainLooper())
             mHandler.post { onAppsLoadedListener.onAppsLoaded(this, adapter, dialog) }
         }.start()
@@ -70,6 +75,7 @@ class ProfilesApps private constructor(context: Context) {
             i.addCategory(Intent.CATEGORY_LAUNCHER)
 
             val allApps = pm.queryIntentActivities(i, 0)
+            DiagnosticLog.debug("ProfilesApps", "launcher_apps_queried", "count" to allApps.size)
 
             for (ri in allApps)
                 appsDataArrayList.add(
@@ -86,7 +92,9 @@ class ProfilesApps private constructor(context: Context) {
             val itemBinding =
                 AppViewBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             return RecyclerViewHolder(itemBinding) { position ->
-                mListener!!.onAppSelected(appsDataArrayList[position].packageName)
+                val packageName = appsDataArrayList[position].packageName
+                DiagnosticLog.info("ProfilesApps", "app_catalog_item_selected", "package" to packageName, "position" to position)
+                mListener!!.onAppSelected(packageName)
             }
         }
 
