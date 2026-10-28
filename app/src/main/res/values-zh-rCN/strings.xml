@@ -132,4 +132,16 @@
     <string name="input_mode">输入模式</string>
     <string name="input_mode_root">Root</string>
     <string name="input_mode_shizuku">Shizuku (ADB)</string>
+    <string name="shizuku_not_installed_title">未安装 Shizuku</string>
+    <string name="shizuku_not_installed_message">选择 Shizuku 输入模式前，请先安装 Shizuku 应用。</string>
+    <string name="test_input_service_inactive">测试输入前，请先启动按键映射服务。</string>
+    <string name="test_input_root_unavailable">Root 权限不可用。测试输入前，请为 XtMapper 授予 Root 权限。</string>
+    <string name="test_input_ready">%1$s 模式已启用。请连接键盘或鼠标进行测试。</string>
+    <string name="shizuku_install_required">安装 Shizuku 以使用此输入模式</string>
+    <string name="shizuku_start_required">启动 Shizuku 以使用此输入模式</string>
+    <string name="input_mode_changed">输入模式：%1$s</string>
+    <string name="block_keyboard_input">阻止原始键盘输入</string>
+    <string name="block_keyboard">屏蔽键盘</string>
+    <string name="keyboard_blocked">键盘输入已屏蔽</string>
+    <string name="keyboard_unblocked">键盘输入已解除屏蔽</string>
 </resources>
