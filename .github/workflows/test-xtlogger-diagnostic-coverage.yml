@@ -9,9 +9,6 @@ on:
       - dev
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: xtlogger-diagnostic-${{ github.ref }}
   cancel-in-progress: true
@@ -21,6 +18,8 @@ jobs:
     name: Unit tests and debug APK build
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     steps:
       - name: Check out source
@@ -51,3 +50,50 @@ jobs:
 
       - name: Run unit tests and build debug APK
         run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Calculate APK SHA-256
+        run: sha256sum app/build/outputs/apk/debug/app-debug.apk > app-debug.apk.sha256
+
+      - name: Upload build outputs for this workflow run
+        uses: actions/upload-artifact@v4
+        with:
+          name: xtmapper-diagnostic-build-${{ github.sha }}
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-direct-apk:
+    name: Publish direct-download diagnostic APK
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test/xtlogger-diagnostic-coverage-20261028'
+    needs: unit-and-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download the tested APK
+        uses: actions/download-artifact@v4
+        with:
+          name: xtmapper-diagnostic-build-${{ github.sha }}
+          path: dist
+
+      - name: Publish an explicitly experimental prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          short_sha="${SOURCE_SHA:0:7}"
+          tag="xtlogger-diagnostic-${short_sha}-run-${RUN_NUMBER}-attempt-${RUN_ATTEMPT}"
+          gh release create "$tag" \
+            dist/app-debug.apk \
+            dist/app-debug.apk.sha256 \
+            --repo "$REPOSITORY" \
+            --prerelease \
+            --title "XtMapper XtLogger diagnostic build ${short_sha}" \
+            --notes "Experimental diagnostic-only build from commit ${SOURCE_SHA}. This release is isolated from the connection-lifecycle test branch and does not claim to fix Issue #228. Run unit tests and debug APK assembly must pass before this asset is published."
