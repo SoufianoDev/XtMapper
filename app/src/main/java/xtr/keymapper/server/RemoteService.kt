@@ -52,7 +52,7 @@ class RemoteService(context: Context) : IRemoteService.Stub() {
     internal var context: Context = context
     internal var startedFromShell = false
 
-    private var geteventProcess: Process? = null
+    private var geteventProcess: java.lang.Process? = null
 
     // shortcut: single-user check; multi-user/work-profile installs have a different uid per user
     private val appUid: Int by lazy {
