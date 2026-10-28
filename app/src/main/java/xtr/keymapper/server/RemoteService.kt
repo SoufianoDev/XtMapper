@@ -95,7 +95,7 @@ class RemoteService @JvmOverloads constructor(
         return try {
             prepareCursorOverlayWindow(displayId)
         } catch (e: Exception) {
-            Log.e(TAG, e.message, e)
+            XtLogger.error(TAG, "Failed to prepare cursor overlay window; falling back to default WindowManager", e)
             context.getSystemService(WindowManager::class.java)
         }
     }
@@ -109,7 +109,7 @@ class RemoteService @JvmOverloads constructor(
             if (!isWaylandClient) Thread { start_getevent() }.start()
             else mHandler.post { start_getevent() }
         } catch (e: PackageManager.NameNotFoundException) {
-            Log.e(TAG, e.message, e)
+            XtLogger.error(TAG, "Unable to resolve app native library directory", e)
             throw RuntimeException(e)
         }
 
@@ -135,7 +135,7 @@ class RemoteService @JvmOverloads constructor(
                             crashInfo.throwMethodName
                 ).start()
             } catch (ex: Exception) {
-                Log.e(TAG, ex.message, ex)
+                XtLogger.error(TAG, "Failed to relay the server crash to MainActivity", ex)
             }
             System.exit(1)
         }
@@ -152,7 +152,7 @@ class RemoteService @JvmOverloads constructor(
                 mWindowManager!!.addView(view, params)
             } catch (e: IllegalStateException) { // A14 QPR3 issue https://gist.github.com/RikkaW/be3fe4178903702c54ec73b2fc1187fe
                 cursorView = null
-                Log.e(TAG, e.message, e)
+                XtLogger.error(TAG, "Failed to attach cursor overlay view", e)
             }
         }
     }
@@ -363,7 +363,7 @@ class RemoteService @JvmOverloads constructor(
         // Restore enforcing only if this app actually relaxed SELinux (shell entry
         // point); startedFromShell is also set by the system-app path, which never does
         if (exitProcess && !Selinux.real.restore()) {
-            Log.e(TAG, "Failed to restore SELinux enforcing mode")
+            XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
         val service = inputService
         if (service != null) try {
