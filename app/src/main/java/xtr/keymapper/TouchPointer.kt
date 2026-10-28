@@ -1,5 +1,7 @@
 package xtr.keymapper
 
+import xtr.keymapper.log.DiagnosticLog
+import android.os.SystemClock
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -69,7 +71,9 @@ class TouchPointer : Service() {
     }
 
     override fun onStartCommand(i: Intent?, flags: Int, startId: Int): Int {
+        DiagnosticLog.info("TouchPointer", "start_command_received", "action" to i?.action, "flags" to flags, "startId" to startId, "profileExtra" to i?.getStringExtra(EditorActivity.PROFILE_NAME))
         if (i == null || ACTION_STOP == i.action) {
+            DiagnosticLog.info("TouchPointer", "stop_command_received", "reason" to if (i == null) "null_intent" else "action_stop", "startId" to startId)
             stopKeymapper()
             // stopKeymapper may return early when the instance is already inactive.
             // This service was still started for this command, so always stop this start ID.
@@ -114,6 +118,7 @@ class TouchPointer : Service() {
 
             override fun onDisplayChanged(displayId: Int) {
                 if (displayId == this@TouchPointer.displayId) {
+                    DiagnosticLog.info("TouchPointer", "display_changed", "displayId" to displayId)
                     Point().also {
                         getSystemService(DisplayManager::class.java).getDisplay(
                             displayId
@@ -142,6 +147,9 @@ class TouchPointer : Service() {
         // and failure cleanup must be able to unregister this listener.
         val targetProfile = selectedProfile ?: KeymapProfiles(this).getLastSelectedProfile()
         val keymapProfile = KeymapProfiles(this).getProfile(targetProfile, true)
+        val config = KeymapConfig(this)
+        DiagnosticLog.info("TouchPointer", "pointer_startup_resolved", "profile" to targetProfile, "package" to keymapProfile.packageName, "profileEnabled" to !keymapProfile.disabled, "displayId" to displayId, "inputMode" to if (config.isShizukuMode) "shizuku" else "root", "pointerMode" to config.pointerMode, "autoProfilingEnabled" to !config.disableAutoProfiling)
+        DiagnosticLog.info("TouchPointer", "display_listener_registered", "displayId" to displayId)
         connectRemoteService(keymapProfile)
 
         return super.onStartCommand(i, flags, startId)
@@ -190,6 +198,7 @@ class TouchPointer : Service() {
     }
 
     fun launchProfile(profileName: String?) {
+        DiagnosticLog.info("TouchPointer", "profile_launch_requested", "previousProfile" to selectedProfile, "requestedProfile" to profileName, "pointerRunning" to isRunning)
         this.selectedProfile = profileName
         currentSelectedProfile = profileName
         KeymapProfiles(this).setLastSelectedProfile(profileName)
@@ -201,8 +210,13 @@ class TouchPointer : Service() {
 
     private fun connectRemoteService(profile: KeymapProfile) {
         // Ignore requests from instances that are no longer the active service.
-        if (activeInstance !== this || !isRunning) return
+        if (activeInstance !== this || !isRunning) {
+            DiagnosticLog.debug("TouchPointer", "connection_request_ignored", "profile" to selectedProfile, "reason" to if (activeInstance !== this) "not_active_instance" else "not_running")
+            return
+        }
+        val requestStartedAt = SystemClock.elapsedRealtime()
         val requestGeneration = connectionState.beginRequest()
+        DiagnosticLog.info("TouchPointer", "connection_request_started", "generation" to requestGeneration, "profile" to selectedProfile, "package" to profile.packageName, "profileEnabled" to !profile.disabled, "displayId" to displayId, "inputMode" to if (KeymapConfig(this).isShizukuMode) "shizuku" else "root")
         if (!connectionState.isCurrent(requestGeneration)) return
 
         if (activityCallback != null) activityCallback!!.updateCmdView1("connecting to server..")
@@ -211,13 +225,16 @@ class TouchPointer : Service() {
         RemoteServiceHelper.getInstance(
             this
         ) { service: IRemoteService? ->
+            val callbackElapsedMs = SystemClock.elapsedRealtime() - requestStartedAt
             // A late callback must not alter state after stop or a newer request.
             if (!connectionState.isCurrent(requestGeneration) ||
                 activeInstance !== this@TouchPointer
             ) {
+                DiagnosticLog.warn("TouchPointer", "stale_connection_callback_ignored", "generation" to requestGeneration, "activeInstance" to (activeInstance === this@TouchPointer), "elapsedMs" to callbackElapsedMs)
                 return@getInstance
             }
             if (service == null) {
+                DiagnosticLog.warn("TouchPointer", "connection_callback_failed", "generation" to requestGeneration, "backend" to if (RemoteServiceHelper.useShizuku) "shizuku" else "root", "elapsedMs" to callbackElapsedMs, "reason" to "null_service")
                 failConnection(
                     requestGeneration,
                     "Failed to connect to server (root/shizuku not available)",
@@ -227,6 +244,7 @@ class TouchPointer : Service() {
             }
 
             mService = service
+            DiagnosticLog.info("TouchPointer", "remote_service_available", "generation" to requestGeneration, "elapsedMs" to callbackElapsedMs, "binderAlive" to runCatching { service.asBinder().isBinderAlive }.getOrDefault(false))
             try {
                 val keymapConfig = KeymapConfig(this)
                 val displayManager = getSystemService(DisplayManager::class.java)
@@ -238,8 +256,12 @@ class TouchPointer : Service() {
                     this.displayContext?.getSystemService(WindowManager::class.java)
 
                 if (!activityRemoteCallback && !keymapConfig.disableAutoProfiling) {
+                    DiagnosticLog.info("TouchPointer", "foreground_observer_register_requested", "generation" to requestGeneration, "autoProfilingEnabled" to true)
                     service.registerActivityObserver(mActivityObserverCallback)
                     activityRemoteCallback = true
+                    DiagnosticLog.info("TouchPointer", "foreground_observer_registered", "generation" to requestGeneration)
+                } else {
+                    DiagnosticLog.debug("TouchPointer", "foreground_observer_registration_skipped", "alreadyRegistered" to activityRemoteCallback, "autoProfilingEnabled" to !keymapConfig.disableAutoProfiling)
                 }
                 if (!connectionState.isCurrent(requestGeneration) ||
                     activeInstance !== this@TouchPointer
@@ -247,21 +269,24 @@ class TouchPointer : Service() {
                     return@getInstance
                 }
                 if (!profile.disabled) {
-                    service.startServer(
-                        profile,
-                        keymapConfig,
-                        mCallback,
-                        size.x,
-                        size.y,
-                        displayId
-                    )
+                    DiagnosticLog.info("TouchPointer", "remote_start_server_call", "generation" to requestGeneration, "profile" to selectedProfile, "package" to profile.packageName, "screenWidth" to size.x, "screenHeight" to size.y, "displayId" to displayId, "pointerMode" to keymapConfig.pointerMode, "note" to "startServer_initialization_is_asynchronous")
+                    service.startServer(profile, keymapConfig, mCallback, size.x, size.y, displayId)
+                    DiagnosticLog.info("TouchPointer", "remote_start_server_call_returned", "generation" to requestGeneration, "elapsedMs" to (SystemClock.elapsedRealtime() - requestStartedAt), "readiness" to "not_confirmed_by_async_method_return")
+                } else {
+                    DiagnosticLog.warn("TouchPointer", "remote_start_server_skipped", "generation" to requestGeneration, "profile" to selectedProfile, "reason" to "profile_disabled")
                 }
                 if (keymapConfig.showControls) {
+                    DiagnosticLog.debug("TouchPointer", "show_controls_start_requested", "profile" to selectedProfile)
                     ShowKeymapService.start(this, selectedProfile)
                 }
-                if (!connectionState.markConnected(requestGeneration)) return@getInstance
+                if (!connectionState.markConnected(requestGeneration)) {
+                    DiagnosticLog.warn("TouchPointer", "connected_transition_rejected", "generation" to requestGeneration, "elapsedMs" to (SystemClock.elapsedRealtime() - requestStartedAt))
+                    return@getInstance
+                }
+                DiagnosticLog.info("TouchPointer", "connection_state_connected", "generation" to requestGeneration, "profile" to selectedProfile, "elapsedMs" to (SystemClock.elapsedRealtime() - requestStartedAt), "serverReadiness" to if (profile.disabled) "not_started_profile_disabled" else "async_start_requested_not_confirmed")
                 KeymapperTileService.updateTile(this@TouchPointer)
             } catch (e: Exception) {
+                DiagnosticLog.error("TouchPointer", "connection_setup_exception", e, "generation" to requestGeneration, "profile" to selectedProfile, "elapsedMs" to (SystemClock.elapsedRealtime() - requestStartedAt))
                 failConnection(requestGeneration, e.toString(), e)
             }
         }
@@ -273,7 +298,11 @@ class TouchPointer : Service() {
         error: Exception?
     ) {
         // A failure from an older request must not tear down a newer run.
-        if (activeInstance !== this || !connectionState.fail(requestGeneration)) return
+        if (activeInstance !== this || !connectionState.fail(requestGeneration)) {
+            DiagnosticLog.warn("TouchPointer", "connection_failure_ignored", "generation" to requestGeneration, "activeInstance" to (activeInstance === this), "reason" to "stale_or_already_stopped")
+            return
+        }
+        DiagnosticLog.error("TouchPointer", "connection_failed", error, "generation" to requestGeneration, "profile" to selectedProfile, "message" to message)
         isRunning = false
         if (error == null) {
             Log.w("TouchPointer", message)
@@ -292,7 +321,11 @@ class TouchPointer : Service() {
 
     fun stopKeymapper() {
         // Do not let an obsolete service instance stop a newer run.
-        if (activeInstance !== this) return
+        if (activeInstance !== this) {
+            DiagnosticLog.debug("TouchPointer", "stop_ignored_for_inactive_instance", "profile" to selectedProfile)
+            return
+        }
+        DiagnosticLog.info("TouchPointer", "stop_started", "profile" to selectedProfile, "backendConnected" to backendConnected, "hasRemoteService" to (mService != null), "observerRegistered" to activityRemoteCallback)
         connectionState.stop()
         isRunning = false
         activeInstance = null
@@ -303,9 +336,15 @@ class TouchPointer : Service() {
         displayListener = null
 
         if (mService != null) try {
-            mService!!.unregisterActivityObserver(mActivityObserverCallback)
+            if (activityRemoteCallback) {
+                mService!!.unregisterActivityObserver(mActivityObserverCallback)
+                activityRemoteCallback = false
+                DiagnosticLog.info("TouchPointer", "foreground_observer_unregistered")
+            }
             stopServer()
+            DiagnosticLog.info("TouchPointer", "remote_stop_server_requested")
         } catch (e: Exception) {
+            DiagnosticLog.error("TouchPointer", "remote_cleanup_failed", e, "profile" to selectedProfile)
             Log.e("stopServer", e.toString(), e)
         }
         mService = null
@@ -316,10 +355,12 @@ class TouchPointer : Service() {
 
         activityCallback?.stopPointer()
         KeymapperTileService.updateTile(this)
+        DiagnosticLog.info("TouchPointer", "stop_completed", "profile" to selectedProfile)
         stopSelf()
     }
 
     override fun onDestroy() {
+        DiagnosticLog.info("TouchPointer", "service_destroyed", "profile" to selectedProfile, "backendConnected" to backendConnected)
         stopKeymapper()
         activityCallback = null
         super.onDestroy()
@@ -327,6 +368,7 @@ class TouchPointer : Service() {
 
     @Throws(RemoteException::class)
     private fun stopServer() {
+        DiagnosticLog.debug("TouchPointer", "remote_stop_server_call", "profile" to selectedProfile)
         stopService(Intent(this, ShowKeymapService::class.java))
         mService!!.stopServer()
     }
@@ -339,6 +381,7 @@ class TouchPointer : Service() {
         private var cursorView: View? = null
 
         override fun launchEditor() {
+            DiagnosticLog.info("TouchPointer", "remote_callback_launch_editor", "profile" to selectedProfile)
             val intent = Intent(this@TouchPointer, EditorService::class.java)
             intent.putExtra(EditorActivity.PROFILE_NAME, selectedProfile)
             startService(intent)
@@ -363,12 +406,14 @@ class TouchPointer : Service() {
 
         @UiThread
         override fun switchProfiles() {
+            DiagnosticLog.info("TouchPointer", "profile_switch_requested_by_input")
             mHandler.post {
                 val keymapProfiles = KeymapProfiles(this@TouchPointer)
                 val keymapProfile = keymapProfiles.getProfile(selectedProfile, false)
                 val application = keymapProfile.packageName
 
                 if (keymapProfiles.getAllProfilesForApp(application).size == 1) {
+                    DiagnosticLog.info("TouchPointer", "profile_switch_unavailable", "package" to application, "reason" to "single_profile")
                     Toast.makeText(
                         this@TouchPointer,
                         "Only one profile saved for $application",
@@ -379,6 +424,7 @@ class TouchPointer : Service() {
                 ProfileSelector.select(
                     this@TouchPointer,
                     { profile: String? ->
+                        DiagnosticLog.info("TouchPointer", "profile_switch_selected", "previousProfile" to this@TouchPointer.selectedProfile, "profile" to profile, "package" to application)
                         this@TouchPointer.selectedProfile = profile
                         // Reloading profile
                         connectRemoteService(keymapProfiles.getProfile(profile, true))
@@ -390,6 +436,7 @@ class TouchPointer : Service() {
 
         override fun enablePointer() {
             val keymapConfig = requestKeymapConfig()
+            DiagnosticLog.info("TouchPointer", "cursor_enable_requested", "pointerMode" to keymapConfig.pointerMode, "cursorViewExists" to (cursorView != null))
 
             // Set combined pointer mode automatically for 14 QPR3 and above
             if (keymapConfig.pointerMode == KeymapConfig.POINTER_OVERLAY) {
@@ -420,6 +467,7 @@ class TouchPointer : Service() {
         }
 
         override fun disablePointer() {
+            DiagnosticLog.debug("TouchPointer", "cursor_disable_requested", "cursorViewExists" to (cursorView != null))
             mHandler.post {
                 if (cursorView != null) {
                     mWindowManager!!.removeView(cursorView)
@@ -441,6 +489,7 @@ class TouchPointer : Service() {
         }
 
         override fun alertKeyboardBlocked(blocked: Boolean) {
+            DiagnosticLog.info("TouchPointer", "keyboard_block_state_callback", "blocked" to blocked)
             mHandler.post {
                 Toast.makeText(
                     this@TouchPointer,
@@ -498,10 +547,15 @@ class TouchPointer : Service() {
 
         override fun onForegroundActivitiesChanged(packageName: String) {
             if (isLauncherOrSystem(packageName)) {
+                DiagnosticLog.debug("TouchPointer", "foreground_package_ignored", "package" to packageName, "reason" to "launcher_or_system")
                 lastPackageName = null
                 return
             }
-            if (packageName == lastPackageName) return
+            if (packageName == lastPackageName) {
+                DiagnosticLog.debug("TouchPointer", "foreground_package_unchanged", "package" to packageName)
+                return
+            }
+            DiagnosticLog.info("TouchPointer", "foreground_package_changed", "previous" to lastPackageName, "package" to packageName)
             lastPackageName = packageName
             val context: Context = this@TouchPointer
             val keymapProfiles = KeymapProfiles(context)
@@ -509,15 +563,18 @@ class TouchPointer : Service() {
 
             if (designated != null) {
                 val designatedProfileDisabled = keymapProfiles.getProfile(designated, false).disabled
+                DiagnosticLog.info("TouchPointer", "foreground_designation_resolved", "package" to packageName, "designatedProfile" to designated, "selectedProfile" to selectedProfile, "designatedDisabled" to designatedProfileDisabled)
                 if (designated != selectedProfile || designatedProfileDisabled) {
                     mHandler.post {
                         if (designated != selectedProfile) {
+                            DiagnosticLog.info("TouchPointer", "automatic_profile_switch", "foregroundPackage" to packageName, "previousProfile" to selectedProfile, "nextProfile" to designated)
                             launchProfile(designated)
                             Toast.makeText(this@TouchPointer, "Switched to profile: $designated", Toast.LENGTH_SHORT).show()
                         }
                         // A disabled designation may have no enabled fallback. Do not leave
                         // the previous app's keymap running in the newly foregrounded app.
                         if (keymapProfiles.getProfile(designated, false).disabled) {
+                            DiagnosticLog.warn("TouchPointer", "foreground_profile_disabled", "package" to packageName, "profile" to designated, "action" to "pause_mapping")
                             try {
                                 mService?.pauseMouse()
                             } catch (_: RemoteException) {
@@ -529,12 +586,14 @@ class TouchPointer : Service() {
             }
 
             if (!keymapProfiles.profileExistsWithPackageName(packageName)) {
+                DiagnosticLog.info("TouchPointer", "foreground_profile_missing", "package" to packageName, "action" to "prompt_user")
                 // No profile found, prompt user to create a new profile
                 mHandler.post {
                     ProfileSelector.showEnableProfileDialog(
                         context,
                         packageName
                     ) { enabled: Boolean ->
+                        DiagnosticLog.info("TouchPointer", "foreground_profile_enable_answer", "package" to packageName, "enabled" to enabled)
                         ProfileSelector.createNewProfileForApp(
                             context,
                             packageName,
@@ -549,6 +608,7 @@ class TouchPointer : Service() {
                 mHandler.post {
                     ProfileSelector.select(context, { profile: String? ->
                         // Reloading profile
+                        DiagnosticLog.info("TouchPointer", "foreground_manual_profile_selection", "package" to packageName, "profile" to profile)
                         this@TouchPointer.selectedProfile = profile
                         val keymapProfile = keymapProfiles.getProfile(profile, true)
                         if (!keymapProfile.disabled) {
