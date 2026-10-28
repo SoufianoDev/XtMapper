@@ -47,7 +47,10 @@ object RemoteServiceShell {
             }
             XtLogger.info(TAG, "native libraries loaded")
             Looper.prepareMainLooper()
-            val mService = RemoteService(getContext())
+            val mService = RemoteService(
+                getContext(),
+                initialIsWaylandClient = args.contains("--wayland-client")
+            )
             mService.startedFromShell = true
             var noLogcat = false
 
