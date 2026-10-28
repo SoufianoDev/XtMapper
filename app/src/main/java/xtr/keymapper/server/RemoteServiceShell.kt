@@ -13,6 +13,7 @@ import xtr.keymapper.BuildConfig
 import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.log.Role
+import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
 import java.lang.reflect.Method
 
@@ -69,11 +70,18 @@ object RemoteServiceShell {
             }
             XtLogger.info(TAG, "server configuration ready wayland=${mService.isWaylandClient}")
             Selinux.real.relax()
-            // Restore SELinux enforcement on JVM shutdown. Normal server shutdown writes
-            // its own SESSION END marker in RemoteService.stopServer; this hook must not write
-            // one because it also runs after abnormal System.exit paths.
+            // Restore SELinux enforcement on JVM shutdown.
             Runtime.getRuntime().addShutdownHook(
                 Thread { ProcessBuilder("setenforce", "1").start() }
+            )
+            // Normal exits may close the session here, but a fatal process must remain open
+            // so the next launch reports an unclean previous session instead of a false END.
+            Runtime.getRuntime().addShutdownHook(
+                Thread {
+                    if (!XtLogger.hasFatalEvent) {
+                        XtLogger.endSession(SessionStates.STATUS_UNEXPECTED_EXIT)
+                    }
+                }
             )
             ServiceManager.addService("xtmapper", mService)
 
