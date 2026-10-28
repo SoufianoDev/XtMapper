@@ -538,6 +538,7 @@ class EditorUI(
                 if (importedProfile.yRes <= 0) importedProfile.yRes = currentProfile.yRes
 
                 reloadKeymap(importedProfile)
+                saveKeymap()
                 android.widget.Toast.makeText(context, "Keymap imported from clipboard", android.widget.Toast.LENGTH_SHORT).show()
                 closeImportExportDialog()
                 return
