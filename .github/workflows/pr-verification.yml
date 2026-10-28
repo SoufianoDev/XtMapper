@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - merge/upstream-dev-updates
+      - test/connection-lifecycle-20261028
   pull_request:
     branches:
       - dev

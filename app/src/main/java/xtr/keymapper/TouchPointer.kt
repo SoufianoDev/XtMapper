@@ -102,14 +102,10 @@ class TouchPointer : Service() {
 
         this.displayId = i.getIntExtra(DISPLAY_ID, Display.DEFAULT_DISPLAY)
 
-        isRunning = true
+        markStarting()
         currentSelectedProfile = this.selectedProfile
         activeInstance = this
         KeymapperTileService.updateTile(this)
-
-        val targetProfile = selectedProfile ?: KeymapProfiles(this).getLastSelectedProfile()
-        val keymapProfile = KeymapProfiles(this).getProfile(targetProfile, true)
-        connectRemoteService(keymapProfile)
 
         if (displayListener == null) displayListener = object :
             DisplayListener {
@@ -142,6 +138,11 @@ class TouchPointer : Service() {
             displayListener, Handler(Looper.getMainLooper())
         )
 
+        // Register before connecting: a missing backend may be reported synchronously,
+        // and failure cleanup must be able to unregister this listener.
+        val targetProfile = selectedProfile ?: KeymapProfiles(this).getLastSelectedProfile()
+        val keymapProfile = KeymapProfiles(this).getProfile(targetProfile, true)
+        connectRemoteService(keymapProfile)
 
         return super.onStartCommand(i, flags, startId)
     }
@@ -199,29 +200,51 @@ class TouchPointer : Service() {
     }
 
     private fun connectRemoteService(profile: KeymapProfile) {
+        // Ignore requests from instances that are no longer the active service.
+        if (activeInstance !== this || !isRunning) return
+        val requestGeneration = connectionState.beginRequest()
+        if (!connectionState.isCurrent(requestGeneration)) return
+
         if (activityCallback != null) activityCallback!!.updateCmdView1("connecting to server..")
         val config = KeymapConfig(this)
         RemoteServiceHelper.useShizuku = config.isShizukuMode
         RemoteServiceHelper.getInstance(
             this
         ) { service: IRemoteService? ->
-            if (service == null) {
-                Log.w("TouchPointer", "Remote service is null, cannot start server")
-                activityCallback?.updateCmdView1("Failed to connect to server (root/shizuku not available)")
+            // A late callback must not alter state after stop or a newer request.
+            if (!connectionState.isCurrent(requestGeneration) ||
+                activeInstance !== this@TouchPointer
+            ) {
                 return@getInstance
             }
+            if (service == null) {
+                failConnection(
+                    requestGeneration,
+                    "Failed to connect to server (root/shizuku not available)",
+                    null
+                )
+                return@getInstance
+            }
+
             mService = service
-            val keymapConfig = KeymapConfig(this)
-            val displayManager = getSystemService(DisplayManager::class.java)
-            val display = displayManager.getDisplay(displayId) ?: displayManager.getDisplay(Display.DEFAULT_DISPLAY)
-            val size = Point()
-            display?.getRealSize(size)
-            mWindowManager =
-                this.displayContext?.getSystemService(WindowManager::class.java)
             try {
+                val keymapConfig = KeymapConfig(this)
+                val displayManager = getSystemService(DisplayManager::class.java)
+                val display = displayManager.getDisplay(displayId)
+                    ?: displayManager.getDisplay(Display.DEFAULT_DISPLAY)
+                val size = Point()
+                display?.getRealSize(size)
+                mWindowManager =
+                    this.displayContext?.getSystemService(WindowManager::class.java)
+
                 if (!activityRemoteCallback && !keymapConfig.disableAutoProfiling) {
                     service.registerActivityObserver(mActivityObserverCallback)
                     activityRemoteCallback = true
+                }
+                if (!connectionState.isCurrent(requestGeneration) ||
+                    activeInstance !== this@TouchPointer
+                ) {
+                    return@getInstance
                 }
                 if (!profile.disabled) {
                     service.startServer(
@@ -236,21 +259,41 @@ class TouchPointer : Service() {
                 if (keymapConfig.showControls) {
                     ShowKeymapService.start(this, selectedProfile)
                 }
+                if (!connectionState.markConnected(requestGeneration)) return@getInstance
+                KeymapperTileService.updateTile(this@TouchPointer)
             } catch (e: Exception) {
-                if (activityCallback != null) {
-                    activityCallback!!.updateCmdView1(e.toString())
-                    activityCallback!!.stopPointer()
-                } else {
-                    onDestroy()
-                    stopSelf()
-                }
-                Log.e("startServer", e.toString(), e)
+                failConnection(requestGeneration, e.toString(), e)
             }
         }
     }
 
+    private fun failConnection(
+        requestGeneration: Long,
+        message: String,
+        error: Exception?
+    ) {
+        // A failure from an older request must not tear down a newer run.
+        if (activeInstance !== this || !connectionState.fail(requestGeneration)) return
+        isRunning = false
+        if (error == null) {
+            Log.w("TouchPointer", message)
+        } else {
+            Log.e("startServer", message, error)
+        }
+        if (activityCallback != null) {
+            activityCallback!!.updateCmdView1(message)
+        } else {
+            mHandler.post {
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
+        }
+        stopKeymapper()
+    }
+
     fun stopKeymapper() {
-        if (!isRunning && activeInstance == null) return
+        // Do not let an obsolete service instance stop a newer run.
+        if (activeInstance !== this) return
+        connectionState.stop()
         isRunning = false
         activeInstance = null
 
@@ -537,8 +580,23 @@ class TouchPointer : Service() {
         const val DISPLAY_ID: String = "display_id"
         const val ACTION_STOP: String = "xtr.keymapper.action.STOP"
 
+        private val connectionState = PointerConnectionState()
+
         @Volatile
         var isRunning: Boolean = false
+
+        val backendConnected: Boolean
+            get() = connectionState.backendConnected
+
+        fun markStarting() {
+            connectionState.markStarting()
+            isRunning = true
+        }
+
+        fun markStopped() {
+            connectionState.stop()
+            isRunning = false
+        }
 
         @Volatile
         var currentSelectedProfile: String? = null

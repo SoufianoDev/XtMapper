@@ -39,7 +39,7 @@ class KeymapperTileService : TileService() {
                 }
                 startService(stopIntent)
             }
-            TouchPointer.isRunning = false
+            TouchPointer.markStopped()
             updateTileState(false)
             Toast.makeText(this, "XtMapper stopped", Toast.LENGTH_SHORT).show()
         } else {
@@ -58,9 +58,9 @@ class KeymapperTileService : TileService() {
                 putExtra(EditorActivity.PROFILE_NAME, selectedProfile)
             }
             ContextCompat.startForegroundService(this, startIntent)
-            TouchPointer.isRunning = true
-            updateTileState(true, selectedProfile)
-            Toast.makeText(this, "XtMapper started ($selectedProfile)", Toast.LENGTH_SHORT).show()
+            TouchPointer.markStarting()
+            updateTileState(false, selectedProfile)
+            Toast.makeText(this, "Starting XtMapper ($selectedProfile)", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -77,7 +77,7 @@ class KeymapperTileService : TileService() {
     }
 
     private fun updateTileState(
-        isActive: Boolean = TouchPointer.isRunning,
+        isActive: Boolean = TouchPointer.isRunning && TouchPointer.backendConnected,
         profileName: String? = TouchPointer.currentSelectedProfile ?: KeymapProfiles(this).getLastSelectedProfile()
     ) {
         val tile = qsTile ?: return
@@ -87,6 +87,8 @@ class KeymapperTileService : TileService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             tile.subtitle = if (isActive) {
                 if (!profileName.isNullOrEmpty()) profileName else "Active"
+            } else if (TouchPointer.isRunning) {
+                "Connecting"
             } else {
                 "Off"
             }
