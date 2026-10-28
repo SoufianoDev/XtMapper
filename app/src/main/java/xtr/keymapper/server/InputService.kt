@@ -322,7 +322,7 @@ class InputService @Throws(RemoteException::class) constructor(
      */
     fun sendKeyboardEvent(codeName: String, action: Int) {
         val actionStr = if (action == DOWN) "DOWN" else "UP"
-        DiagnosticLog.debug(RemoteService.TAG, "grabbed_keyboard_event", "keyCode" to codeName, "action" to actionStr, "mappingPaused" to stopEvents, "keyboardBlocked" to isKeyboardBlocked, "route" to if (shouldHandleMappedKeyboardEvent(stopEvents, isKeyboardBlocked)) "mapped" else "shortcut_only")
+        DiagnosticLog.debugRateLimited(RemoteService.TAG, "grabbed_keyboard_event", "$codeName:$actionStr", "keyCode" to codeName, "action" to actionStr, "mappingPaused" to stopEvents, "keyboardBlocked" to isKeyboardBlocked, "route" to if (shouldHandleMappedKeyboardEvent(stopEvents, isKeyboardBlocked)) "mapped" else "shortcut_only")
         val line = "EV_KEY $codeName $actionStr"
         try {
             if (shouldHandleMappedKeyboardEvent(stopEvents, isKeyboardBlocked)) {

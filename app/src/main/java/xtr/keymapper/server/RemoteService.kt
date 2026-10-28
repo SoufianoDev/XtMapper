@@ -239,19 +239,24 @@ class RemoteService @JvmOverloads constructor(
                             }
                         }
                     } catch (e: Exception) {
+                        val eventType = data[1].trim().split(Regex("\\s+")).firstOrNull()
+                        DiagnosticLog.error(TAG, "input_event_dispatch_failed", e, "device" to data[0], "eventType" to eventType)
                         XtLogger.error(TAG, "Error handling input event", e)
                     }
                     if (service == null || !service.isKeyboardGrabbed) {
                         try {
                             mOnKeyEventListener?.onKeyEvent(line)
                         } catch (e: RemoteException) {
+                            DiagnosticLog.warn(TAG, "key_event_listener_disconnected", "reason" to "remote_exception")
                             mOnKeyEventListener = null
                         } catch (e: Exception) {
+                            DiagnosticLog.error(TAG, "key_event_listener_callback_failed", e)
                             XtLogger.error(TAG, "Error notifying key listener", e)
                         }
                     }
                 }
             }
+            DiagnosticLog.info(TAG, "input_event_reader_ended", "linesRead" to linesRead, "reason" to "stream_eof", "waylandClient" to isWaylandClient)
         } catch (e: Exception) {
             DiagnosticLog.error(TAG, "input_event_reader_failed", e)
             XtLogger.error(TAG, "Input event reader failed", e)
@@ -353,8 +358,10 @@ class RemoteService @JvmOverloads constructor(
                 }
                 inputService = newService
                 if (!isWaylandClient) {
+                    DiagnosticLog.debug(TAG, "mouse_lock_requested", "locked" to true, "currentDevice" to currentDevice)
                     newService.setMouseLock(true)
-                    newService.openDevice(currentDevice)
+                    val initialDeviceResult = newService.openDevice(currentDevice)
+                    DiagnosticLog.info(TAG, "initial_mouse_device_open_result", "device" to currentDevice, "result" to initialDeviceResult)
                 }
             } catch (e: RemoteException) {
                 DiagnosticLog.error(TAG, "input_service_construction_failed", e, "package" to profile.packageName)
@@ -401,6 +408,7 @@ class RemoteService @JvmOverloads constructor(
         if (service != null) try {
             service.callback.disablePointer()
         } catch (e: RemoteException) {
+            DiagnosticLog.error(TAG, "cursor_disable_during_stop_failed", e, "exitProcess" to exitProcess)
             throw RuntimeException(e)
         }
 

@@ -1,6 +1,8 @@
 package xtr.keymapper.log
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DiagnosticLogTest {
@@ -25,5 +27,14 @@ class DiagnosticLogTest {
     @Test
     fun sanitizesKeys() {
         assertEquals("event=event weird_key=value", DiagnosticLog.formatMessage("event", "weird key" to "value"))
+    }
+
+    @Test
+    fun rateLimitsRepeatedEventKeysButAllowsDifferentKeyTransitions() {
+        val keyDown = "KeyEventHandler:key_event_parsed:KEY_A:down"
+        assertTrue(DiagnosticLog.shouldEmitRateLimited(keyDown, 10_000L, 2_000L))
+        assertFalse(DiagnosticLog.shouldEmitRateLimited(keyDown, 11_999L, 2_000L))
+        assertTrue(DiagnosticLog.shouldEmitRateLimited(keyDown, 12_000L, 2_000L))
+        assertTrue(DiagnosticLog.shouldEmitRateLimited("KeyEventHandler:key_event_parsed:KEY_A:up", 11_000L, 2_000L))
     }
 }

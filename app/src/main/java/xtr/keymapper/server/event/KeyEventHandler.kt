@@ -91,7 +91,8 @@ class KeyEventHandler(private val mInput: IInputInterface) {
 
         val keymapConfig = mInput.keymapConfig
         val directMatchCount = mInput.keymapProfile.keys.count { it.code == event.code }
-        DiagnosticLog.debug("KeyEventHandler", "key_event_parsed", "keyCode" to event.code, "action" to if (event.action == InputService.DOWN) "down" else "up", "directMappingMatches" to directMatchCount, "dpadHandlerCount" to (dpadHandlers?.count { it != null } ?: 0), "swipeHandlerCount" to (swipeKeyHandlers?.size ?: 0), "shiftHandlerCount" to (shiftKeyHandlers?.size ?: 0), "macroCount" to mInput.keymapProfile.macroIdMap.size)
+        val actionName = if (event.action == InputService.DOWN) "down" else "up"
+        DiagnosticLog.debugRateLimited("KeyEventHandler", "key_event_parsed", "${event.code}:$actionName", "keyCode" to event.code, "action" to actionName, "directMappingMatches" to directMatchCount, "dpadHandlerCount" to (dpadHandlers?.count { it != null } ?: 0), "swipeHandlerCount" to (swipeKeyHandlers?.size ?: 0), "shiftHandlerCount" to (shiftKeyHandlers?.size ?: 0), "macroCount" to mInput.keymapProfile.macroIdMap.size)
 
         detectCtrlAltKeys(event)
         if (event.action == InputService.DOWN) if (handleKeyboardShortcuts(event.code)) return

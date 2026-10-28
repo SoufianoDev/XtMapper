@@ -6,6 +6,10 @@ package xtr.keymapper.log
  */
 object DiagnosticLog {
     private const val MAX_FIELD_LENGTH = 240
+    private const val DEFAULT_RATE_LIMIT_INTERVAL_MS = 1_500L
+    private const val MAX_RATE_LIMIT_KEYS = 256
+
+    private val rateLimitedEvents = LinkedHashMap<String, Long>()
 
     @JvmStatic
     fun info(tag: String, event: String, vararg fields: Pair<String, Any?>) =
@@ -14,6 +18,38 @@ object DiagnosticLog {
     @JvmStatic
     fun debug(tag: String, event: String, vararg fields: Pair<String, Any?>) =
         XtLogger.debug(tag, formatMessage(event, *fields))
+
+    /** Rate-limits repetitive DEBUG traces while preserving significant events. */
+    @JvmStatic
+    fun debugRateLimited(tag: String, event: String, rateLimitKey: String, vararg fields: Pair<String, Any?>) {
+        val key = "$tag|$event|$rateLimitKey"
+        val nowMs = System.nanoTime() / 1_000_000L
+        if (shouldEmitRateLimited(key, nowMs, DEFAULT_RATE_LIMIT_INTERVAL_MS)) {
+            debug(tag, event, *fields)
+        }
+    }
+
+    @JvmStatic
+    @Synchronized
+    internal fun shouldEmitRateLimited(key: String, nowMs: Long, intervalMs: Long): Boolean {
+        val previous = rateLimitedEvents[key]
+        if (previous != null && nowMs >= previous && nowMs - previous < intervalMs) return false
+        if (!rateLimitedEvents.containsKey(key) && rateLimitedEvents.size >= MAX_RATE_LIMIT_KEYS) {
+            val cutoff = nowMs - 60_000L
+            val iterator = rateLimitedEvents.entries.iterator()
+            while (iterator.hasNext()) {
+                if (iterator.next().value < cutoff) iterator.remove()
+            }
+            while (rateLimitedEvents.size >= MAX_RATE_LIMIT_KEYS) {
+                val oldest = rateLimitedEvents.entries.iterator()
+                if (!oldest.hasNext()) break
+                oldest.next()
+                oldest.remove()
+            }
+        }
+        rateLimitedEvents[key] = nowMs
+        return true
+    }
 
     @JvmStatic
     fun warn(tag: String, event: String, vararg fields: Pair<String, Any?>) =
