@@ -274,6 +274,13 @@ class RemoteService @JvmOverloads constructor(
     }
 
     private val mStartServerDeathRecipient = IBinder.DeathRecipient {
+        // Release native keyboard grabs before dropping the only reference to the service.
+        // Keep the server shutdown path running even if InputService cleanup fails.
+        try {
+            inputService?.stop()
+        } catch (e: Exception) {
+            XtLogger.error(TAG, "Failed to stop input service after client binder death", e)
+        }
         inputService = null
         stopServer()
     }
