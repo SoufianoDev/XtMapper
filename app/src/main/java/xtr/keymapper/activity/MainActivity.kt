@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         const val SHELL_INIT = "shell"
         private const val KEY_TRUSTED_SHELL_INIT = "trusted_shell_initialization"
         private const val SERVER_CRASH_DIALOG_TAG = "server_crash_dialog"
+        private const val SERVER_CRASH_DISMISSED_REQUEST = "server_crash_dismissed"
 
         init {
             // Set settings before the main shell can be created
@@ -80,6 +81,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        supportFragmentManager.setFragmentResultListener(
+            SERVER_CRASH_DISMISSED_REQUEST,
+            this
+        ) { _, _ ->
+            if (startedFromShell == false) handleActivationFlow(KeymapConfig(this))
+        }
         // The environment signal is separate from the legacy "data" extra.
         if (intent.hasExtra(Environment.INTENT_EXTRA)) {
             Environment.launchSignal = intent.getBooleanExtra(Environment.INTENT_EXTRA, false)
@@ -121,7 +128,11 @@ class MainActivity : AppCompatActivity() {
         RemoteServiceHelper.useShizuku = keymapConfig.isShizukuMode
         Server.setupServer(this, mCallback)
 
-        if (startedFromShell == false) handleActivationFlow(keymapConfig)
+        if (startedFromShell == false &&
+            supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) == null
+        ) {
+            handleActivationFlow(keymapConfig)
+        }
 
         displaySelector = DisplaySelector(this).register { startPointer() }
         RemoteServiceHelper.runIfActive(this) {
@@ -158,11 +169,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Check if this activity was started with am shell command
-     * Also handles crash report from server and shows a dialog with crash log
-     * @return true if this activity was started with am shell command
-     */
-    /**
      * Intent extras are caller-controlled. Only trust the shell-init marker when Android
      * exposes the actual launching UID, rather than treating "data=shell" as authentication.
      * Before API 34 Android exposes no supported caller-UID API for this launch flow, so the
@@ -180,7 +186,7 @@ class MainActivity : AppCompatActivity() {
             supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) != null
         ) return
         ServerCrashDialogFragment.newInstance(message)
-            .show(supportFragmentManager, SERVER_CRASH_DIALOG_TAG)
+            .showNow(supportFragmentManager, SERVER_CRASH_DIALOG_TAG)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -651,8 +657,17 @@ private class ServerCrashDialogFragment : DialogFragment() {
             .create()
     }
 
+    override fun onDismiss(dialog: android.content.DialogInterface) {
+        super.onDismiss(dialog)
+        parentFragmentManager.setFragmentResult(
+            DISMISSED_REQUEST,
+            Bundle.EMPTY
+        )
+    }
+
     companion object {
         private const val ARG_MESSAGE = "message"
+        private const val DISMISSED_REQUEST = "server_crash_dismissed"
 
         fun newInstance(message: String): ServerCrashDialogFragment =
             ServerCrashDialogFragment().apply {
