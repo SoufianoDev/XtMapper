@@ -51,14 +51,14 @@ object RemoteServiceShell {
             mService.startedFromShell = true
             var noLogcat = false
 
-            var launchApp = true
+            var autoLaunchClientActivity = true
             for (arg in args) {
                 when (arg) {
                     "--wayland-client" -> {
                         mService.isWaylandClient = true
                         println("using wayland client")
                     }
-                    "--no-auto-launch" -> launchApp = false
+                    "--no-auto-launch" -> autoLaunchClientActivity = false
                     "--no-logcat" -> noLogcat = true
                     // Already applied above.
                     Environment.CLI_ARG -> {}
@@ -96,7 +96,7 @@ object RemoteServiceShell {
             }
 
             // Launch-context signal, kept separate from data=shell.
-            if (launchApp) ProcessBuilder("am", "start", "-a", "android.intent.action.MAIN", "-n",
+            if (autoLaunchClientActivity) ProcessBuilder("am", "start", "-a", "android.intent.action.MAIN", "-n",
                 ComponentName(mService.context, MainActivity::class.java).flattenToString(),
                 "--es", "data",
                 MainActivity.SHELL_INIT,
