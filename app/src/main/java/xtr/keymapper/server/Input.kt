@@ -12,6 +12,7 @@ import android.view.MotionEvent
 import com.genymobile.scrcpy.Point
 import com.genymobile.scrcpy.Pointer
 import com.genymobile.scrcpy.PointersState
+import xtr.keymapper.log.DiagnosticLog
 import xtr.keymapper.log.XtLogger
 import xtr.keymapper.server.event.MouseEventHandler
 import java.lang.reflect.Method
@@ -61,6 +62,7 @@ class Input(private val displayId: Int) {
 
         val pointerIndex = pointersState.getPointerIndex(pointerId.toLong())
         if (pointerIndex == -1) {
+            DiagnosticLog.error(RemoteService.TAG, "touch_injection_rejected", null, "pointerId" to pointerId, "action" to actionIn, "reason" to "pointer_capacity_exceeded")
             XtLogger.error(RemoteService.TAG, "Too many pointers for touch event")
             return
         }
@@ -107,6 +109,7 @@ class Input(private val displayId: Int) {
 
         val pointerIndex = pointersState.getPointerIndex(pointerId)
         if (pointerIndex == -1) {
+            DiagnosticLog.error(RemoteService.TAG, "mouse_click_injection_rejected", null, "pointerId" to pointerId, "pressed" to pressed, "actionButton" to actionButton, "reason" to "pointer_capacity_exceeded")
             XtLogger.error(RemoteService.TAG, "Too many pointers for touch event")
             return
         }
@@ -165,6 +168,7 @@ class Input(private val displayId: Int) {
                 try {
                     setActionButtonMethod?.invoke(pressEvent, actionButton)
                 } catch (e: Exception) {
+                    DiagnosticLog.error(RemoteService.TAG, "mouse_action_button_set_failed", e, "actionButton" to actionButton, "phase" to "press")
                     XtLogger.error(RemoteService.TAG, "Input operation failed", e)
                 }
 
@@ -180,6 +184,7 @@ class Input(private val displayId: Int) {
                 try {
                     setActionButtonMethod?.invoke(releaseEvent, actionButton)
                 } catch (e: Exception) {
+                    DiagnosticLog.error(RemoteService.TAG, "mouse_action_button_set_failed", e, "actionButton" to actionButton, "phase" to "release")
                     XtLogger.error(RemoteService.TAG, "Input operation failed", e)
                 }
 
@@ -223,13 +228,59 @@ class Input(private val displayId: Int) {
     }
 
     private fun injectInputEvent(motionEvent: MotionEvent) {
+        val action = motionEvent.actionMasked
+        val actionName = when (action) {
+            MotionEvent.ACTION_DOWN -> "down"
+            MotionEvent.ACTION_UP -> "up"
+            MotionEvent.ACTION_POINTER_DOWN -> "pointer_down"
+            MotionEvent.ACTION_POINTER_UP -> "pointer_up"
+            MotionEvent.ACTION_BUTTON_PRESS -> "button_press"
+            MotionEvent.ACTION_BUTTON_RELEASE -> "button_release"
+            MotionEvent.ACTION_SCROLL -> "scroll"
+            MotionEvent.ACTION_HOVER_MOVE -> "hover_move"
+            MotionEvent.ACTION_MOVE -> "move"
+            else -> "action_$action"
+        }
+        val source = motionEvent.source
+        val pointerCount = motionEvent.pointerCount
+        val x = if (pointerCount > 0) motionEvent.getX(0) else null
+        val y = if (pointerCount > 0) motionEvent.getY(0) else null
         try {
             // Set display ID for the motion event using reflection
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && setDisplayIdMethod != null) {
                 setDisplayIdMethod!!.invoke(motionEvent, displayId)
             }
-            injectInputEventMethod!!.invoke(inputManager, motionEvent, displayId)
+            val result = injectInputEventMethod!!.invoke(inputManager, motionEvent, displayId)
+            // MOVE/HOVER can happen at very high frequency. Log meaningful transitions,
+            // and rate-limit repeated source/action combinations such as scrolling.
+            if (action != MotionEvent.ACTION_MOVE && action != MotionEvent.ACTION_HOVER_MOVE) {
+                DiagnosticLog.debugRateLimited(
+                    RemoteService.TAG,
+                    "platform_input_injection_result",
+                    "$actionName:$source",
+                    "accepted" to result,
+                    "action" to actionName,
+                    "source" to source,
+                    "displayId" to displayId,
+                    "pointerCount" to pointerCount,
+                    "x" to x,
+                    "y" to y,
+                    "buttonState" to motionEvent.buttonState
+                )
+            }
         } catch (e: Exception) {
+            DiagnosticLog.error(
+                RemoteService.TAG,
+                "platform_input_injection_failed",
+                e,
+                "action" to actionName,
+                "source" to source,
+                "displayId" to displayId,
+                "pointerCount" to pointerCount,
+                "x" to x,
+                "y" to y,
+                "buttonState" to motionEvent.buttonState
+            )
             XtLogger.error(RemoteService.TAG, "Input operation failed", e)
         }
     }
