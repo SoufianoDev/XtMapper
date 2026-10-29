@@ -3,7 +3,6 @@ package xtr.keymapper.server
 import android.app.ApplicationErrorReport
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.hardware.display.DisplayManager
 import android.os.Binder
@@ -33,7 +32,6 @@ import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
 import xtr.keymapper.server.event.KeyEventHandler
 import java.io.BufferedReader
-import java.io.File
 import java.io.InputStreamReader
 import java.lang.reflect.Method
 
@@ -62,13 +60,11 @@ class RemoteService @JvmOverloads constructor(
     }
 
     private fun enforceCaller() {
-        if (Binder.getCallingUid() != appUid)
+        if (Binder.getCallingUid() != appUid && Binder.getCallingPid() != Process.myPid())
             throw SecurityException("XtMapper service access denied")
     }
 
     init {
-        instance = this
-
         // Logging first: the Shizuku user service constructs this class directly
         // (uid 2000; uid 0 on the root fallback) with no Application.onCreate, so
         // a load failure escaping below could otherwise never be recorded.
@@ -470,7 +466,6 @@ class RemoteService @JvmOverloads constructor(
 
     companion object {
         const val TAG = "xtmapper-server"
-        var instance: RemoteService? = null
 
         fun loadLibraries() {
             System.loadLibrary("mouse_read")
