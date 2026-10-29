@@ -321,7 +321,10 @@ class RemoteService @JvmOverloads constructor(
             }
             inputService = null
             mouseDeviceLifecycle.onInputServiceStopped()
-            mHandler.post { stopServer(true) }
+            // The Wayland reader can block mHandler indefinitely on stdin. Complete the
+            // remaining shutdown here too; inputService is already cleared, so this avoids
+            // calling back into the dead client binder from stopServer().
+            stopServer(true)
         } else {
             // Serialize native mouse cleanup with device opening and server replacement.
             mHandler.post { stopServer(true) }
