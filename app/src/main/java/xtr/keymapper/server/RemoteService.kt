@@ -39,7 +39,9 @@ class RemoteService @JvmOverloads constructor(
     context: Context,
     initialIsWaylandClient: Boolean = false
 ) : IRemoteService.Stub() {
+    // currentDevice is only read/written on mHandler; device discovery is posted there too.
     private var currentDevice = ""
+    private val mouseDeviceLifecycle = MouseDeviceLifecycle()
     internal var inputService: InputService? = null
     private var mOnKeyEventListener: OnKeyEventListener? = null
     internal var isWaylandClient = initialIsWaylandClient
@@ -260,25 +262,66 @@ class RemoteService @JvmOverloads constructor(
                 inputService?.grabKeyboardDevice(evdev)
             }
         }
-        if (currentDevice != evdev)
-            if (input_event[1] == "EV_REL") {
-                println("add mouse device: $evdev")
-                inputService?.openDevice(evdev)
-                currentDevice = evdev
+        if (input_event.size > 1 && input_event[1] == "EV_REL") {
+            // Device discovery arrives from the getevent reader thread. Serialize device
+            // selection and opening with startServer(), which also runs on mHandler.
+            mHandler.post {
+                if (currentDevice != evdev) {
+                    currentDevice = evdev
+                    XtLogger.info(
+                        TAG,
+                        "mouse device discovered path=$evdev inputServiceReady=${inputService != null}"
+                    )
+                    mouseDeviceLifecycle.onDeviceDiscovered(evdev)?.let(::openMouseDevice)
+                }
             }
+        }
         return true
     }
 
-    private val mStartServerDeathRecipient = IBinder.DeathRecipient {
-        // Release native keyboard grabs before dropping the only reference to the service.
-        // Keep the server shutdown path running even if InputService cleanup fails.
-        try {
-            inputService?.stop()
-        } catch (e: Exception) {
-            XtLogger.error(TAG, "Failed to stop input service after client binder death", e)
+    private fun openMouseDevice(request: MouseDeviceLifecycle.OpenRequest) {
+        val service = inputService
+        if (service == null) {
+            mouseDeviceLifecycle.onOpenResult(request, success = false)
+            XtLogger.warn(
+                TAG,
+                "mouse device open deferred path=${request.device} generation=${request.serviceGeneration}; InputService is not ready"
+            )
+            return
         }
-        inputService = null
-        stopServer()
+
+        val fd = service.openDevice(request.device)
+        val accepted = mouseDeviceLifecycle.onOpenResult(request, success = fd >= 0)
+        if (!accepted) {
+            XtLogger.warn(
+                TAG,
+                "ignored stale mouse open result path=${request.device} fd=$fd generation=${request.serviceGeneration}"
+            )
+        } else if (fd >= 0) {
+            XtLogger.info(
+                TAG,
+                "mouse device opened path=${request.device} fd=$fd generation=${request.serviceGeneration}"
+            )
+        } else {
+            XtLogger.warn(
+                TAG,
+                "mouse device open failed path=${request.device} fd=$fd generation=${request.serviceGeneration}"
+            )
+        }
+    }
+
+    private val mStartServerDeathRecipient = IBinder.DeathRecipient {
+        // Keep service and mouse-device lifecycle state serialized with startServer().
+        mHandler.post {
+            try {
+                inputService?.stop()
+            } catch (e: Exception) {
+                XtLogger.error(TAG, "Failed to stop input service after client binder death", e)
+            }
+            inputService = null
+            mouseDeviceLifecycle.onInputServiceStopped()
+            stopServer(true)
+        }
     }
 
     /**
@@ -333,7 +376,7 @@ class RemoteService @JvmOverloads constructor(
                 inputService = newService
                 if (!isWaylandClient) {
                     newService.setMouseLock(true)
-                    newService.openDevice(currentDevice)
+                    mouseDeviceLifecycle.onInputServiceReady()?.let(::openMouseDevice)
                 }
             } catch (e: RemoteException) {
                 throw RuntimeException(e)
@@ -391,6 +434,7 @@ class RemoteService @JvmOverloads constructor(
             service.stopTouchpad()
             service.destroyUinputDev()
             service.callback.asBinder().unlinkToDeath(mStartServerDeathRecipient, 0)
+            mouseDeviceLifecycle.onInputServiceStopped()
             inputService = null
         }
     }
