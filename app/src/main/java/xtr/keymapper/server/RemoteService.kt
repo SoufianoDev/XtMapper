@@ -435,10 +435,16 @@ class RemoteService @JvmOverloads constructor(
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
         val service = inputService
-        if (service != null && clientAlive) try {
-            service.callback.disablePointer()
-        } catch (e: RemoteException) {
-            throw RuntimeException(e)
+        var callbacksAllowed = clientAlive
+        if (service != null && callbacksAllowed) {
+            try {
+                service.callback.disablePointer()
+            } catch (e: RemoteException) {
+                // The Binder can die just before its death recipient is posted to mHandler.
+                // Treat the callback as unavailable and continue local/native cleanup.
+                callbacksAllowed = false
+                XtLogger.warn(TAG, "Client Binder unavailable during pointer shutdown; continuing cleanup", e)
+            }
         }
 
         if (!startedFromShell && exitProcess) {
@@ -449,7 +455,15 @@ class RemoteService @JvmOverloads constructor(
             System.exit(0)
         } else if (service != null && !isWaylandClient) {
             service.stopEvents = true
-            if (clientAlive) service.hideCursor()
+            if (callbacksAllowed) {
+                try {
+                    service.hideCursor()
+                } catch (e: RuntimeException) {
+                    // hideCursor can still race a client death after disablePointer succeeded.
+                    callbacksAllowed = false
+                    XtLogger.warn(TAG, "Client Binder unavailable while hiding cursor; continuing cleanup", e)
+                }
+            }
             service.stop()
             service.stopMouseIfStarted()
             service.stopTouchpad()
