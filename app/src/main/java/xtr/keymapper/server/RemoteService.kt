@@ -41,6 +41,9 @@ class RemoteService @JvmOverloads constructor(
 ) : IRemoteService.Stub() {
     // currentDevice is only read/written on mHandler; device discovery is posted there too.
     private var currentDevice = ""
+    // addNewDevices() runs on one getevent reader (and returns before this block in Wayland).
+    // Filter repeated REL_X/REL_Y lines there so they do not flood mHandler with identical work.
+    private var lastQueuedMouseDevice = ""
     private val mouseDeviceLifecycle = MouseDeviceLifecycle()
     internal var inputService: InputService? = null
     private var mOnKeyEventListener: OnKeyEventListener? = null
@@ -265,14 +268,18 @@ class RemoteService @JvmOverloads constructor(
         if (input_event.size > 1 && input_event[1] == "EV_REL") {
             // Device discovery arrives from the getevent reader thread. Serialize device
             // selection and opening with startServer(), which also runs on mHandler.
-            mHandler.post {
-                if (currentDevice != evdev) {
-                    currentDevice = evdev
-                    XtLogger.info(
-                        TAG,
-                        "mouse device discovered path=$evdev inputServiceReady=${inputService != null}"
-                    )
-                    mouseDeviceLifecycle.onDeviceDiscovered(evdev)?.let(::openMouseDevice)
+            // A mouse emits REL_X/REL_Y continuously, so enqueue only the first line per path.
+            if (lastQueuedMouseDevice != evdev) {
+                lastQueuedMouseDevice = evdev
+                mHandler.post {
+                    if (currentDevice != evdev) {
+                        currentDevice = evdev
+                        XtLogger.info(
+                            TAG,
+                            "mouse device discovered path=$evdev inputServiceReady=${inputService != null}"
+                        )
+                        mouseDeviceLifecycle.onDeviceDiscovered(evdev)?.let(::openMouseDevice)
+                    }
                 }
             }
         }
