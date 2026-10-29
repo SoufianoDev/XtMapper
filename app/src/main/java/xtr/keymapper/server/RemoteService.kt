@@ -333,8 +333,9 @@ class RemoteService @JvmOverloads constructor(
             // calling back into the dead client binder from stopServer().
             stopServer(true)
         } else {
-            // Serialize native mouse cleanup with device opening and server replacement.
-            mHandler.post { stopServer(true) }
+            // The client Binder is dead. Skip callbacks into that process but keep local and
+            // native cleanup serialized with device opening and server replacement.
+            mHandler.post { stopServer(true, clientAlive = false) }
         }
     }
 
@@ -427,14 +428,14 @@ class RemoteService @JvmOverloads constructor(
         mHandler.post { stopServer(true) }
     }
 
-    private fun stopServer(exitProcess: Boolean) {
+    private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true) {
         // Restore enforcing only if this app actually relaxed SELinux (shell entry
         // point); startedFromShell is also set by the system-app path, which never does
         if (exitProcess && !Selinux.real.restore()) {
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
         val service = inputService
-        if (service != null) try {
+        if (service != null && clientAlive) try {
             service.callback.disablePointer()
         } catch (e: RemoteException) {
             throw RuntimeException(e)
@@ -448,7 +449,7 @@ class RemoteService @JvmOverloads constructor(
             System.exit(0)
         } else if (service != null && !isWaylandClient) {
             service.stopEvents = true
-            service.hideCursor()
+            if (clientAlive) service.hideCursor()
             service.stop()
             service.stopMouseIfStarted()
             service.stopTouchpad()
