@@ -290,7 +290,7 @@ class RemoteService @JvmOverloads constructor(
             return
         }
 
-        val fd = service.openDevice(request.device)
+        val fd = service.openMouseDevice(request.device)
         val accepted = mouseDeviceLifecycle.onOpenResult(request, success = fd >= 0)
         if (!accepted) {
             XtLogger.warn(
@@ -311,8 +311,9 @@ class RemoteService @JvmOverloads constructor(
     }
 
     private val mStartServerDeathRecipient = IBinder.DeathRecipient {
-        // Keep service and mouse-device lifecycle state serialized with startServer().
-        mHandler.post {
+        if (isWaylandClient) {
+            // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
+            // cleanup of the client-owned InputService before posting the remaining shutdown.
             try {
                 inputService?.stop()
             } catch (e: Exception) {
@@ -320,7 +321,10 @@ class RemoteService @JvmOverloads constructor(
             }
             inputService = null
             mouseDeviceLifecycle.onInputServiceStopped()
-            stopServer(true)
+            mHandler.post { stopServer(true) }
+        } else {
+            // Serialize native mouse cleanup with device opening and server replacement.
+            mHandler.post { stopServer(true) }
         }
     }
 
@@ -399,7 +403,13 @@ class RemoteService @JvmOverloads constructor(
 
     override fun destroy() {
         enforceCaller()
-        stopServer(true)
+        if (isWaylandClient) {
+            // Wayland does not use the evdev mouse-reader lifecycle; the main Handler may be
+            // blocked in its stdin loop, so preserve the existing direct shutdown path.
+            stopServer(true)
+        } else {
+            mHandler.post { stopServer(true) }
+        }
     }
 
     override fun stopServer() {
@@ -430,7 +440,7 @@ class RemoteService @JvmOverloads constructor(
             service.stopEvents = true
             service.hideCursor()
             service.stop()
-            service.stopMouse()
+            service.stopMouseIfStarted()
             service.stopTouchpad()
             service.destroyUinputDev()
             service.callback.asBinder().unlinkToDeath(mStartServerDeathRecipient, 0)
