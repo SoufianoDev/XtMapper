@@ -39,11 +39,8 @@ class RemoteService @JvmOverloads constructor(
     context: Context,
     initialIsWaylandClient: Boolean = false
 ) : IRemoteService.Stub() {
-    // currentDevice is only read/written on mHandler; device discovery is posted there too.
+    // currentDevice is only read/written on mHandler; device discovery is drained there too.
     private var currentDevice = ""
-    // addNewDevices() runs on one getevent reader (and returns before this block in Wayland).
-    // Filter repeated REL_X/REL_Y lines there so they do not flood mHandler with identical work.
-    private var lastQueuedMouseDevice = ""
     private val mouseDeviceLifecycle = MouseDeviceLifecycle()
     internal var inputService: InputService? = null
     private var mOnKeyEventListener: OnKeyEventListener? = null
@@ -53,6 +50,14 @@ class RemoteService @JvmOverloads constructor(
     private var cursorView: View? = null
     private var TYPE_SECURE_SYSTEM_OVERLAY = 0
     private val mHandler = Handler(Looper.getMainLooper())
+    // Coalesces mouse-device selection from the getevent reader thread into at most one
+    // pending main-Handler task, so interleaved device paths cannot flood the queue; the
+    // latest selection wins. The "differs from active device" check lives in the process
+    // callback below and remains the source of truth for whether to open.
+    private val mouseDeviceCoalescer = MouseDeviceCoalescer(
+        schedule = { task -> mHandler.post { task() } },
+        process = { device -> processMouseDeviceSelection(device) },
+    )
     private var mWindowManager: WindowManager? = null
     internal var context: Context = context
     internal var startedFromShell = false
@@ -266,24 +271,25 @@ class RemoteService @JvmOverloads constructor(
             }
         }
         if (input_event.size > 1 && input_event[1] == "EV_REL") {
-            // Device discovery arrives from the getevent reader thread. Serialize device
-            // selection and opening with startServer(), which also runs on mHandler.
-            // A mouse emits REL_X/REL_Y continuously, so enqueue only the first line per path.
-            if (lastQueuedMouseDevice != evdev) {
-                lastQueuedMouseDevice = evdev
-                mHandler.post {
-                    if (currentDevice != evdev) {
-                        currentDevice = evdev
-                        XtLogger.info(
-                            TAG,
-                            "mouse device discovered path=$evdev inputServiceReady=${inputService != null}"
-                        )
-                        mouseDeviceLifecycle.onDeviceDiscovered(evdev)?.let(::openMouseDevice)
-                    }
-                }
-            }
+            // Device discovery arrives from the getevent reader thread. The coalescer bounds
+            // Handler work to at most one pending task, so interleaved device paths cannot
+            // flood the queue; the latest selection wins.
+            mouseDeviceCoalescer.request(evdev)
         }
         return true
+    }
+
+    // Runs on mHandler via the coalescer drain. The "differs from active device" check is the
+    // source of truth for whether a newly selected device actually needs opening.
+    private fun processMouseDeviceSelection(device: String) {
+        if (currentDevice != device) {
+            currentDevice = device
+            XtLogger.info(
+                TAG,
+                "mouse device discovered path=$device inputServiceReady=${inputService != null}"
+            )
+            mouseDeviceLifecycle.onDeviceDiscovered(device)?.let(::openMouseDevice)
+        }
     }
 
     private fun openMouseDevice(request: MouseDeviceLifecycle.OpenRequest) {
@@ -435,14 +441,12 @@ class RemoteService @JvmOverloads constructor(
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
         val service = inputService
-        var callbacksAllowed = clientAlive
-        if (service != null && callbacksAllowed) {
+        if (service != null && clientAlive) {
             try {
                 service.callback.disablePointer()
             } catch (e: RemoteException) {
                 // The Binder can die just before its death recipient is posted to mHandler.
                 // Treat the callback as unavailable and continue local/native cleanup.
-                callbacksAllowed = false
                 XtLogger.warn(TAG, "Client Binder unavailable during pointer shutdown; continuing cleanup", e)
             }
         }
@@ -455,22 +459,22 @@ class RemoteService @JvmOverloads constructor(
             System.exit(0)
         } else if (service != null && !isWaylandClient) {
             service.stopEvents = true
-            if (callbacksAllowed) {
-                try {
-                    service.hideCursor()
-                } catch (e: RuntimeException) {
-                    // hideCursor can still race a client death after disablePointer succeeded.
-                    callbacksAllowed = false
-                    XtLogger.warn(TAG, "Client Binder unavailable while hiding cursor; continuing cleanup", e)
+            // Hide the cursor regardless of client Binder liveness: the local overlay belongs
+            // to this process and must not stay visible after the client dies. If the
+            // system-pointer fallback hits the dead Binder, CursorShutdown still runs cleanup
+            // so the native mouse reader stops and resources are released.
+            CursorShutdown.hideThenCleanup(
+                hideCursor = { service.hideCursor() },
+                cleanup = {
+                    service.stop()
+                    service.stopMouseIfStarted()
+                    service.stopTouchpad()
+                    service.destroyUinputDev()
+                    service.callback.asBinder().unlinkToDeath(mStartServerDeathRecipient, 0)
+                    mouseDeviceLifecycle.onInputServiceStopped()
+                    inputService = null
                 }
-            }
-            service.stop()
-            service.stopMouseIfStarted()
-            service.stopTouchpad()
-            service.destroyUinputDev()
-            service.callback.asBinder().unlinkToDeath(mStartServerDeathRecipient, 0)
-            mouseDeviceLifecycle.onInputServiceStopped()
-            inputService = null
+            )
         }
     }
 
