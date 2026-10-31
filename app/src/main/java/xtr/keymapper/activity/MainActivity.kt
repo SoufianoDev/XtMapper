@@ -14,7 +14,6 @@ import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.os.Process
 import android.os.RemoteException
 import android.provider.Settings
 import android.widget.Toast
@@ -50,13 +49,9 @@ class MainActivity : AppCompatActivity() {
     private var composeServiceActive = false
     private var isServiceBound = false
     private var displaySelector: DisplaySelector? = null
-    private var startedFromShell: Boolean? = null
-    private var trustedShellInitialization = false
-    private var shellInitStartupPending = false
 
     companion object {
         const val SHELL_INIT = "shell"
-        private const val KEY_TRUSTED_SHELL_INIT = "trusted_shell_initialization"
         private const val SERVER_CRASH_DIALOG_TAG = "server_crash_dialog"
         private const val SERVER_CRASH_DISMISSED_REQUEST = "server_crash_dismissed"
         private const val MAX_DIAGNOSTIC_MESSAGE_CHARS = 16 * 1024
@@ -86,7 +81,7 @@ class MainActivity : AppCompatActivity() {
             SERVER_CRASH_DISMISSED_REQUEST,
             this
         ) { _, _ ->
-            if (startedFromShell == false) handleActivationFlow(KeymapConfig(this))
+            handleActivationFlow(KeymapConfig(this))
         }
         // The environment signal is separate from the legacy "data" extra.
         if (intent.hasExtra(Environment.INTENT_EXTRA)) {
@@ -94,13 +89,11 @@ class MainActivity : AppCompatActivity() {
             XtLogger.info("MainActivity", "launch signal applied: environment=${Environment.name}")
         }
 
+        // shortcut: SHELL_INIT stays a crash-replay suppressor only — am start never shares
+        // caller identity (getLaunchedFromUid() == INVALID_UID without identity sharing), so
+        // no trusted auto-init path exists here; upgrade path: a launcher opting into
+        // ActivityOptions.setShareIdentityEnabled so the launching-UID check can become real.
         val launchData = intent.getStringExtra("data")
-        trustedShellInitialization = if (savedInstanceState != null) {
-            savedInstanceState.getBoolean(KEY_TRUSTED_SHELL_INIT, false)
-        } else {
-            launchData == SHELL_INIT && isLaunchedByAndroidShell()
-        }
-        startedFromShell = trustedShellInitialization
 
         // Consume the crash payload before showing UI: an Activity recreation must not
         // replay it from the original Intent. DialogFragment restores an undismissed dialog.
@@ -113,35 +106,19 @@ class MainActivity : AppCompatActivity() {
 
         val keymapConfig = KeymapConfig(this)
         val profiles = KeymapProfiles(this)
-        val isShellInit = isShellInitialization()
-        shellInitStartupPending = isShellInit
-        selectedProfileName = profiles.getStartupProfileName(isShellInit)
+        selectedProfileName = profiles.getLastSelectedProfile()
         TouchPointer.currentSelectedProfile = selectedProfileName
-
-        // The persisted mode reset is allowed only for a shell launch whose caller UID was
-        // verified by Android; caller-controlled extras alone are never sufficient.
-        if (isShellInit && keymapConfig.isShizukuMode) {
-            keymapConfig.useShizuku = false
-            keymapConfig.inputMode = KeymapConfig.MODE_ROOT
-            keymapConfig.applySharedPrefs()
-        }
 
         RemoteServiceHelper.useShizuku = keymapConfig.isShizukuMode
         Server.setupServer(this, mCallback)
 
-        if (startedFromShell == false &&
-            supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) == null
-        ) {
+        if (supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) == null) {
             handleActivationFlow(keymapConfig)
         }
 
         displaySelector = DisplaySelector(this).register { startPointer() }
         RemoteServiceHelper.runIfActive(this) {
             runOnUiThread { composeServiceActive = true }
-        }
-
-        if (isShellInit) {
-            startPointer()
         }
     }
 
@@ -170,19 +147,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Intent extras are caller-controlled. Only trust the shell-init marker when Android
-     * exposes the actual launching UID, rather than treating "data=shell" as authentication.
-     * Before API 34 Android exposes no supported caller-UID API for this launch flow, so the
-     * legacy marker remains a harmless hint and cannot trigger privileged startup behavior.
-     */
-    private fun isLaunchedByAndroidShell(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-            launchedFromUid == Process.SHELL_UID
-    }
-
-    private fun isShellInitialization(): Boolean = trustedShellInitialization
-
     private fun showServerCrashDialog(message: String) {
         if (supportFragmentManager.isStateSaved ||
             supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) != null
@@ -194,11 +158,6 @@ class MainActivity : AppCompatActivity() {
         }
         ServerCrashDialogFragment.newInstance(safeMessage)
             .showNow(supportFragmentManager, SERVER_CRASH_DIALOG_TAG)
-    }
-
-    override fun onSaveInstanceState(outState: Bundle) {
-        outState.putBoolean(KEY_TRUSTED_SHELL_INIT, trustedShellInitialization)
-        super.onSaveInstanceState(outState)
     }
 
     private fun launchSettings() {
@@ -255,7 +214,7 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
             }
-        } else if (startedFromShell == false && Shell.isAppGrantedRoot() == false) {
+        } else if (Shell.isAppGrantedRoot() == false) {
             alertRootAccessAndExit()
             return
         }
@@ -268,14 +227,13 @@ class MainActivity : AppCompatActivity() {
         TouchPointer.currentSelectedProfile = selectedProfileName
         // Start service with selected profile if display on top permission is granted
         if (Settings.canDrawOverlays(this)) {
-            profiles.recordStartupProfileSelection(selectedProfileName, shellInitStartupPending)
+            profiles.setLastSelectedProfile(selectedProfileName)
             val intent = Intent(this, TouchPointer::class.java).apply {
                 putExtra(EditorActivity.PROFILE_NAME, selectedProfileName)
                 if (displayId != null) putExtra(TouchPointer.DISPLAY_ID, displayId)
             }
             isServiceBound = bindService(intent, connection, Context.BIND_AUTO_CREATE)
             ContextCompat.startForegroundService(this, intent)
-            shellInitStartupPending = false
             setButtonState(false)
             requestNotificationPermission()
         }
@@ -501,8 +459,8 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton(R.string.ok) { _, _ ->
                 val renamed = field.editText.text.toString()
                 val profiles = KeymapProfiles(context)
-                profiles.renameProfile(profileName, renamed)
-                if (selectedProfileName == profileName) {
+                val renameAccepted = profiles.renameProfile(profileName, renamed)
+                if (renameAccepted && selectedProfileName == profileName) {
                     selectedProfileName = renamed
                     TouchPointer.currentSelectedProfile = renamed
                 }
