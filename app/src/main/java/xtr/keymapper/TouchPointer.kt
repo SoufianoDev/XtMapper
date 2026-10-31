@@ -50,6 +50,7 @@ class TouchPointer : Service() {
     private var displayId = 0
     private var displayListener: DisplayListener? = null
     private var lastForegroundPackage: String? = null
+    private var connectionGeneration = 0
 
 
     interface MainActivityCallback {
@@ -202,12 +203,20 @@ class TouchPointer : Service() {
         if (activityCallback != null) activityCallback!!.updateCmdView1("connecting to server..")
         val config = KeymapConfig(this)
         RemoteServiceHelper.useShizuku = config.isShizukuMode
+        val generation = connectionGeneration
         RemoteServiceHelper.getInstance(
             this
         ) { service: IRemoteService? ->
+            // A stop or restart while this bind was pending already reset ownership;
+            // acting on a late callback would start an orphaned server untracked by
+            // the tile and the Activity.
+            if (generation != connectionGeneration || !isRunning || activeInstance !== this) {
+                return@getInstance
+            }
             if (service == null) {
                 Log.w("TouchPointer", "Remote service is null, cannot start server")
                 activityCallback?.updateCmdView1("Failed to connect to server (root/shizuku not available)")
+                stopKeymapper()
                 return@getInstance
             }
             mService = service
@@ -251,6 +260,7 @@ class TouchPointer : Service() {
 
     fun stopKeymapper() {
         if (!isRunning && activeInstance == null) return
+        connectionGeneration++
         isRunning = false
         activeInstance = null
 
