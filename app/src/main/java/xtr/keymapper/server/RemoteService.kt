@@ -34,7 +34,6 @@ import xtr.keymapper.server.event.KeyEventHandler
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.lang.reflect.Method
-import java.util.concurrent.ConcurrentHashMap
 
 class RemoteService @JvmOverloads constructor(
     context: Context,
@@ -324,25 +323,28 @@ class RemoteService @JvmOverloads constructor(
         }
     }
 
-    // One death recipient per client Binder: a notification must identify the dead client,
-    // so a delayed cleanup queued behind a server replacement cannot stop the replacement's
-    // session and native reader. Entries are unlinked when the owning service is cleaned
-    // up (stopServer) or is superseded by a restart on the same binder.
-    private val mClientDeathRecipients =
-        ConcurrentHashMap<IBinder, IBinder.DeathRecipient>()
+    // One death registration per client: RemoteService unlinks exactly the registration it
+    // replaces (same-binder restarts) and never unlinks during service cleanup — the old
+    // cleanup unlink removed a same-binder replacement's registration and left the new
+    // session without death handling. A superseded registration that still fires is
+    // rejected by the ownership guards in notifyClientDeath.
+    private val mClientDeathRegistrations = ClientDeathRegistry<IBinder>()
 
     private fun notifyClientDeath(clientBinder: IBinder) {
-        mClientDeathRecipients.remove(clientBinder)
+        mClientDeathRegistrations.onDeath(clientBinder)
         val sessionGeneration = mouseDeviceLifecycle.currentServiceGeneration()
         if (isWaylandClient) {
             // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
             // cleanup of the client-owned InputService before posting the remaining shutdown.
-            if (mouseDeviceLifecycle.isStaleClientDeath(sessionGeneration)) {
+            // Wayland sessions never run onInputServiceReady, so no service generation exists;
+            // ownership of the current service by the dead client is the only valid gate.
+            val service = inputService
+            if (service != null && service.callback.asBinder() != clientBinder) {
                 XtLogger.info(TAG, "ignored death notification of a replaced client session")
                 return
             }
             try {
-                inputService?.stop()
+                service?.stop()
             } catch (e: Exception) {
                 XtLogger.error(TAG, "Failed to stop input service after client binder death", e)
             }
@@ -397,10 +399,11 @@ class RemoteService @JvmOverloads constructor(
         XtLogger.info(TAG, "startServer requested displayId=$displayId pointerMode=${keymapConfig.pointerMode}")
         val clientBinder = cb.asBinder()
         val deathRecipient = IBinder.DeathRecipient { notifyClientDeath(clientBinder) }
-        // A restart on a still-live binder supersedes this client's previous notification link.
-        mClientDeathRecipients.remove(clientBinder)?.let { clientBinder.unlinkToDeath(it, 0) }
+        // A restart on a still-live binder supersedes this client's previous registration;
+        // unlink exactly the recipient being replaced, never anything newer.
+        mClientDeathRegistrations.register(clientBinder, deathRecipient)
+            ?.let { clientBinder.unlinkToDeath(it, 0) }
         clientBinder.linkToDeath(deathRecipient, 0)
-        mClientDeathRecipients[clientBinder] = deathRecipient
         mHandler.post {
             val service = inputService
             if (service != null) {
@@ -505,11 +508,10 @@ class RemoteService @JvmOverloads constructor(
                     service.stopMouseIfStarted()
                     service.stopTouchpad()
                     service.destroyUinputDev()
-                    // The notification link belongs to the binder of the service being
-                    // cleaned up, not to whatever client started most recently.
-                    service.callback.asBinder().let { binder ->
-                        mClientDeathRecipients.remove(binder)?.let { binder.unlinkToDeath(it, 0) }
-                    }
+                    // Death-recipient unlinking happens only in startServer, where the
+                    // registration being replaced is known; unlinking here used to delete
+                    // a same-binder replacement's registration. A superseded registration
+                    // that still fires is rejected by the ownership guards instead.
                     mouseDeviceLifecycle.onInputServiceStopped()
                     inputService = null
                 }
