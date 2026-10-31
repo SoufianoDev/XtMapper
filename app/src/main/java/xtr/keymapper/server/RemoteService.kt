@@ -43,9 +43,10 @@ class RemoteService @JvmOverloads constructor(
     private var currentDevice = ""
     private val mouseDeviceLifecycle = MouseDeviceLifecycle()
     // The current client session's service, arbitrated by ClientServiceSlot: Handler-thread
-    // replacement and binder-thread death claims install/read/clear through one monitor, so
-    // a Wayland death notification cannot validate ownership against one service and then
-    // clobber a replacement that installed between validation and teardown.
+    // replacement and binder-thread death claims install/read/clear through one monitor,
+    // and a death shutdown commits a terminal state in the same critical section as its
+    // ownership decision, so a replacement arriving during the committed teardown is not
+    // admitted and none of the shutdown's side effects can reach it.
     internal val mInputService = ClientServiceSlot<IBinder, InputService>()
     private var mOnKeyEventListener: OnKeyEventListener? = null
     internal var isWaylandClient = initialIsWaylandClient
@@ -340,11 +341,11 @@ class RemoteService @JvmOverloads constructor(
         if (isWaylandClient) {
             // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
             // cleanup of the client-owned InputService before posting the remaining shutdown.
-            // Wayland sessions never run onInputServiceReady, so no service generation exists;
-            // ownership validation and clearing happen atomically inside the claim against
-            // installs that run concurrently on the Handler, so a replaced session's
-            // notification can neither stop the replacement's service nor touch its entry.
-            val (service, superseded) = mInputService.claim(clientBinder)
+            // Wayland sessions never run onInputServiceReady, so no service generation exists.
+            // The claim validates ownership, clears the slot and commits the terminal shutdown
+            // state in one critical section, so a replacement installing during the teardown
+            // is rejected at admission and none of this shutdown's side effects can reach it.
+            val (service, superseded) = mInputService.claimForShutdown(clientBinder)
             if (superseded) {
                 XtLogger.info(TAG, "ignored death notification of a replaced client session")
                 return
@@ -358,7 +359,10 @@ class RemoteService @JvmOverloads constructor(
             // The Wayland reader can block mHandler indefinitely on stdin. Complete the
             // remaining shutdown here too; the claimed service is already cleared, so this
             // avoids calling back into the dead client binder from stopServer().
-            stopServer(true, deathOwner = clientBinder)
+            stopServer(true)
+            // On the non-shell path stopServer exits the process, so this release only runs
+            // in shell mode: admission reopens for later sessions after the side effects.
+            mInputService.releaseTerminal(clientBinder)
         } else {
             // The client Binder is dead. Skip callbacks into that process but keep local and
             // native cleanup serialized with device opening and server replacement. Both
@@ -437,7 +441,13 @@ class RemoteService @JvmOverloads constructor(
                         mOnKeyEventListener = null
                     }
                 }
-                mInputService.install(clientBinder, newService)
+                // Admission is atomic against death-shutdown commitments: a replacement
+                // arriving inside a committed teardown window is not installed and its
+                // request completes without a session; the client can reconnect later.
+                if (!mInputService.install(clientBinder, newService)) {
+                    XtLogger.warn(TAG, "startServer rejected: a client death shutdown is in progress")
+                    return@post
+                }
                 if (!isWaylandClient) {
                     newService.setMouseLock(true)
                     mouseDeviceLifecycle.onInputServiceReady()?.let(::openMouseDevice)
@@ -477,21 +487,11 @@ class RemoteService @JvmOverloads constructor(
         mHandler.post { stopServer(true) }
     }
 
-    private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true, deathOwner: IBinder? = null) {
+    private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true) {
         // Restore enforcing only if this app actually relaxed SELinux (shell entry
         // point); startedFromShell is also set by the system-app path, which never does
         if (exitProcess && !Selinux.real.restore()) {
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
-        }
-        // A dead client's shutdown already detached its own service (the claim cleared its
-        // entry). If a newer session installed since, this notification must not disable
-        // the replacement's pointer or terminate the process it serves.
-        if (deathOwner != null) {
-            val currentOwner = mInputService.currentOwner()
-            if (currentOwner != null && currentOwner != deathOwner) {
-                XtLogger.info(TAG, "ignored stale death shutdown of a replaced client session")
-                return
-            }
         }
         val service = mInputService.get()
         if (service != null && clientAlive) {
