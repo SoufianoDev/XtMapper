@@ -9,44 +9,81 @@ import android.os.Build
 import android.os.Looper
 import android.os.ServiceManager
 import android.os.SystemProperties
-import android.util.Log
 import xtr.keymapper.BuildConfig
+import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
+import xtr.keymapper.log.Role
+import xtr.keymapper.log.SessionStates
+import xtr.keymapper.log.XtLogger
 import java.lang.reflect.Method
 
 object RemoteServiceShell {
+
+    private const val TAG = "xtmapper-server"
+
     @JvmStatic
     fun main(args: Array<String>) {
+        // Classification must precede logging: the SHELL session header renders
+        // Environment.name during initStandalone.
+        Environment.launchSignal = args.contains(Environment.CLI_ARG)
+        // Logging next so even startup failures below can be recorded (uid/role based storage).
+        XtLogger.initStandalone(Role.SHELL)
+        XtLogger.debug(TAG, "app_process server starting (args=${args.joinToString(",")})")
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             println("Unsupported Android version")
+            XtLogger.endSession("Unsupported Android version")
             return
         }
 
         try {
-            RemoteService.loadLibraries()
+            try {
+                RemoteService.loadLibraries()
+            } catch (t: Throwable) {
+                // Native load failure kills the process in existing behavior;
+                // rethrowing preserves that while the failure is now logged.
+                XtLogger.fatal(TAG, "native library load failed", t)
+                throw t
+            }
+            XtLogger.info(TAG, "native libraries loaded")
             Looper.prepareMainLooper()
-            val mService = RemoteService(getContext())
+            val mService = RemoteService(
+                getContext(),
+                initialIsWaylandClient = args.contains("--wayland-client")
+            )
             mService.startedFromShell = true
             var noLogcat = false
 
-            var launchApp = true
+            var autoLaunchClientActivity = true
             for (arg in args) {
                 when (arg) {
                     "--wayland-client" -> {
                         mService.isWaylandClient = true
                         println("using wayland client")
                     }
-                    "--no-auto-launch" -> launchApp = false
+                    "--no-auto-launch" -> autoLaunchClientActivity = false
                     "--no-logcat" -> noLogcat = true
+                    // Already applied above.
+                    Environment.CLI_ARG -> {}
                     else -> println("Invalid argument: $arg")
                 }
             }
+            XtLogger.info(TAG, "server configuration ready wayland=${mService.isWaylandClient}")
             Selinux.real.relax()
-            // Hooks run only on System.exit (crash handler, stopServer exit) — Android does NOT
-            // run them when the process is killed with SIGTERM (e.g. pkill); a clean stop is
-            // restored by RemoteService.stopServer instead
+            // Restore only if Selinux positively recorded a change that may need reverting.
+            // Calling the helper also verifies the result; never force Enforcing when the
+            // initial state was already Permissive or could not be determined.
             Runtime.getRuntime().addShutdownHook(
-                Thread { ProcessBuilder("setenforce", "1").start() }
+                Thread { Selinux.real.restore() }
+            )
+            // Normal exits may close the session here, but a fatal process must remain open
+            // so the next launch reports an unclean previous session instead of a false END.
+            Runtime.getRuntime().addShutdownHook(
+                Thread {
+                    if (!XtLogger.hasFatalEvent) {
+                        XtLogger.endSession(SessionStates.STATUS_UNEXPECTED_EXIT)
+                    }
+                }
             )
             ServiceManager.addService("xtmapper", mService)
 
@@ -65,13 +102,19 @@ object RemoteServiceShell {
                 ProcessBuilder("logcat", "-v", "color", "--pid=" + android.os.Process.myPid()).inheritIO().start()
             }
 
-            if (launchApp) ProcessBuilder("am", "start", "-a", "android.intent.action.MAIN", "-n",
+            // Launch-context signal, kept separate from data=shell.
+            if (autoLaunchClientActivity) ProcessBuilder("am", "start", "-a", "android.intent.action.MAIN", "-n",
                 ComponentName(mService.context, MainActivity::class.java).flattenToString(),
                 "--es", "data",
-                MainActivity.SHELL_INIT).inheritIO().start()
+                MainActivity.SHELL_INIT,
+                "--ez", Environment.INTENT_EXTRA,
+                Environment.launchSignal.toString()).inheritIO().start()
 
         } catch (e: Exception) {
-            Log.e(RemoteService.TAG, e.message, e)
+            // Startup is terminating abnormally. Persist a fatal record but leave the
+            // session without an END marker so the next launch reports an unclean exit.
+            XtLogger.fatal(TAG, "server startup failed", e)
+            XtLogger.flush(2_000)
             System.exit(1)
         }
         Looper.loop()
@@ -94,7 +137,7 @@ object RemoteServiceShell {
         try {
             context = systemContext.createPackageContext(BuildConfig.APPLICATION_ID, flags)
         } catch (e: PackageManager.NameNotFoundException) {
-            Log.e(RemoteService.TAG, e.message, e)
+            XtLogger.error(RemoteService.TAG, "Failed to create package context for the shell process", e)
         }
         return getContextImpl(context!!)
     }

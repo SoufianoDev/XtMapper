@@ -71,12 +71,19 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
+        // XtLogger's core (Clock/Instant/ZoneId/DateTimeFormatter, java.time in
+        // general) needs core-library desugaring to exist on API 25–27 runtimes.
+        coreLibraryDesugaringEnabled true
     }
     buildFeatures {
         viewBinding true
         aidl true
         buildConfig true
         compose true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
     }
     packagingOptions.jniLibs.useLegacyPackaging true
 
@@ -91,13 +98,15 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+
     implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'androidx.lifecycle:lifecycle-service:2.9.4'
     implementation 'androidx.compose.material3:material3-window-size-class:1.4.0'
     implementation "androidx.constraintlayout:constraintlayout:2.2.2"
     implementation "androidx.coordinatorlayout:coordinatorlayout:1.3.0"
     implementation("com.google.android.material:material:1.14.0")
-    implementation 'androidx.webkit:webkit:1.17.0'
+    implementation 'androidx.webkit:webkit:1.18.0'
     implementation "com.github.topjohnwu.libsu:core:5.3.0"
     implementation "com.github.topjohnwu.libsu:service:5.3.0"
     implementation "dev.rikka.shizuku:api:13.1.5"
@@ -119,4 +128,6 @@ dependencies {
 
     compileOnly project(path: ':app:hidden-api')
 
+    // JVM unit tests for the XtLogger subsystem (pure-kotlin core, no android.jar).
+    testImplementation 'junit:junit:4.13.2'
 }

@@ -38,6 +38,12 @@
     <string name="yes">@android:string/yes</string>
     <string name="no">@android:string/no</string>
     <string name="swipe_delay_ms">ਸਵਾਈਪ ਦੇਰੀ %d ਮਿਲੀਸਕਿੰਟ</string>
+    <string name="shift_transition_ms">ਸ਼ਿਫਟ ਤਬਦੀਲੀ: %d ਮਿਲੀਸਕਿੰਟ</string>
+    <string name="shift_transition_title">ਸ਼ਿਫਟ ਤਬਦੀਲੀ ਦੀ ਗਤੀ</string>
+    <string name="use_global_default">ਗਲੋਬਲ ਪੂਰਵ-ਨਿਰਧਾਰਤ (%d ਮਿਲੀਸਕਿੰਟ)</string>
+    <string name="shift_transition_instant">ਤੁਰੰਤ (0 ਮਿਲੀਸਕਿੰਟ)</string>
+    <string name="shift_transition_ms_value">%d ਮਿਲੀਸਕਿੰਟ</string>
+    <string name="shift_transition_changed">ਸ਼ਿਫਟ ਤਬਦੀਲੀ: %1$s</string>
     <string name="profile_name">ਪ੍ਰੋਫਾਈਲ ਨਾਮ</string>
     <string name="root_not_found_title">ਰੂਟ ਨਹੀਂ ਮਿਲੀ</string>
     <string name="root_not_found_message">ਕੀਮੈਪਰ ਨੂੰ ਕੰਮ ਕਰਨ ਲਈ ਰੂਟ ਦੀ ਲੋੜ ਹੈ। \n ਕਿਰਪਾ ਕਰਕੇ KernelSU ਪ੍ਰਬੰਧਕ ਐਪ ਤੋਂ XtMapper ਨੂੰ ਸੁਪਰਯੂਜ਼ਰ ਦਿਓ</string>
@@ -56,6 +62,7 @@
     <string name="crosshair">ਕਰਾਸ ਹੇਅਰ</string>
     <string name="left_click">ਖੱਬਾ ਕਲਿਕ</string>
     <string name="swipe_key">ਸਵਾਈਪ ਬਟਨ</string>
+    <string name="shift_key">ਸ਼ਿਫਟ ਬਟਨ</string>
     <string name="add_key">ਸ਼ਾਮਲ ਕਰੋ ਬਟਨ</string>
     <string name="save">ਸੇਵ ਕਰੋ</string>
     <!--  Mouse Aim  -->
@@ -98,7 +105,7 @@
     <string name="press_any_key_to_stop_recording">ਰਿਕਾਰਡਿੰਗ ਬੰਦ ਕਰਨ ਲਈ ਕੋਈ ਵੀ ਕੁੰਜੀ ਦਬਾਓ…</string>
     <string name="advanced">ਐਡਵਾਂਸਡ</string>
     <string name="shizuku_not_running_title">Shizuku ਸ਼ੁਰੂ ਨਹੀਂ ਹੋਇਆ ਹੈ</string>
-    <string name="shizuku_not_running_message"></string>
+    <string name="shizuku_not_running_message">Shizuku ਸੇਵਾ ਸ਼ੁਰੂ ਕਰੋ, ਫਿਰ XtMapper ਵਿੱਚ ਵਾਪਸ ਆਓ।</string>
     <string name="edit">ਸੰਪਾਦਿਤ ਕਰੋ</string>
     <string name="show_controls_on_screen">ਸਕ੍ਰੀਨ \'ਤੇ ਕੰਟਰੋਲ ਦਿਖਾਓ</string>
     <string name="select_a_display">ਡਿਸਪਲੇ ਚੁਣੋ</string>
@@ -117,5 +124,25 @@
     <string name="msg_profiles_imported">ਪ੍ਰੋਫਾਈਲ ਸਫਲਤਾਪੂਰਵਕ ਇੰਪੋਰਟ ਕੀਤੇ ਗਏ</string>
     <string name="msg_all_profiles_exist" tools:ignore="MissingTranslation">ਸਾਰੇ ਪ੍ਰੋਫਾਈਲ ਪਹਿਲਾਂ ਤੋਂ ਮੌਜੂਦ ਹਨ, ਕੁਝ ਵੀ ਇੰਪੋਰਟ ਨਹੀਂ ਹੋਇਆ</string>
     <string name="error_import_failed">ਇੰਪੋਰਟ ਅਸਫਲ ਰਿਹਾ</string>
+    <string name="unverified_diagnostic_title">ਗੈਰ-ਪ੍ਰਮਾਣਿਤ ਡਾਇਗਨੌਸਟਿਕ ਸੁਨੇਹਾ</string>
     <string name="share">ਸਾਂਝਾ ਕਰੋ</string>
+    <string name="touch_jitter">ਟਚ ਕੋਆਰਡੀਨੇਟ ਜਿਟਰ</string>
+    <string name="touch_jitter_spread">ਜਿਟਰ ਫੈਲਾਓ</string>
+    <string name="touch_jitter_spread_px">ਟਚ ਜਿਟਰ ਫੈਲਾਓ: %d ਪਿਕਸਲ</string>
+    <string name="quick_settings_tile_name">XtMapper</string>
+    <string name="input_mode">ਇਨਪੁਟ ਮੋਡ</string>
+    <string name="input_mode_root">Root</string>
+    <string name="input_mode_shizuku">Shizuku (ADB)</string>
+    <string name="shizuku_not_installed_title">Shizuku ਇੰਸਟਾਲ ਨਹੀਂ ਹੈ</string>
+    <string name="shizuku_not_installed_message">Shizuku ਇਨਪੁੱਟ ਮੋਡ ਚੁਣਨ ਤੋਂ ਪਹਿਲਾਂ Shizuku ਐਪ ਇੰਸਟਾਲ ਕਰੋ।</string>
+    <string name="test_input_service_inactive">ਇਨਪੁੱਟ ਦੀ ਜਾਂਚ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਕੀ-ਮੈਪਿੰਗ ਸੇਵਾ ਸ਼ੁਰੂ ਕਰੋ।</string>
+    <string name="test_input_root_unavailable">Root ਪਹੁੰਚ ਉਪਲਬਧ ਨਹੀਂ ਹੈ। ਇਨਪੁੱਟ ਦੀ ਜਾਂਚ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ XtMapper ਨੂੰ root ਪਹੁੰਚ ਦਿਓ।</string>
+    <string name="test_input_ready">%1$s ਮੋਡ ਚਾਲੂ ਹੈ। ਜਾਂਚ ਲਈ ਕੀਬੋਰਡ ਜਾਂ ਮਾਊਸ ਕਨੈਕਟ ਕਰੋ।</string>
+    <string name="shizuku_install_required">ਇਹ ਇਨਪੁੱਟ ਮੋਡ ਵਰਤਣ ਲਈ Shizuku ਇੰਸਟਾਲ ਕਰੋ</string>
+    <string name="shizuku_start_required">ਇਹ ਇਨਪੁੱਟ ਮੋਡ ਵਰਤਣ ਲਈ Shizuku ਸ਼ੁਰੂ ਕਰੋ</string>
+    <string name="input_mode_changed">ਇਨਪੁੱਟ ਮੋਡ: %1$s</string>
+    <string name="block_keyboard_input">ਸਿੱਧੇ ਕੀਬੋਰਡ ਇਨਪੁੱਟ ਨੂੰ ਰੋਕੋ</string>
+    <string name="block_keyboard">ਕੀਬੋਰਡ ਰੋਕੋ</string>
+    <string name="keyboard_blocked">ਕੀਬੋਰਡ ਇਨਪੁੱਟ ਰੋਕਿਆ ਗਿਆ</string>
+    <string name="keyboard_unblocked">ਕੀਬੋਰਡ ਇਨਪੁੱਟ ਦੀ ਰੋਕ ਹਟਾਈ ਗਈ</string>
 </resources>
