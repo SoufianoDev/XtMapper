@@ -337,7 +337,6 @@ class RemoteService @JvmOverloads constructor(
 
     private fun notifyClientDeath(clientBinder: IBinder) {
         mClientDeathRegistrations.onDeath(clientBinder)
-        val sessionGeneration = mouseDeviceLifecycle.currentServiceGeneration()
         if (isWaylandClient) {
             // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
             // cleanup of the client-owned InputService before posting the remaining shutdown.
@@ -362,17 +361,15 @@ class RemoteService @JvmOverloads constructor(
             stopServer(true)
             // On the non-shell path stopServer exits the process, so this release only runs
             // in shell mode: admission reopens for later sessions after the side effects.
-            mInputService.releaseTerminal(clientBinder)
+            mInputService.releaseTerminal()
         } else {
             // The client Binder is dead. Skip callbacks into that process but keep local and
-            // native cleanup serialized with device opening and server replacement. Both
-            // checks re-run at execution time: the service that died may have been replaced
-            // while this task waited behind other handler work.
+            // native cleanup serialized with device opening and server replacement. The
+            // ownership check re-runs at execution time: the service that died may have been
+            // replaced while this task waited behind other handler work. A same-binder
+            // restart that installed before this task ran is the dead client's own session,
+            // so stopping it is the required cleanup, not a replacement's shutdown.
             mHandler.post {
-                if (mouseDeviceLifecycle.isStaleClientDeath(sessionGeneration)) {
-                    XtLogger.info(TAG, "ignored stale death notification of a replaced session")
-                    return@post
-                }
                 val service = mInputService.get()
                 if (service != null && service.callback.asBinder() != clientBinder) {
                     XtLogger.info(TAG, "ignored death notification of a client without a service")
