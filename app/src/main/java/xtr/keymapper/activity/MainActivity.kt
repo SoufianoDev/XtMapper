@@ -2,6 +2,8 @@ package xtr.keymapper.activity
 
 import android.Manifest.permission.POST_NOTIFICATIONS
 import android.app.Activity
+import android.app.Dialog
+import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.DialogInterface
@@ -14,15 +16,17 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.RemoteException
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.DialogFragment
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.topjohnwu.superuser.Shell
 import rikka.shizuku.Shizuku
 import xtr.keymapper.BuildConfig
+import xtr.keymapper.Environment
 import xtr.keymapper.GameKeyMapperBridge
 import xtr.keymapper.IRemoteService
 import xtr.keymapper.R
@@ -33,6 +37,7 @@ import xtr.keymapper.editor.EditorActivity
 import xtr.keymapper.editor.EditorUI
 import xtr.keymapper.keymap.KeymapConfig
 import xtr.keymapper.keymap.KeymapProfiles
+import xtr.keymapper.log.XtLogger
 import xtr.keymapper.profiles.ProfileSelector
 import xtr.keymapper.profiles.ProfilesApps
 import xtr.keymapper.server.RemoteServiceHelper
@@ -44,10 +49,12 @@ class MainActivity : AppCompatActivity() {
     private var composeServiceActive = false
     private var isServiceBound = false
     private var displaySelector: DisplaySelector? = null
-    private var startedFromShell: Boolean? = null
 
     companion object {
         const val SHELL_INIT = "shell"
+        private const val SERVER_CRASH_DIALOG_TAG = "server_crash_dialog"
+        private const val SERVER_CRASH_DISMISSED_REQUEST = "server_crash_dismissed"
+        private const val MAX_DIAGNOSTIC_MESSAGE_CHARS = 16 * 1024
 
         init {
             // Set settings before the main shell can be created
@@ -70,33 +77,48 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (startedFromShell == null) startedFromShell = isStartedWithShell()
+        supportFragmentManager.setFragmentResultListener(
+            SERVER_CRASH_DISMISSED_REQUEST,
+            this
+        ) { _, _ ->
+            handleActivationFlow(KeymapConfig(this))
+        }
+        // The environment signal is separate from the legacy "data" extra.
+        if (intent.hasExtra(Environment.INTENT_EXTRA)) {
+            Environment.launchSignal = intent.getBooleanExtra(Environment.INTENT_EXTRA, false)
+            XtLogger.info("MainActivity", "launch signal applied: environment=${Environment.name}")
+        }
+
+        // shortcut: SHELL_INIT stays a crash-replay suppressor only — am start never shares
+        // caller identity (getLaunchedFromUid() == INVALID_UID without identity sharing), so
+        // no trusted auto-init path exists here; upgrade path: a launcher opting into
+        // ActivityOptions.setShareIdentityEnabled so the launching-UID check can become real.
+        val launchData = intent.getStringExtra("data")
+
+        // Consume the crash payload before showing UI: an Activity recreation must not
+        // replay it from the original Intent. DialogFragment restores an undismissed dialog.
+        intent.removeExtra("data")
+        if (savedInstanceState == null && launchData != null && launchData != SHELL_INIT) {
+            showServerCrashDialog(launchData)
+        }
 
         GameKeyMapperBridge.installGameKeyMapperContent(this)
 
         val keymapConfig = KeymapConfig(this)
+        val profiles = KeymapProfiles(this)
+        selectedProfileName = profiles.getLastSelectedProfile()
+        TouchPointer.currentSelectedProfile = selectedProfileName
 
-        /*
-         * If user has enabled "Use Shizuku" but this activity was started from shell (waydroid or adb)
-         * Then reset "Use Shizuku" setting to false since it crashes the app
-         */
-        if (startedFromShell == true && keymapConfig.useShizuku) {
-            keymapConfig.useShizuku = false
-            keymapConfig.applySharedPrefs()
-        }
-
-        RemoteServiceHelper.useShizuku = keymapConfig.useShizuku
+        RemoteServiceHelper.useShizuku = keymapConfig.isShizukuMode
         Server.setupServer(this, mCallback)
 
-        if (startedFromShell == false) handleActivationFlow(keymapConfig)
+        if (supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) == null) {
+            handleActivationFlow(keymapConfig)
+        }
 
         displaySelector = DisplaySelector(this).register { startPointer() }
         RemoteServiceHelper.runIfActive(this) {
             runOnUiThread { composeServiceActive = true }
-        }
-
-        if (startedFromShell == true && intent.getStringExtra("data") == SHELL_INIT) {
-            startPointer()
         }
     }
 
@@ -108,6 +130,7 @@ class MainActivity : AppCompatActivity() {
                     showAlertDialog(R.string.detected_shizuku, R.string.use_shizuku_for_activation, { _, _ ->
                         RemoteServiceHelper.useShizuku = true
                         keymapConfig.useShizuku = true
+                        keymapConfig.inputMode = KeymapConfig.MODE_SHIZUKU
                         keymapConfig.applySharedPrefs()
                         alertShizukuNotAuthorized()
                     }, R.string.ok)
@@ -117,27 +140,24 @@ class MainActivity : AppCompatActivity() {
             }
         } else {
             when {
+                !isShizukuInstalled() -> alertShizukuNotInstalled()
                 !Shizuku.pingBinder() -> alertShizukuNotRunning()
                 Shizuku.checkSelfPermission() != PERMISSION_GRANTED -> alertShizukuNotAuthorized()
             }
         }
     }
 
-    /**
-     * Check if this activity was started with am shell command
-     * Also handles crash report from server and shows a dialog with crash log
-     * @return true if this activity was started with am shell command
-     */
-    private fun isStartedWithShell(): Boolean {
-        val data = intent.getStringExtra("data") ?: return false
-        if (data != SHELL_INIT) {
-            // Crash report
-            MaterialAlertDialogBuilder(this).setTitle("Server crashed")
-                .setMessage(data)
-                .setPositiveButton(R.string.ok, null)
-                .show()
+    private fun showServerCrashDialog(message: String) {
+        if (supportFragmentManager.isStateSaved ||
+            supportFragmentManager.findFragmentByTag(SERVER_CRASH_DIALOG_TAG) != null
+        ) return
+        val safeMessage = if (message.length > MAX_DIAGNOSTIC_MESSAGE_CHARS) {
+            message.take(MAX_DIAGNOSTIC_MESSAGE_CHARS) + "\n\n[Message truncated]"
+        } else {
+            message
         }
-        return true
+        ServerCrashDialogFragment.newInstance(safeMessage)
+            .showNow(supportFragmentManager, SERVER_CRASH_DIALOG_TAG)
     }
 
     private fun launchSettings() {
@@ -149,7 +169,7 @@ class MainActivity : AppCompatActivity() {
                 if (remoteService != null && editorUi != null) try {
                     editorUi!!.registerOnKeyEventListener(remoteService)
                 } catch (e: RemoteException) {
-                    Log.e("MainActivity", e.message, e)
+                    XtLogger.error("MainActivity", "Failed to register remote key-event listener", e)
                     editorUi!!.unregisterOnKeyEventListener()
                 }
             }
@@ -158,7 +178,7 @@ class MainActivity : AppCompatActivity() {
         RemoteServiceHelper.getInstance(context, remoteServiceCallback)
     }
 
-    private fun launchApp() {
+    private fun activateSelectedProfile() {
         if (selectedProfileName == null) {
             showAlertDialog(R.string.no_profile_selected, R.string.select_profile_from_below, null, R.string.ok)
         } else {
@@ -178,9 +198,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startPointer(displayId: Int?) {
+        val keymapConfig = KeymapConfig(this)
+        if (keymapConfig.isShizukuMode) {
+            when {
+                !isShizukuInstalled() -> {
+                    alertShizukuNotInstalled()
+                    return
+                }
+                !Shizuku.pingBinder() -> {
+                    alertShizukuNotRunning()
+                    return
+                }
+                Shizuku.checkSelfPermission() != PERMISSION_GRANTED -> {
+                    alertShizukuNotAuthorized()
+                    return
+                }
+            }
+        } else if (Shell.isAppGrantedRoot() == false) {
+            alertRootAccessAndExit()
+            return
+        }
+
         checkOverlayPermission(this)
+        val profiles = KeymapProfiles(this)
+        if (selectedProfileName == null) {
+            selectedProfileName = profiles.getLastSelectedProfile()
+        }
+        TouchPointer.currentSelectedProfile = selectedProfileName
         // Start service with selected profile if display on top permission is granted
         if (Settings.canDrawOverlays(this)) {
+            profiles.setLastSelectedProfile(selectedProfileName)
             val intent = Intent(this, TouchPointer::class.java).apply {
                 putExtra(EditorActivity.PROFILE_NAME, selectedProfileName)
                 if (displayId != null) putExtra(TouchPointer.DISPLAY_ID, displayId)
@@ -190,22 +237,30 @@ class MainActivity : AppCompatActivity() {
             setButtonState(false)
             requestNotificationPermission()
         }
-        if (RemoteServiceHelper.useShizuku) {
-            if (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != PERMISSION_GRANTED)
-                alertShizukuNotAuthorized()
-        } else if (Shell.isAppGrantedRoot() == false) {
-            // No need to alert about root access if started from shell
-            if (startedFromShell == false) alertRootAccessAndExit()
-        }
     }
 
     private fun setButtonState(start: Boolean) {
         composeServiceActive = !start
     }
 
+    override fun onResume() {
+        super.onResume()
+        composeServiceActive = TouchPointer.isRunning
+        // The user may have granted All-files access in Settings just now;
+        // finish the pending file-logging setup without a restart. Guarded:
+        // the check is an API 30 call (crashes every resume below Android 11).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            android.os.Environment.isExternalStorageManager()
+        ) XtLogger.enableFileLogging()
+    }
+
     fun stopPointer() {
+        TouchPointer.activeInstance?.stopKeymapper()
         unbindTouchPointer()
-        stopService(Intent(this, TouchPointer::class.java))
+        val intent = Intent(this, TouchPointer::class.java).apply {
+            action = TouchPointer.ACTION_STOP
+        }
+        stopService(intent)
         setButtonState(true)
     }
 
@@ -255,12 +310,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun alertShizukuNotAuthorized() {
+        if (!isShizukuInstalled()) {
+            alertShizukuNotInstalled()
+            return
+        }
         if (Shizuku.pingBinder()) Shizuku.requestPermission(0)
         showAlertDialog(R.string.shizuku_not_authorized_title, R.string.shizuku_not_authorized_message, { _, _ -> launchShizukuAndExit() }, R.string.ok)
     }
 
     private fun alertShizukuNotRunning() {
+        if (!isShizukuInstalled()) {
+            alertShizukuNotInstalled()
+            return
+        }
         showAlertDialog(R.string.shizuku_not_running_title, R.string.shizuku_not_running_message, { _, _ -> launchShizukuAndExit() }, R.string.start)
+    }
+
+    private fun alertShizukuNotInstalled() {
+        showAlertDialog(R.string.shizuku_not_installed_title, R.string.shizuku_not_installed_message, null, R.string.ok)
+    }
+
+    fun isShizukuInstalled(): Boolean = try {
+        packageManager.getPackageInfo("moe.shizuku.privileged.api", 0)
+        true
+    } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
+        false
     }
 
     private fun launchShizukuAndExit() {
@@ -268,6 +342,8 @@ class MainActivity : AppCompatActivity() {
         if (launchIntent != null) {
             startActivity(launchIntent)
             System.exit(0)
+        } else {
+            alertShizukuNotInstalled()
         }
     }
 
@@ -282,28 +358,89 @@ class MainActivity : AppCompatActivity() {
 
     // ============ COMPOSE UI BRIDGE ============
 
-    fun isComposeServiceActive(): Boolean = composeServiceActive
+    fun isComposeServiceActive(): Boolean = composeServiceActive || TouchPointer.isRunning
 
     fun selectedProfileNameForCompose(): String? = selectedProfileName
 
     fun toggleServiceFromCompose() {
-        if (composeServiceActive) stopPointer() else startPointer()
+        if (isComposeServiceActive()) stopPointer() else startPointer()
     }
 
     fun fixPermissionFromCompose() {
-        checkOverlayPermission(this)
+        val config = KeymapConfig(this)
+        if (config.isShizukuMode && !isShizukuInstalled()) {
+            alertShizukuNotInstalled()
+        } else if (config.isShizukuMode && (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != PERMISSION_GRANTED)) {
+            if (Shizuku.pingBinder()) alertShizukuNotAuthorized()
+            else alertShizukuNotRunning()
+        } else if (!Settings.canDrawOverlays(this)) {
+            checkOverlayPermission(this)
+        }
+    }
+
+    fun toggleInputModeFromCompose() {
+        val config = KeymapConfig(this)
+        val nextMode = if (config.isShizukuMode) {
+            KeymapConfig.MODE_ROOT
+        } else {
+            KeymapConfig.MODE_SHIZUKU
+        }
+        config.inputMode = nextMode
+        config.useShizuku = (nextMode == KeymapConfig.MODE_SHIZUKU)
+        RemoteServiceHelper.useShizuku = config.useShizuku
+        config.applySharedPrefs()
+        val modeStr = if (nextMode == KeymapConfig.MODE_SHIZUKU) "Shizuku (ADB)" else "Root"
+        Toast.makeText(this, getString(R.string.input_mode_changed, modeStr), Toast.LENGTH_SHORT).show()
+        if (config.isShizukuMode) {
+            if (!isShizukuInstalled()) alertShizukuNotInstalled()
+            else if (!Shizuku.pingBinder()) alertShizukuNotRunning()
+            else if (Shizuku.checkSelfPermission() != PERMISSION_GRANTED) alertShizukuNotAuthorized()
+        }
+        // A previous Binder can remain alive briefly even when the pointer UI is stopped.
+        // Always require the next connection to use the newly selected backend.
+        RemoteServiceHelper.prepareForBackendSwitch()
+        if (isComposeServiceActive()) {
+            stopPointer()
+            startPointer()
+        }
     }
 
     fun testInputFromCompose() {
-        Toast.makeText(this, "Input tester is not exposed by the legacy implementation.", Toast.LENGTH_SHORT).show()
+        val config = KeymapConfig(this)
+        if (config.isShizukuMode) {
+            when {
+                !isShizukuInstalled() -> {
+                    alertShizukuNotInstalled()
+                    return
+                }
+                !Shizuku.pingBinder() -> {
+                    alertShizukuNotRunning()
+                    return
+                }
+                Shizuku.checkSelfPermission() != PERMISSION_GRANTED -> {
+                    alertShizukuNotAuthorized()
+                    return
+                }
+            }
+        } else if (Shell.isAppGrantedRoot() == false) {
+            Toast.makeText(this, R.string.test_input_root_unavailable, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!isComposeServiceActive()) {
+            Toast.makeText(this, R.string.test_input_service_inactive, Toast.LENGTH_LONG).show()
+            return
+        }
+        val modeName = if (config.isShizukuMode) "Shizuku (ADB)" else "Root"
+        Toast.makeText(this, getString(R.string.test_input_ready, modeName), Toast.LENGTH_SHORT).show()
     }
 
     fun selectProfileFromCompose(profileName: String) {
         onProfileSelected(profileName)
     }
 
-    fun launchAppFromCompose() {
-        launchApp()
+    fun activateSelectedProfileFromCompose() {
+        activateSelectedProfile()
     }
 
     fun startEditorFromCompose() {
@@ -321,7 +458,12 @@ class MainActivity : AppCompatActivity() {
             .setView(field.root)
             .setPositiveButton(R.string.ok) { _, _ ->
                 val renamed = field.editText.text.toString()
-                KeymapProfiles(context).renameProfile(profileName, renamed)
+                val profiles = KeymapProfiles(context)
+                val renameAccepted = profiles.renameProfile(profileName, renamed)
+                if (renameAccepted && selectedProfileName == profileName) {
+                    selectedProfileName = renamed
+                    TouchPointer.currentSelectedProfile = renamed
+                }
                 if (onComplete != null) runOnUiThread(onComplete)
             }
             .setNegativeButton(R.string.cancel, null)
@@ -346,9 +488,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun deleteProfileFromCompose(profileName: String?) {
-        KeymapProfiles(this).deleteProfile(profileName)
+        val profiles = KeymapProfiles(this)
+        profiles.deleteProfile(profileName)
         if (profileName != null && profileName == selectedProfileName) {
-            selectedProfileName = null
+            selectedProfileName = profiles.getLastSelectedProfile()
+            TouchPointer.currentSelectedProfile = selectedProfileName
         }
     }
 
@@ -363,6 +507,9 @@ class MainActivity : AppCompatActivity() {
     fun createNewProfileFromCompose(onComplete: Runnable?) {
         ProfileSelector.createNewProfile(this) { profileName ->
             selectedProfileName = profileName
+            val profiles = KeymapProfiles(this)
+            profiles.setLastSelectedProfile(profileName)
+            TouchPointer.currentSelectedProfile = profileName
             if (onComplete != null) runOnUiThread(onComplete)
         }
     }
@@ -379,6 +526,48 @@ class MainActivity : AppCompatActivity() {
         launchSettings()
     }
 
+    fun openLogsFromCompose() {
+        val supported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        val needsAccess = supported && !android.os.Environment.isExternalStorageManager()
+        val message = when {
+            !supported -> R.string.logs_unsupported
+            needsAccess -> R.string.logs_access_needed
+            XtLogger.isFileSinkAvailable -> R.string.logs_active
+            else -> R.string.logs_unavailable
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.logs)
+            .setMessage(getString(message) + "\n\n" + XtLogger.canonicalDirectory().absolutePath)
+            .setNegativeButton(R.string.ok, null)
+            .apply {
+                if (needsAccess) setPositiveButton(R.string.logs_grant_access) { _, _ ->
+                    openLogAccessSettings()
+                }
+            }
+            .show()
+    }
+
+    private fun openLogAccessSettings() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val intents = listOf(
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, "package:$packageName".toUri()),
+            Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION),
+        )
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                return
+            } catch (_: ActivityNotFoundException) {
+                // Some OEMs only expose the general All-files access page.
+            } catch (_: SecurityException) {
+                // Try the general page if the app-specific page is restricted.
+            }
+        }
+        Toast.makeText(this, R.string.logs_settings_unavailable, Toast.LENGTH_LONG).show()
+    }
+
+
+
     override fun onDestroy() {
         super.onDestroy()
         unbindTouchPointer()
@@ -386,6 +575,13 @@ class MainActivity : AppCompatActivity() {
 
     fun onProfileSelected(profileName: String) {
         selectedProfileName = profileName
+        val profiles = KeymapProfiles(this)
+        profiles.setLastSelectedProfile(profileName)
+        TouchPointer.currentSelectedProfile = profileName
+        val p = profiles.getProfile(profileName, false)
+        if (!p.packageName.isNullOrEmpty()) {
+            profiles.setDesignatedProfileForApp(p.packageName, profileName)
+        }
     }
 
     private val mCallback = object : TouchPointer.MainActivityCallback {
@@ -412,5 +608,43 @@ class MainActivity : AppCompatActivity() {
         override fun onServiceDisconnected(arg0: ComponentName) {
             isServiceBound = false
         }
+    }
+}
+
+
+/**
+ * Lifecycle-aware crash relay dialog. The consumed Intent extra is not needed after this
+ * fragment is shown, and FragmentManager restores the dialog across configuration changes.
+ */
+class ServerCrashDialogFragment : DialogFragment() {
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val message = requireArguments().getString(ARG_MESSAGE).orEmpty()
+        return MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.unverified_diagnostic_title)
+            .setMessage(message)
+            .setPositiveButton(R.string.ok) { _, _ -> notifyDismissed() }
+            .create()
+    }
+
+    override fun onCancel(dialog: android.content.DialogInterface) {
+        super.onCancel(dialog)
+        notifyDismissed()
+    }
+
+    private fun notifyDismissed() {
+        parentFragmentManager.setFragmentResult(
+            DISMISSED_REQUEST,
+            Bundle.EMPTY
+        )
+    }
+
+    companion object {
+        private const val ARG_MESSAGE = "message"
+        private const val DISMISSED_REQUEST = "server_crash_dismissed"
+
+        fun newInstance(message: String): ServerCrashDialogFragment =
+            ServerCrashDialogFragment().apply {
+                arguments = Bundle().apply { putString(ARG_MESSAGE, message) }
+            }
     }
 }

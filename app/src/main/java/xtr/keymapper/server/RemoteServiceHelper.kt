@@ -15,12 +15,24 @@ import com.topjohnwu.superuser.ipc.RootService
 import rikka.shizuku.Shizuku
 import xtr.keymapper.BuildConfig
 import xtr.keymapper.IRemoteService
+import xtr.keymapper.TouchPointer
+import xtr.keymapper.keymap.KeymapConfig
 
 object RemoteServiceHelper {
 
+    @Volatile
     private var service: IRemoteService? = null
 
+    /** Forces the next connection to honor the selected Root/Shizuku backend. */
+    @Volatile
+    private var forceSelectedBackend = false
+
+    /** Invalidates callbacks from binds started before an input-mode switch. */
+    @Volatile
+    private var backendGeneration = 0L
+
     @JvmStatic
+    @Volatile
     var useShizuku = false
 
     @JvmStatic
@@ -61,7 +73,7 @@ object RemoteServiceHelper {
         getInstance(context) { service ->
             try {
                 if (service != null && service.isActive) runnable.run()
-            } catch (e: RemoteException) {
+            } catch (_: RemoteException) {
             }
         }
     }
@@ -70,12 +82,58 @@ object RemoteServiceHelper {
         fun onConnection(service: IRemoteService?)
     }
 
-    class RemoteServiceConnection(private val cb: RootRemoteServiceCallback) : ServiceConnection {
+    /**
+     * Call before restarting TouchPointer after an input-mode change. Old cached
+     * binders and ServiceManager entries must not override the newly selected backend.
+     */
+    @JvmStatic
+    fun prepareForBackendSwitch() {
+        backendGeneration++
+        service = null
+        forceSelectedBackend = true
+    }
+
+    class RemoteServiceConnection(
+        private val cb: RootRemoteServiceCallback,
+        private val requestGeneration: Long,
+        private val requestedShizuku: Boolean,
+    ) : ServiceConnection {
+        @Volatile
+        private var connectedBinder: IBinder? = null
+
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
-            cb.onConnection(IRemoteService.Stub.asInterface(service))
+            // An older asynchronous bind may complete after the user switched modes.
+            // Do not cache or deliver its Binder to the new editor/service instance.
+            if (requestGeneration != RemoteServiceHelper.backendGeneration ||
+                requestedShizuku != RemoteServiceHelper.useShizuku
+            ) {
+                // This bind belongs to a superseded request; don't let its callback
+                // disrupt the new TouchPointer instance while it connects to the new mode.
+                return
+            }
+
+            connectedBinder = service
+            val remote = IRemoteService.Stub.asInterface(service)
+            RemoteServiceHelper.service = remote
+            RemoteServiceHelper.forceSelectedBackend = false
+            try {
+                service.linkToDeath({
+                    if (RemoteServiceHelper.service?.asBinder() == service) {
+                        RemoteServiceHelper.service = null
+                    }
+                }, 0)
+            } catch (_: RemoteException) {}
+            cb.onConnection(remote)
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
+            // A disconnect from a superseded connection must not erase the newer
+            // backend's Binder or notify a callback belonging to the old generation.
+            if (requestGeneration != RemoteServiceHelper.backendGeneration) return
+            if (RemoteServiceHelper.service?.asBinder() == connectedBinder) {
+                RemoteServiceHelper.service = null
+                cb.onConnection(null)
+            }
         }
     }
 
@@ -84,7 +142,7 @@ object RemoteServiceHelper {
             service = IRemoteService.Stub.asInterface(ServiceManager.getService("xtmapper"))
             try {
                 service?.asBinder()?.linkToDeath({ service = null }, 0)
-            } catch (ignored: RemoteException) {
+            } catch (_: RemoteException) {
             }
         }
     }
@@ -105,7 +163,7 @@ object RemoteServiceHelper {
             val pm = context.packageManager
             val ai = pm.getApplicationInfo(packageName, 0)
             (ai.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
-        } catch (e: PackageManager.NameNotFoundException) {
+        } catch (_: PackageManager.NameNotFoundException) {
             false
         }
     }
@@ -116,6 +174,9 @@ object RemoteServiceHelper {
             mService.startedFromShell = true
             service = mService
         }
+        // The system-app path intentionally uses its in-process service rather than
+        // RootService/Shizuku, so backend selection is not applicable here.
+        forceSelectedBackend = false
         callback?.onConnection(service)
     }
 
@@ -123,33 +184,61 @@ object RemoteServiceHelper {
      * Get instance of remote service
      * @param context App context
      * @param callback Callback when instance of remote service is obtained
-     * Check if we are a system app
-     * If system app -> create instance of service in same process
-     * If not -> Try to get instance from xtmapper binder service added with ServiceManager
-     * Or if Shizuku is available try to obtain service instance
-     * Or if root is available try to start server and obtain instance
      */
     @JvmStatic
     fun getInstance(context: Context, callback: RootRemoteServiceCallback) {
+        useShizuku = KeymapConfig(context).isShizukuMode
+
+        val forceBackend = forceSelectedBackend
+
+        // 1. Reuse the active TouchPointer Binder only when the caller has not
+        // explicitly requested a backend switch.
+        val activePointerService = TouchPointer.activeInstance?.mService
+        if (!forceBackend && activePointerService != null && activePointerService.asBinder().isBinderAlive) {
+            service = activePointerService
+            callback.onConnection(activePointerService)
+            return
+        }
+
+        // 2. Check if we are a system app
         if (isSystemApp(context)) {
             getInstanceAsSystemApp(context, callback)
-        } else {
+            return
+        }
+
+        // A mode switch must bypass old cached and ServiceManager Binders once;
+        // otherwise an alive old Root/Shizuku process can win the race with stopServer().
+        if (!forceBackend) {
+            // 3. Check existing live cached service
+            val existing = service
+            if (existing != null && existing.asBinder().isBinderAlive) {
+                callback.onConnection(existing)
+                return
+            }
+
+            // 4. Try ServiceManager (shell started service)
             getInstance()
-            val s = service
-            if (s != null) {
-                callback.onConnection(s)
+            val smService = service
+            if (smService != null && smService.asBinder().isBinderAlive) {
+                callback.onConnection(smService)
+                return
+            }
+        }
+
+        // 5. Connect via the configured backend, ignoring stale bind completions.
+        val connection = RemoteServiceConnection(callback, backendGeneration, useShizuku)
+        if (useShizuku) {
+            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                bindShizukuService(context, connection)
             } else {
-                val connection = RemoteServiceConnection(callback)
-                if (useShizuku) {
-                    if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED)
-                        bindShizukuService(context, connection)
-                    else callback.onConnection(null)
-                } else {
-                    if (Shell.isAppGrantedRoot() == true) {
-                        val intent = Intent(context, RootRemoteService::class.java)
-                        RootService.bind(intent, connection)
-                    } else callback.onConnection(null)
-                }
+                callback.onConnection(null)
+            }
+        } else {
+            if (Shell.isAppGrantedRoot() != false) {
+                val intent = Intent(context, RootRemoteService::class.java)
+                RootService.bind(intent, connection)
+            } else {
+                callback.onConnection(null)
             }
         }
     }

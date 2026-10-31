@@ -39,6 +39,12 @@
     <string name="yes">@android:string/yes</string>
     <string name="no">@android:string/no</string>
     <string name="swipe_delay_ms">تأخير السحب %d مللي ثانية</string>
+    <string name="shift_transition_ms">انتقال التبديل: %d مللي ثانية</string>
+    <string name="shift_transition_title">سرعة انتقال التبديل</string>
+    <string name="use_global_default">الافتراضي العام (%d مللي ثانية)</string>
+    <string name="shift_transition_instant">فوري (0 مللي ثانية)</string>
+    <string name="shift_transition_ms_value">%d مللي ثانية</string>
+    <string name="shift_transition_changed">انتقال التبديل: %1$s</string>
     <string name="profile_name">اسم ملف التعريف</string>
     <string name="root_not_found_title">لم يتم العثور على وصول الروت</string>
     <string name="root_not_found_message">يتطلب الوصول إلى الروت لكي يعمل برنامج تعيين المفاتيح. \n يرجى منح صلاحيات المستخدم الخارق لـ XtMapper من تطبيق KernelSU</string>
@@ -57,6 +63,7 @@
     <string name="crosshair">هدف التصويب</string>
     <string name="left_click">النقر بزر الماوس الأيسر</string>
     <string name="swipe_key">مفتاح السحب</string>
+    <string name="shift_key">مفتاح التبديل</string>
     <string name="add_key">إضافة مفتاح</string>
     <string name="save">حفظ</string>
     <!--  Mouse Aim  -->
@@ -99,7 +106,7 @@
     <string name="press_any_key_to_stop_recording">اضغط على أي مفتاح لإيقاف التسجيل…</string>
     <string name="advanced">متقدم</string>
     <string name="shizuku_not_running_title">لم يتم بدء تشغيل Shizuku</string>
-    <string name="shizuku_not_running_message"></string>
+    <string name="shizuku_not_running_message">شغّل خدمة Shizuku ثم عُد إلى XtMapper.</string>
     <string name="edit">تعديل</string>
     <string name="show_controls_on_screen">إظهار عناصر التحكم على الشاشة</string>
     <string name="select_a_display">حدد عرضًا</string>
@@ -118,5 +125,25 @@
     <string name="msg_profiles_imported">تم استيراد الملفات الشخصية بنجاح</string>
     <string name="msg_all_profiles_exist" tools:ignore="MissingTranslation">جميع الملفات الشخصية موجودة بالفعل، لم يتم استيراد أي شيء</string>
     <string name="error_import_failed">فشل الاستيراد</string>
+    <string name="unverified_diagnostic_title">نص تشخيصي غير موثّق</string>
     <string name="share">مشاركة</string>
+    <string name="touch_jitter">ارتعاش إحداثيات اللمس</string>
+    <string name="touch_jitter_spread">نطاق الارتعاش</string>
+    <string name="touch_jitter_spread_px">نطاق ارتعاش اللمس: %d بكسل</string>
+    <string name="quick_settings_tile_name">XtMapper</string>
+    <string name="input_mode">وضع الإدخال</string>
+    <string name="input_mode_root">Root</string>
+    <string name="input_mode_shizuku">Shizuku (ADB)</string>
+    <string name="shizuku_not_installed_title">Shizuku غير مثبت</string>
+    <string name="shizuku_not_installed_message">ثبّت تطبيق Shizuku قبل اختيار وضع إدخال Shizuku.</string>
+    <string name="test_input_service_inactive">ابدأ خدمة تعيين المفاتيح قبل اختبار الإدخال.</string>
+    <string name="test_input_root_unavailable">صلاحيات root غير متاحة. امنح XtMapper صلاحيات root قبل اختبار الإدخال.</string>
+    <string name="test_input_ready">وضع %1$s نشط. وصّل لوحة مفاتيح أو فأرة للاختبار.</string>
+    <string name="shizuku_install_required">ثبّت Shizuku لاستخدام وضع الإدخال هذا</string>
+    <string name="shizuku_start_required">ابدأ Shizuku لاستخدام وضع الإدخال هذا</string>
+    <string name="input_mode_changed">وضع الإدخال: %1$s</string>
+    <string name="block_keyboard_input">حظر إدخال لوحة المفاتيح الخام</string>
+    <string name="block_keyboard">حظر لوحة المفاتيح</string>
+    <string name="keyboard_blocked">تم حظر إدخال لوحة المفاتيح</string>
+    <string name="keyboard_unblocked">تم إلغاء حظر إدخال لوحة المفاتيح</string>
 </resources>
