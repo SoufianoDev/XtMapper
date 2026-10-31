@@ -34,6 +34,7 @@ import xtr.keymapper.server.event.KeyEventHandler
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 
 class RemoteService @JvmOverloads constructor(
     context: Context,
@@ -323,10 +324,23 @@ class RemoteService @JvmOverloads constructor(
         }
     }
 
-    private val mStartServerDeathRecipient = IBinder.DeathRecipient {
+    // One death recipient per client Binder: a notification must identify the dead client,
+    // so a delayed cleanup queued behind a server replacement cannot stop the replacement's
+    // session and native reader. Entries are unlinked when the owning service is cleaned
+    // up (stopServer) or is superseded by a restart on the same binder.
+    private val mClientDeathRecipients =
+        ConcurrentHashMap<IBinder, IBinder.DeathRecipient>()
+
+    private fun notifyClientDeath(clientBinder: IBinder) {
+        mClientDeathRecipients.remove(clientBinder)
+        val sessionGeneration = mouseDeviceLifecycle.currentServiceGeneration()
         if (isWaylandClient) {
             // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
             // cleanup of the client-owned InputService before posting the remaining shutdown.
+            if (mouseDeviceLifecycle.isStaleClientDeath(sessionGeneration)) {
+                XtLogger.info(TAG, "ignored death notification of a replaced client session")
+                return
+            }
             try {
                 inputService?.stop()
             } catch (e: Exception) {
@@ -340,8 +354,24 @@ class RemoteService @JvmOverloads constructor(
             stopServer(true)
         } else {
             // The client Binder is dead. Skip callbacks into that process but keep local and
-            // native cleanup serialized with device opening and server replacement.
-            mHandler.post { stopServer(true, clientAlive = false) }
+            // native cleanup serialized with device opening and server replacement. Both
+            // checks re-run at execution time: the service that died may have been replaced
+            // while this task waited behind other handler work.
+            mHandler.post {
+                if (mouseDeviceLifecycle.isStaleClientDeath(sessionGeneration)) {
+                    XtLogger.info(TAG, "ignored stale death notification of a replaced session")
+                    return@post
+                }
+                val service = inputService
+                if (service != null && service.callback.asBinder() != clientBinder) {
+                    XtLogger.info(TAG, "ignored death notification of a client without a service")
+                    return@post
+                }
+                // Nothing under this notification owns a replacement-waiting session;
+                // stopping at this point keeps the pre-token semantics (including the
+                // no-service exit path) while never touching a newer session's service.
+                stopServer(true, clientAlive = false)
+            }
         }
     }
 
@@ -365,7 +395,12 @@ class RemoteService @JvmOverloads constructor(
     ) {
         enforceCaller()
         XtLogger.info(TAG, "startServer requested displayId=$displayId pointerMode=${keymapConfig.pointerMode}")
-        cb.asBinder().linkToDeath(mStartServerDeathRecipient, 0)
+        val clientBinder = cb.asBinder()
+        val deathRecipient = IBinder.DeathRecipient { notifyClientDeath(clientBinder) }
+        // A restart on a still-live binder supersedes this client's previous notification link.
+        mClientDeathRecipients.remove(clientBinder)?.let { clientBinder.unlinkToDeath(it, 0) }
+        clientBinder.linkToDeath(deathRecipient, 0)
+        mClientDeathRecipients[clientBinder] = deathRecipient
         mHandler.post {
             val service = inputService
             if (service != null) {
@@ -470,7 +505,11 @@ class RemoteService @JvmOverloads constructor(
                     service.stopMouseIfStarted()
                     service.stopTouchpad()
                     service.destroyUinputDev()
-                    service.callback.asBinder().unlinkToDeath(mStartServerDeathRecipient, 0)
+                    // The notification link belongs to the binder of the service being
+                    // cleaned up, not to whatever client started most recently.
+                    service.callback.asBinder().let { binder ->
+                        mClientDeathRecipients.remove(binder)?.let { binder.unlinkToDeath(it, 0) }
+                    }
                     mouseDeviceLifecycle.onInputServiceStopped()
                     inputService = null
                 }
