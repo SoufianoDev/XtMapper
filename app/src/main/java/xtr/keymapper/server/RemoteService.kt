@@ -42,7 +42,11 @@ class RemoteService @JvmOverloads constructor(
     // currentDevice is only read/written on mHandler; device discovery is drained there too.
     private var currentDevice = ""
     private val mouseDeviceLifecycle = MouseDeviceLifecycle()
-    internal var inputService: InputService? = null
+    // The current client session's service, arbitrated by ClientServiceSlot: Handler-thread
+    // replacement and binder-thread death claims install/read/clear through one monitor, so
+    // a Wayland death notification cannot validate ownership against one service and then
+    // clobber a replacement that installed between validation and teardown.
+    internal val mInputService = ClientServiceSlot<IBinder, InputService>()
     private var mOnKeyEventListener: OnKeyEventListener? = null
     internal var isWaylandClient = initialIsWaylandClient
     private var activityObserverService: ActivityObserverService? = null
@@ -223,7 +227,7 @@ class RemoteService @JvmOverloads constructor(
                 val data = line!!.split(":".toRegex()).dropLastWhile { it.isEmpty() }
                     .toTypedArray() // split a string like "/dev/input/event2: EV_REL REL_X ffffffff"
                 if (addNewDevices(data)) {
-                    val service = inputService
+                    val service = mInputService.get()
                     if (service != null) try {
                         if (isWaylandClient && data[0].contains("wl_pointer"))
                             service.onWaylandMouseEvent(data[1])
@@ -265,9 +269,9 @@ class RemoteService @JvmOverloads constructor(
 
         val input_event = data[1].split("\\s+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
         if (isWaylandClient) return true
-        if (inputService?.isKeyboardGrabbed == true) {
+        if (mInputService.get()?.isKeyboardGrabbed == true) {
             if (input_event.size > 1 && input_event[1] == "EV_KEY") {
-                inputService?.grabKeyboardDevice(evdev)
+                mInputService.get()?.grabKeyboardDevice(evdev)
             }
         }
         if (input_event.size > 1 && input_event[1] == "EV_REL") {
@@ -286,14 +290,14 @@ class RemoteService @JvmOverloads constructor(
             currentDevice = device
             XtLogger.info(
                 TAG,
-                "mouse device discovered path=$device inputServiceReady=${inputService != null}"
+                "mouse device discovered path=$device inputServiceReady=${mInputService.get() != null}"
             )
             mouseDeviceLifecycle.onDeviceDiscovered(device)?.let(::openMouseDevice)
         }
     }
 
     private fun openMouseDevice(request: MouseDeviceLifecycle.OpenRequest) {
-        val service = inputService
+        val service = mInputService.get()
         if (service == null) {
             mouseDeviceLifecycle.onOpenResult(request, success = false)
             XtLogger.warn(
@@ -337,9 +341,11 @@ class RemoteService @JvmOverloads constructor(
             // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
             // cleanup of the client-owned InputService before posting the remaining shutdown.
             // Wayland sessions never run onInputServiceReady, so no service generation exists;
-            // ownership of the current service by the dead client is the only valid gate.
-            val service = inputService
-            if (service != null && service.callback.asBinder() != clientBinder) {
+            // ownership validation and clearing happen atomically inside the claim against
+            // installs that run concurrently on the Handler, so a replaced session's
+            // notification can neither stop the replacement's service nor touch its entry.
+            val (service, superseded) = mInputService.claim(clientBinder)
+            if (superseded) {
                 XtLogger.info(TAG, "ignored death notification of a replaced client session")
                 return
             }
@@ -348,12 +354,11 @@ class RemoteService @JvmOverloads constructor(
             } catch (e: Exception) {
                 XtLogger.error(TAG, "Failed to stop input service after client binder death", e)
             }
-            inputService = null
             mouseDeviceLifecycle.onInputServiceStopped()
             // The Wayland reader can block mHandler indefinitely on stdin. Complete the
-            // remaining shutdown here too; inputService is already cleared, so this avoids
-            // calling back into the dead client binder from stopServer().
-            stopServer(true)
+            // remaining shutdown here too; the claimed service is already cleared, so this
+            // avoids calling back into the dead client binder from stopServer().
+            stopServer(true, deathOwner = clientBinder)
         } else {
             // The client Binder is dead. Skip callbacks into that process but keep local and
             // native cleanup serialized with device opening and server replacement. Both
@@ -364,7 +369,7 @@ class RemoteService @JvmOverloads constructor(
                     XtLogger.info(TAG, "ignored stale death notification of a replaced session")
                     return@post
                 }
-                val service = inputService
+                val service = mInputService.get()
                 if (service != null && service.callback.asBinder() != clientBinder) {
                     XtLogger.info(TAG, "ignored death notification of a client without a service")
                     return@post
@@ -405,7 +410,7 @@ class RemoteService @JvmOverloads constructor(
             ?.let { clientBinder.unlinkToDeath(it, 0) }
         clientBinder.linkToDeath(deathRecipient, 0)
         mHandler.post {
-            val service = inputService
+            val service = mInputService.get()
             if (service != null) {
                 if (isWaylandClient) {
                     service.hideCursor()
@@ -432,7 +437,7 @@ class RemoteService @JvmOverloads constructor(
                         mOnKeyEventListener = null
                     }
                 }
-                inputService = newService
+                mInputService.install(clientBinder, newService)
                 if (!isWaylandClient) {
                     newService.setMouseLock(true)
                     mouseDeviceLifecycle.onInputServiceReady()?.let(::openMouseDevice)
@@ -472,13 +477,23 @@ class RemoteService @JvmOverloads constructor(
         mHandler.post { stopServer(true) }
     }
 
-    private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true) {
+    private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true, deathOwner: IBinder? = null) {
         // Restore enforcing only if this app actually relaxed SELinux (shell entry
         // point); startedFromShell is also set by the system-app path, which never does
         if (exitProcess && !Selinux.real.restore()) {
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
-        val service = inputService
+        // A dead client's shutdown already detached its own service (the claim cleared its
+        // entry). If a newer session installed since, this notification must not disable
+        // the replacement's pointer or terminate the process it serves.
+        if (deathOwner != null) {
+            val currentOwner = mInputService.currentOwner()
+            if (currentOwner != null && currentOwner != deathOwner) {
+                XtLogger.info(TAG, "ignored stale death shutdown of a replaced client session")
+                return
+            }
+        }
+        val service = mInputService.get()
         if (service != null && clientAlive) {
             try {
                 service.callback.disablePointer()
@@ -513,7 +528,7 @@ class RemoteService @JvmOverloads constructor(
                     // a same-binder replacement's registration. A superseded registration
                     // that still fires is rejected by the ownership guards instead.
                     mouseDeviceLifecycle.onInputServiceStopped()
-                    inputService = null
+                    mInputService.clear()
                 }
             )
         }
@@ -557,7 +572,7 @@ class RemoteService @JvmOverloads constructor(
         // pause too, so a pending start cannot install a fresh, unpaused service after
         // the caller has asked to disable mapping for the foreground app.
         mHandler.post {
-            val service = inputService
+            val service = mInputService.get()
             if (service != null && !service.stopEvents) {
                 service.pauseResumeKeymap()
             }
@@ -568,7 +583,7 @@ class RemoteService @JvmOverloads constructor(
         enforceCaller()
         // Keep pause/resume state changes ordered with startServer() on the same handler.
         mHandler.post {
-            val service = inputService
+            val service = mInputService.get()
             if (service != null && service.stopEvents) {
                 service.pauseResumeKeymap()
             }
@@ -580,12 +595,12 @@ class RemoteService @JvmOverloads constructor(
      */
     override fun reloadKeymap() {
         enforceCaller()
-        inputService?.reloadKeymap()
+        mInputService.get()?.reloadKeymap()
     }
 
     override fun isActive(): Boolean {
         enforceCaller()
-        return inputService != null
+        return mInputService.get() != null
     }
 
     companion object {
