@@ -61,8 +61,7 @@ class TouchPointer : Service() {
 
     inner class TouchPointerBinder : Binder() {
         val service: TouchPointer
-            get() =// Return this instance of TouchPointer so clients can call public methods
-                this@TouchPointer
+            get() = this@TouchPointer
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -72,13 +71,10 @@ class TouchPointer : Service() {
     override fun onStartCommand(i: Intent?, flags: Int, startId: Int): Int {
         if (i == null || ACTION_STOP == i.action) {
             stopKeymapper()
-            // stopKeymapper may return early when the instance is already inactive.
-            // This service was still started for this command, so always stop this start ID.
             stopSelf(startId)
             return START_NOT_STICKY
         }
 
-        // Launch default profile
         this.selectedProfile = i.getStringExtra(EditorActivity.PROFILE_NAME)
         if (this.selectedProfile == null) {
             this.selectedProfile = KeymapProfiles(this).getLastSelectedProfile()
@@ -124,11 +120,6 @@ class TouchPointer : Service() {
                             displayId
                         ).getRealSize(it)
                     }.let {
-                        /* We must notify remote service
-                           when device orientation changes
-                           keymap will be scaled in remote service */
-
-                        // Get new instance of remote service to avoid DeadObjectException
                         connectRemoteService(
                             KeymapProfiles(this@TouchPointer).getProfile(selectedProfile, true)
                         )
@@ -207,9 +198,6 @@ class TouchPointer : Service() {
         RemoteServiceHelper.getInstance(
             this
         ) { service: IRemoteService? ->
-            // A stop or restart while this bind was pending already reset ownership;
-            // acting on a late callback would start an orphaned server untracked by
-            // the tile and the Activity.
             if (generation != connectionGeneration || !isRunning || activeInstance !== this) {
                 return@getInstance
             }
@@ -298,10 +286,6 @@ class TouchPointer : Service() {
         mService!!.stopServer()
     }
 
-    /**
-     * This implementation is used to receive callbacks from the remote
-     * service.
-     */
     val mCallback: IRemoteServiceCallback = object : IRemoteServiceCallback.Stub() {
         private var cursorView: View? = null
 
@@ -312,7 +296,6 @@ class TouchPointer : Service() {
         }
 
         override fun alertMouseAimActivated() {
-            // Notifying user that shooting mode was activated
             mHandler.post {
                 Toast.makeText(
                     this@TouchPointer, R.string.mouse_aim_activated, Toast.LENGTH_SHORT
@@ -347,7 +330,6 @@ class TouchPointer : Service() {
                     this@TouchPointer,
                     { profile: String? ->
                         this@TouchPointer.selectedProfile = profile
-                        // Reloading profile
                         connectRemoteService(keymapProfiles.getProfile(profile, true))
                     },
                     application
@@ -456,10 +438,6 @@ class TouchPointer : Service() {
         }
     }
 
-    /**
-     * This implementation is used to receive callbacks from the remote
-     * service.
-     */
     private val mActivityObserverCallback: ActivityObserver = object : ActivityObserver.Stub() {
         private var lastPackageName: String? = null
 
@@ -482,8 +460,6 @@ class TouchPointer : Service() {
                             launchProfile(designated)
                             Toast.makeText(this@TouchPointer, "Switched to profile: $designated", Toast.LENGTH_SHORT).show()
                         }
-                        // A disabled designation may have no enabled fallback. Do not leave
-                        // the previous app's keymap running in the newly foregrounded app.
                         if (keymapProfiles.getProfile(designated, false).disabled) {
                             try {
                                 mService?.pauseMouse()
@@ -496,7 +472,6 @@ class TouchPointer : Service() {
             }
 
             if (!keymapProfiles.profileExistsWithPackageName(packageName)) {
-                // No profile found, prompt user to create a new profile
                 mHandler.post {
                     ProfileSelector.showEnableProfileDialog(
                         context,
@@ -512,10 +487,8 @@ class TouchPointer : Service() {
                     }
                 }
             } else {
-                // App specific profiles selection dialog
                 mHandler.post {
                     ProfileSelector.select(context, { profile: String? ->
-                        // Reloading profile
                         this@TouchPointer.selectedProfile = profile
                         val keymapProfile = keymapProfiles.getProfile(profile, true)
                         if (!keymapProfile.disabled) {

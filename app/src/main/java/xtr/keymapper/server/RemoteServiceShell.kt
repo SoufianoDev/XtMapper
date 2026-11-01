@@ -23,8 +23,6 @@ object RemoteServiceShell {
 
     @JvmStatic
     fun main(args: Array<String>) {
-        // Classification must precede logging: the SHELL session header renders
-        // Environment.name during initStandalone.
         Environment.launchSignal = args.contains(Environment.CLI_ARG)
         // Logging next so even startup failures below can be recorded (uid/role based storage).
         XtLogger.initStandalone(Role.SHELL)
@@ -40,8 +38,6 @@ object RemoteServiceShell {
             try {
                 RemoteService.loadLibraries()
             } catch (t: Throwable) {
-                // Native load failure kills the process in existing behavior;
-                // rethrowing preserves that while the failure is now logged.
                 XtLogger.fatal(TAG, "native library load failed", t)
                 throw t
             }
@@ -70,14 +66,9 @@ object RemoteServiceShell {
             }
             XtLogger.info(TAG, "server configuration ready wayland=${mService.isWaylandClient}")
             Selinux.real.relax()
-            // Restore only if Selinux positively recorded a change that may need reverting.
-            // Calling the helper also verifies the result; never force Enforcing when the
-            // initial state was already Permissive or could not be determined.
             Runtime.getRuntime().addShutdownHook(
                 Thread { Selinux.real.restore() }
             )
-            // Normal exits may close the session here, but a fatal process must remain open
-            // so the next launch reports an unclean previous session instead of a false END.
             Runtime.getRuntime().addShutdownHook(
                 Thread {
                     if (!XtLogger.hasFatalEvent) {
@@ -111,8 +102,6 @@ object RemoteServiceShell {
                 Environment.launchSignal.toString()).inheritIO().start()
 
         } catch (e: Exception) {
-            // Startup is terminating abnormally. Persist a fatal record but leave the
-            // session without an END marker so the next launch reports an unclean exit.
             XtLogger.fatal(TAG, "server startup failed", e)
             XtLogger.flush(2_000)
             System.exit(1)
