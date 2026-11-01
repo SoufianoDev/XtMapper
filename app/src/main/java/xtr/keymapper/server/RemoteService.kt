@@ -48,7 +48,10 @@ class RemoteService @JvmOverloads constructor(
     // and a death shutdown commits a terminal state in the same critical section as its
     // ownership decision, so a replacement arriving during the committed teardown is not
     // admitted and none of the shutdown's side effects can reach it.
-    internal val mInputService = ClientServiceSlot<IBinder, InputService>()
+    internal val mInputService = ClientServiceSlot<ClientSession, InputService>()
+    // Process-wide arbiter for the native touchpad worker (one active owner,
+    // mode-conflict blocking, cleanup-obligation retry across sessions).
+    private val touchpadSessions = TouchpadSessionRegistry(RealTouchpadNativeOps)
     private var mOnKeyEventListener: OnKeyEventListener? = null
     internal var isWaylandClient = initialIsWaylandClient
     private var activityObserverService: ActivityObserverService? = null
@@ -355,11 +358,14 @@ class RemoteService @JvmOverloads constructor(
             XtLogger.info(TAG, "ignored death notification from a superseded client registration")
             return
         }
+        // Whole-session identity: same Binder with a superseded recipient is a
+        // different session and must never tear down the newer one.
+        val session = ClientSession(clientBinder, deathRecipient)
         if (isWaylandClient) {
             // Wayland's stdin reader may be blocking the main Handler, so preserve immediate
             // cleanup of the client-owned InputService before posting or retrying startup.
             // The slot claim and terminal commitment remain atomic against replacement.
-            val (service, superseded) = mInputService.claimForShutdown(clientBinder)
+            val (service, superseded) = mInputService.claimForShutdown(session)
             if (superseded) {
                 XtLogger.info(TAG, "ignored death notification of a replaced client session")
                 return
@@ -381,9 +387,9 @@ class RemoteService @JvmOverloads constructor(
             // The client Binder is dead. Skip callbacks into that process but keep local and
             // native cleanup serialized with device opening and server replacement.
             mHandler.post {
-                val service = mInputService.get()
-                if (service != null && service.callback.asBinder() != clientBinder) {
-                    XtLogger.info(TAG, "ignored death notification of a client without a service")
+                val owner = mInputService.owner()
+                if (owner != null && owner != session) {
+                    XtLogger.info(TAG, "ignored death notification of a replaced client session")
                     return@post
                 }
                 stopServer(true, clientAlive = false)
@@ -523,7 +529,7 @@ class RemoteService @JvmOverloads constructor(
         val newService = try {
             InputService(
                 profile, keymapConfig, cb, screenWidth, screenHeight,
-                cursorView, isWaylandClient, displayId
+                cursorView, isWaylandClient, displayId, touchpadSessions
             )
         } catch (e: RemoteException) {
             throw RuntimeException(e)
@@ -536,6 +542,11 @@ class RemoteService @JvmOverloads constructor(
             }
         }
 
+        // Start the native touchpad before admission: a start failure rolls back
+        // this exact instance, and an admission rejection tears it down through
+        // discardUninstalledService below.
+        startTouchpadFor(newService)
+
         // The final liveness/ownership check and slot installation are atomic with
         // consumption of this exact Binder death registration. If death wins, no service
         // is installed. If installation wins, the death callback runs afterward and cleans
@@ -547,7 +558,7 @@ class RemoteService @JvmOverloads constructor(
                 requestId == mStartRequestSequence.get() && clientBinder.isBinderAlive
             }
         ) {
-            mInputService.install(clientBinder, newService)
+            mInputService.install(ClientSession(clientBinder, deathRecipient), newService)
         }
         if (!admitted) {
             discardUninstalledService(newService)
@@ -584,31 +595,35 @@ class RemoteService @JvmOverloads constructor(
     }
 
     /**
+     * Starts the native touchpad for a service that is about to be admitted. Any
+     * Throwable from the start rolls back this exact instance (registry stop is
+     * identity-checked, so it cannot stop a newer session's worker) and rethrows.
+     */
+    private fun startTouchpadFor(service: InputService) {
+        try {
+            service.startTouchpad()
+        } catch (t: Throwable) {
+            try {
+                service.stopTouchpad()
+            } catch (e: Exception) {
+                XtLogger.error(TAG, "Touchpad rollback after failed start threw", e)
+            }
+            throw t
+        }
+    }
+
+    /**
      * Releases every resource owned by a service that never passed slot admission. Each
      * cleanup is isolated so one failing native release cannot skip the remaining ones.
      */
     private fun discardUninstalledService(service: InputService) {
         cursorView?.visibility = View.GONE
-        try {
-            service.stop()
-        } catch (e: Exception) {
-            XtLogger.error(TAG, "Failed to stop a rejected InputService", e)
-        }
-        try {
-            service.stopMouseIfStarted()
-        } catch (e: Exception) {
-            XtLogger.error(TAG, "Failed to stop mouse reader for rejected InputService", e)
-        }
-        try {
-            service.stopTouchpad()
-        } catch (e: Exception) {
-            XtLogger.error(TAG, "Failed to stop touchpad for rejected InputService", e)
-        }
-        try {
-            service.destroyUinputDev()
-        } catch (e: Exception) {
-            XtLogger.error(TAG, "Failed to destroy uinput for rejected InputService", e)
-        }
+        OrderedCleanup.run(
+            "stop rejected input service" to { service.stop() },
+            "stop mouse reader for rejected service" to { service.stopMouseIfStarted() },
+            "stop touchpad for rejected service" to { service.stopTouchpad() },
+            "destroy uinput for rejected service" to { service.destroyUinputDev() },
+        )
     }
 
     override fun destroy() {
@@ -659,16 +674,18 @@ class RemoteService @JvmOverloads constructor(
             CursorShutdown.hideThenCleanup(
                 hideCursor = { service.hideCursor() },
                 cleanup = {
-                    service.stop()
-                    service.stopMouseIfStarted()
-                    service.stopTouchpad()
-                    service.destroyUinputDev()
-                    // Death-recipient unlinking happens only in startServer, where the
-                    // registration being replaced is known; unlinking here used to delete
-                    // a same-binder replacement's registration. A superseded registration
-                    // that still fires is rejected by the ownership guards instead.
-                    mouseDeviceLifecycle.onInputServiceStopped()
-                    mInputService.clear()
+                    OrderedCleanup.run(
+                        "stop input service" to { service.stop() },
+                        "stop mouse reader" to { service.stopMouseIfStarted() },
+                        "stop touchpad" to { service.stopTouchpad() },
+                        "destroy uinput" to { service.destroyUinputDev() },
+                        "mouse device lifecycle" to { mouseDeviceLifecycle.onInputServiceStopped() },
+                        // Death-recipient unlinking happens only in startServer, where the
+                        // registration being replaced is known; unlinking here used to delete
+                        // a same-binder replacement's registration. A superseded registration
+                        // that still fires is rejected by the ownership guards instead.
+                        "clear input service slot" to { mInputService.clear() },
+                    )
                 }
             )
         }
