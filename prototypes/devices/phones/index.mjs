@@ -13,7 +13,7 @@ export const phoneDevices = [
     id: "pixel",
     name: "Google Pixel 9 Pro",
     type: "phone",
-    viewport: { width: 321, height: 716 },
+    viewport: { width: 412, height: 915 },
     frame: {
       renderer: "telephone",
       tag: "pixel-9-pro",
