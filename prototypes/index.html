@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b0c0f">
+<meta name="description" content="Interactive XtMapper browser prototype workspace.">
+<title>XtMapper — Prototype Workspace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&icon_names=check,close,info,notifications,settings,tune&display=block" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #090a0d;
+  --surface: #111217;
+  --surface-raised: #191a21;
+  --surface-high: #22232b;
+  --text: #f1eff2;
+  --muted: #a4a0aa;
+  --subtle: #77737e;
+  --line: rgba(255,255,255,.085);
+  --accent: #ef526a;
+  --accent-soft: rgba(239,82,106,.13);
+  --accent-border: rgba(239,82,106,.3);
+  --good: #8bd4a6;
+  --good-soft: rgba(95,190,129,.12);
+  font-family: Roboto, "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; background: var(--bg); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--text);
+  background:
+    radial-gradient(ellipse at 52% 0%, rgba(190,35,67,.13), transparent 42rem),
+    radial-gradient(ellipse at 100% 75%, rgba(96,24,45,.12), transparent 36rem),
+    var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+button, select { font: inherit; }
+button { color: inherit; }
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: 400;
+  font-style: normal;
+  font-size: 19px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  -webkit-font-smoothing: antialiased;
+}
+.showcase {
+  width: min(1420px, calc(100% - 56px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 34px 0;
+  display: grid;
+  grid-template-columns: minmax(210px, .72fr) minmax(340px, 430px) minmax(300px, 360px);
+  gap: clamp(22px, 3vw, 42px);
+  align-items: center;
+}
+.intro { align-self: start; padding-top: 18px; }
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #c3bdc6;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.eyebrow::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #ff7e91, #a91b3a);
+}
+.intro h1 {
+  margin: 20px 0 12px;
+  font-size: clamp(30px, 3vw, 43px);
+  line-height: 1.04;
+  letter-spacing: -.055em;
+}
+.intro p {
+  max-width: 31ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.tag {
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: #c7c1ca;
+  background: rgba(255,255,255,.025);
+  font-size: 10px;
+}
+.preview { min-width: 0; display: grid; justify-items: center; gap: 13px; }
+.device-frame {
+  position: relative;
+  width: min(100%, 430px);
+  height: min(900px, calc(100vh - 84px));
+  min-height: 620px;
+  padding: 9px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 43px;
+  background: linear-gradient(145deg, #393940, #08090d 35%, #25252d 76%, #090a0e);
+  box-shadow: 0 40px 100px rgba(0,0,0,.66), 0 0 0 1px rgba(255,255,255,.035), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.device-frame::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  width: 92px;
+  height: 19px;
+  transform: translateX(-50%);
+  border-radius: 0 0 13px 13px;
+  background: #08090d;
+  pointer-events: none;
+}
+.device-screen {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 34px;
+  background: #101114;
+}
+.device-screen iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #101114;
+}
+.preview-caption {
+  color: var(--subtle);
+  font-size: 10px;
+  letter-spacing: .035em;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(900px, calc(100vh - 48px));
+  min-height: 620px;
+  overflow: hidden;
+  border: 1px solid var(--accent-border);
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(139,28,54,.16), transparent 24rem),
+    linear-gradient(155deg, #1a191f 0%, #12141a 55%, #101116 100%);
+  box-shadow: 0 26px 72px rgba(0,0,0,.48), 0 0 42px rgba(160,24,52,.07);
+}
+.panel-heading { padding: 20px 20px 16px; border-bottom: 1px solid var(--line); }
+.panel-kicker {
+  color: #ff9aaa;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.panel-heading h2 { margin: 8px 0 5px; font-size: 21px; line-height: 1.15; letter-spacing: -.035em; }
+.panel-heading p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.panel-content {
+  min-height: 0;
+  padding: 14px 16px 18px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #51404a transparent;
+}
+.notice {
+  margin-bottom: 14px;
+  padding: 10px 11px;
+  border: 1px solid rgba(239,82,106,.19);
+  border-radius: 11px;
+  color: #c9bac0;
+  background: rgba(123,25,51,.12);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.group + .group { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
+.group-title {
+  margin: 0 0 10px;
+  color: #ff9aaa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.select-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(140px, 160px); align-items: center; gap: 10px; margin: 8px 0; }
+.select-row label { color: #e7e3e9; font-size: 11px; }
+.select-row select {
+  width: 100%;
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 9px;
+  color: var(--text);
+  background: #22232b;
+  font-size: 11px;
+}
+.setting-list { display: grid; gap: 7px; }
+.setting-row {
+  display: flex;
+  min-height: 49px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 11px;
+  background: rgba(255,255,255,.025);
+}
+.setting-copy { min-width: 0; }
+.setting-copy strong { display: block; color: #eeeaf0; font-size: 11px; line-height: 1.3; font-weight: 600; }
+.setting-copy small { display: block; margin-top: 3px; color: #96919c; font-size: 9px; line-height: 1.4; }
+.switch { position: relative; flex: 0 0 36px; width: 36px; height: 21px; }
+.switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.switch-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #5c5660;
+  border-radius: 99px;
+  background: #36333b;
+  transition: .18s ease;
+}
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #b1abb4;
+  transition: .18s ease;
+}
+.switch input:checked + .switch-track { border-color: #ed627a; background: #8e2840; }
+.switch input:checked + .switch-track::after { left: 17px; background: #fff1f3; }
+.switch input:disabled + .switch-track { opacity: .38; cursor: not-allowed; }
+.state-summary {
+  margin-top: 9px;
+  padding: 8px 10px;
+  border: 1px solid rgba(239,82,106,.18);
+  border-radius: 9px;
+  color: #e8c2ca;
+  background: rgba(123,25,51,.14);
+  font-size: 10px;
+  font-weight: 600;
+}
+.capability {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.075);
+  border-radius: 12px;
+  background: rgba(255,255,255,.025);
+}
+.capability-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.capability-title { color: #eeeaf0; font-size: 11px; font-weight: 650; }
+.capability-state { color: #a9a2ad; font-size: 9px; text-align: right; }
+.capability-description { margin: 7px 0 9px; color: #9b96a0; font-size: 9px; line-height: 1.45; }
+.capability-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.capability-actions button {
+  flex: 1 1 120px;
+  min-height: 35px;
+  padding: 7px 9px;
+  border: 1px solid rgba(239,82,106,.28);
+  border-radius: 8px;
+  color: #ffe8ec;
+  background: rgba(160,30,59,.22);
+  font-size: 10px;
+  cursor: pointer;
+}
+.capability-actions button:disabled { opacity: .36; cursor: not-allowed; }
+.panel-footer {
+  flex: 0 0 auto;
+  padding: 11px 16px 13px;
+  border-top: 1px solid var(--line);
+  color: #8f8994;
+  font-size: 9px;
+  line-height: 1.5;
+}
+@media (max-width: 1150px) {
+  .showcase { width: min(850px, calc(100% - 36px)); grid-template-columns: minmax(320px, 430px) minmax(290px, 350px); gap: 24px; }
+  .intro { display: none; }
+}
+@media (max-width: 760px) {
+  body { overflow: auto; }
+  .showcase { width: min(100% - 28px, 520px); min-height: 0; padding: 20px 0 30px; grid-template-columns: minmax(0,1fr); gap: 20px; }
+  .device-frame { width: min(100%, 430px); height: min(76svh, 850px); min-height: 540px; }
+  .panel { min-height: 0; max-height: none; }
+  .panel-content { max-height: 70vh; }
+}
+@media (max-width: 390px) {
+  .showcase { width: calc(100% - 18px); }
+  .device-frame { min-height: 500px; padding: 7px; border-radius: 34px; }
+  .device-screen { border-radius: 27px; }
+  .panel { border-radius: 19px; }
+  .select-row { grid-template-columns: minmax(0,1fr) minmax(128px, 146px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+</head>
+<body>
+<main class="showcase">
+  <aside class="intro" aria-label="Prototype information">
+    <div class="eyebrow">Interactive workspace · 01</div>
+    <h1>XtMapper<br>Prototype Lab</h1>
+    <p>A browser-based preview of the XtMapper main screen. The phone frame contains the activity; the controls beside it simulate device and permission states.</p>
+    <div class="tag-row">
+      <span class="tag">Interactive</span>
+      <span class="tag">Responsive</span>
+      <span class="tag">Dark theme</span>
+      <span class="tag">Web prototype</span>
+    </div>
+  </aside>
+
+  <section class="preview" aria-label="Phone preview">
+    <div class="device-frame">
+      <div class="device-screen">
+        <iframe id="activityFrame" src="activities/MainActivity.html" title="XtMapper Main Activity preview" loading="eager"></iframe>
+      </div>
+    </div>
+    <div class="preview-caption">MAIN ACTIVITY · RESPONSIVE PHONE PREVIEW</div>
+  </section>
+
+  <aside class="panel" aria-labelledby="panelTitle">
+    <header class="panel-heading">
+      <div class="panel-kicker">WEB PREVIEW CONTROLS</div>
+      <h2 id="panelTitle">Prototype environment</h2>
+      <p>These settings affect the simulated phone screen only. They do not change a connected Android device.</p>
+    </header>
+
+    <div class="panel-content">
+      <div class="notice">Android and Shizuku states are simulated. Browser permissions below use real browser APIs and are separate from Android permissions.</div>
+
+      <section class="group" aria-labelledby="libraryGroupTitle">
+        <h3 class="group-title" id="libraryGroupTitle">Profile library</h3>
+        <div class="select-row">
+          <label for="parentScenario">Preview state</label>
+          <select id="parentScenario" data-bridge-id="simProfileScenario">
+            <option value="samples">Sample profiles</option>
+            <option value="empty">No profiles · first launch</option>
+            <option value="current">Current profiles</option>
+          </select>
+        </div>
+        <div class="state-summary" data-state-label="prototypeCurrentSummary">Sample library</div>
+      </section>
+
+      <section class="group" aria-labelledby="androidGroupTitle">
+        <h3 class="group-title" id="androidGroupTitle">Android device</h3>
+        <div class="select-row">
+          <label for="parentApi">Android version</label>
+          <select id="parentApi" data-bridge-id="simApi">
+            <option value="29">Android 10 · API 29</option>
+            <option value="30">Android 11 · API 30</option>
+            <option value="31">Android 12 · API 31</option>
+            <option value="32">Android 12L · API 32</option>
+            <option value="33">Android 13 · API 33</option>
+            <option value="34">Android 14 · API 34</option>
+            <option value="35">Android 15 · API 35</option>
+            <option value="36">Android 16 · API 36</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="accessGroupTitle">
+        <h3 class="group-title" id="accessGroupTitle">Input access · simulated</h3>
+        <div class="setting-list">
+          <label class="setting-row">
+            <span class="setting-copy"><strong>Root access granted</strong><small>Simulates a successful superuser check.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="rootAccess" aria-label="Root access granted"><span class="switch-track"></span></span>
+          </label>
+          <label class="setting-row">
+            <span class="setting-copy"><strong>Shizuku installed</strong><small>Simulates the Shizuku package being available.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="shizukuInstalled" aria-label="Shizuku installed"><span class="switch-track"></span></span>
+          </label>
+          <label class="setting-row">
+            <span class="setting-copy"><strong>Shizuku service running</strong><small>Simulates a responsive Shizuku binder.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="shizukuRunning" aria-label="Shizuku service running"><span class="switch-track"></span></span>
+          </label>
+          <label class="setting-row">
+            <span class="setting-copy"><strong>XtMapper authorised</strong><small>Simulates permission granted in Shizuku.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="shizukuAuthorized" aria-label="XtMapper authorised in Shizuku"><span class="switch-track"></span></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="permissionsGroupTitle">
+        <h3 class="group-title" id="permissionsGroupTitle">Android permissions · simulated</h3>
+        <div class="setting-list">
+          <label class="setting-row">
+            <span class="setting-copy"><strong>Display over other apps</strong><small>Simulates overlay permission.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="overlay" aria-label="Display over other apps"></span><span class="switch-track"></span>
+          </label>
+          <label class="setting-row">
+            <span class="setting-copy"><strong>Post notifications</strong><small>Android 13+ notification permission.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="notifications" aria-label="Post notifications"></span><span class="switch-track"></span>
+          </label>
+          <label class="setting-row">
+            <span class="setting-copy"><strong>All files access</strong><small>Simulates shared storage access.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="allFiles" aria-label="All files access"></span><span class="switch-track"></span>
+          </label>
+          <label class="setting-row">
+            <span class="setting-copy"><strong>Persistent log writer</strong><small>Simulates the file log sink being ready.</small></span>
+            <span class="switch"><input type="checkbox" data-bridge-id="logSinkAvailable" aria-label="Persistent log writer available"></span><span class="switch-track"></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="group" aria-labelledby="browserGroupTitle">
+        <h3 class="group-title" id="browserGroupTitle">Browser capabilities · real</h3>
+        <div class="capability" aria-live="polite">
+          <div class="capability-head"><span class="capability-title">Browser notifications</span><span class="capability-state" data-state-label="browserNotificationState">Checking…</span></div>
+          <p class="capability-description">Request permission from this browser, then send a test notification.</p>
+          <div class="capability-actions">
+            <button type="button" data-bridge-action="requestBrowserNotifications">Request permission</button>
+            <button type="button" data-bridge-action="testBrowserNotification" disabled>Send test</button>
+          </div>
+        </div>
+        <div class="capability" aria-live="polite">
+          <div class="capability-head"><span class="capability-title">Persistent browser storage</span><span class="capability-state" data-state-label="browserStorageState">Checking…</span></div>
+          <p class="capability-description" data-state-label="browserStorageDetail">Ask the browser to preserve this origin's local data.</p>
+          <div class="capability-actions">
+            <button type="button" data-bridge-action="requestPersistentStorage">Request persistence</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <footer class="panel-footer">Simulation state is saved by the prototype in this browser. Changes here do not apply to a physical Android device.</footer>
+  </aside>
+</main>
+
+<script>
+const activityFrame = document.getElementById("activityFrame");
+const stateFieldIds = [
+  "simProfileScenario", "simApi",
+  "rootAccess", "shizukuInstalled", "shizukuRunning", "shizukuAuthorized",
+  "overlay", "notifications", "allFiles", "logSinkAvailable",
+  "browserNotificationState", "testBrowserNotification", "requestBrowserNotifications",
+  "browserStorageState", "browserStorageDetail", "requestPersistentStorage"
+];
+
+function requestActivityState() {
+  if (activityFrame.contentWindow) {
+    activityFrame.contentWindow.postMessage({ type: "xtmapper-prototype-sync" }, location.origin);
+  }
+}
+
+function sendActivityControl(id, value, action = "change") {
+  if (!activityFrame.contentWindow) return;
+  activityFrame.contentWindow.postMessage(
+    { type: "xtmapper-prototype-control", id, value, action },
+    location.origin
+  );
+}
+
+function applyActivityState(state) {
+  if (!state || typeof state !== "object") return;
+  for (const id of stateFieldIds) {
+    const value = state[id];
+    if (!value) continue;
+    const inputs = [...document.querySelectorAll("[data-bridge-id]")].filter(el => el.dataset.bridgeId === id);
+    for (const input of inputs) {
+      if (input.type === "checkbox") {
+        input.checked = !!value.checked;
+        input.disabled = !!value.disabled;
+      } else if (input.tagName === "SELECT") {
+        input.value = value.value ?? input.value;
+        input.disabled = !!value.disabled;
+      }
+    }
+    document.querySelectorAll("[data-state-label]").forEach(label => {
+      if (label.dataset.stateLabel === id) label.textContent = value.textContent ?? label.textContent;
+    });
+    document.querySelectorAll("[data-bridge-action]").forEach(button => {
+      if (button.dataset.bridgeAction === id) button.disabled = !!value.disabled;
+    });
+  }
+
+  const summary = document.querySelector('[data-state-label="prototypeCurrentSummary"]');
+  const scenario = state.simProfileScenario?.value;
+  const api = state.simApi?.value;
+  if (summary && scenario) {
+    const labels = { samples: "Sample library", empty: "Empty library", current: "Current browser profiles" };
+    summary.textContent = `${labels[scenario] || "Profile library"} · Android API ${api || "—"}`;
+  }
+}
+
+document.querySelectorAll("[data-bridge-id]").forEach(control => {
+  control.addEventListener("change", () => {
+    const value = control.type === "checkbox" ? control.checked : control.value;
+    sendActivityControl(control.dataset.bridgeId, value);
+  });
+});
+
+document.querySelectorAll("[data-bridge-action]").forEach(button => {
+  button.addEventListener("click", () => sendActivityControl(button.dataset.bridgeAction, null, "click"));
+});
+
+window.addEventListener("message", event => {
+  if (event.source !== activityFrame.contentWindow || event.origin !== location.origin) return;
+  if (event.data?.type === "xtmapper-prototype-state") applyActivityState(event.data.state);
+});
+
+activityFrame.addEventListener("load", () => {
+  requestActivityState();
+  window.setTimeout(requestActivityState, 250);
+});
+</script>
+</body>
+</html>
