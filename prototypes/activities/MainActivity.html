@@ -1579,52 +1579,15 @@ body > dialog { max-width:min(340px, calc(100vw - 28px)); }
 
 
 
-/* This document is rendered only inside the outer phone preview iframe. */
-html, body {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  margin: 0;
-  overflow: hidden;
-}
-body {
-  display: block !important;
-  padding: 0 !important;
-  background: var(--md-sys-color-surface) !important;
-}
-.prototype-workspace {
-  display: block !important;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  margin: 0;
-}
-.stage {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  margin: 0;
-}
-.phone {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  transform: none !important;
-}
-.prototype-panel {
-  display: none !important;
-}
+
+/* Activity viewport: the outer page supplies the device frame and settings panel. */
+html, body { width:100%; height:100%; min-height:0; margin:0; overflow:hidden; }
+body { display:block !important; padding:0 !important; background:var(--md-sys-color-surface) !important; }
+.phone { position:relative; width:100%; height:100%; min-height:0; border:0; border-radius:0; box-shadow:none; }
 </style>
 </head>
 <body>
-<div class="prototype-workspace">
-<div class="stage">
-  <div class="phone" id="app">
+<div class="phone" id="app">
     <div class="status-bar" aria-hidden="true">
       <span>9:41</span>
       <span class="system-icons">
@@ -1777,31 +1740,7 @@ body {
       </section>
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  </div>
-  </div>
-
-  <aside class="prototype-panel" id="prototypePanel" aria-labelledby="prototypePanelTitle">
-    <header class="prototype-panel-heading">
-      <div class="prototype-panel-kicker">WEB PREVIEW CONTROLS</div>
-      <h1 id="prototypePanelTitle">Prototype environment</h1>
-      <p>Change the preview state independently from the XtMapper app screen.</p>
-    </header>
-    <div class="prototype-panel-content" id="prototypePanelContent"></div>
-    <details class="prototype-panel-notes">
-      <summary>Prototype scope and artwork credits</summary>
-      <p class="artwork-note">
-    Interactive browser prototype. Android-only capabilities (Root, Shizuku service state, Overlay, notification runtime permission and All files access) are simulated here; this page cannot grant them on a device. Profiles and simulation state are saved in this browser. App picker entries are a sample catalogue, not a live Android installed-app query.<br><br>
-    App icons referenced from the current Google Play listings:
-    <a href="https://play.google.com/store/apps/details?id=com.activision.callofduty.shooter" target="_blank" rel="noreferrer">Call of Duty: Mobile</a>,
-    <a href="https://play.google.com/store/apps/details?id=com.dts.freefiremax" target="_blank" rel="noreferrer">Free Fire MAX</a>,
-    and <a href="https://play.google.com/store/apps/details?id=com.shootergamesonline.blockstrike" target="_blank" rel="noreferrer">Block Strike</a>.
-    The prototype uses app icons only; it does not derive or fabricate game banners. These are demo profiles, not data loaded from XtMapper.
-  </p>
-  <p class="prototype-note">Prototype only: browser UI interactions, ZIP files and supported browser HID permissions are real browser operations. Root, Shizuku, Android Settings, PackageManager, InputDevice and TouchPointer remain simulated because a web page cannot call Android framework APIs.</p>
-    </details>
-  </aside>
 </div>
-
 <input id="backupFile" type="file" accept=".zip,application/zip" hidden>
 
 <script>
@@ -2157,8 +2096,8 @@ function updateAll() {
   renderGames();
   updateService();
   updateInputMode();
-  syncPrototypePanelSummary();
   persistState();
+  notifyPrototypeParent();
 }
 
 function setLibraryScenario(scenario) {
@@ -2174,192 +2113,6 @@ function setLibraryScenario(scenario) {
     current: `Current profiles shown (${visible.length})`
   };
   showToast(labels[scenario]);
-}
-
-function openEnvironmentDialog() {
-  const host = byId("prototypePanelContent");
-  if (!host) return;
-  host.innerHTML = `
-    <div class="sim-notice">Android states below are simulated for this browser preview. They do not grant permissions or start services on a connected Android device.</div>
-    <section class="prototype-control-group" aria-labelledby="prototypeLibraryHeading">
-      <div class="sim-section-title" id="prototypeLibraryHeading">Profile library</div>
-      <div class="environment-select-row"><label for="simProfileScenario">Preview state</label><select class="sim-select" id="simProfileScenario"><option value="samples">Sample profiles</option><option value="empty">No profiles · first launch</option><option value="current">Current profiles</option></select></div>
-      <div class="sim-desc" id="simProfileScenarioDescription">Choose which profile collection appears in the phone preview.</div>
-      <div class="prototype-state-summary" id="prototypeCurrentSummary"></div>
-    </section>
-    <section class="prototype-control-group" aria-labelledby="prototypeAndroidHeading">
-      <div class="sim-section-title" id="prototypeAndroidHeading">Android device</div>
-      <div class="environment-select-row"><label for="simApi">Android version</label><select class="sim-select" id="simApi"><option value="29">Android 10 · API 29</option><option value="30">Android 11 · API 30</option><option value="31">Android 12 · API 31</option><option value="32">Android 12L · API 32</option><option value="33">Android 13 · API 33</option><option value="34">Android 14 · API 34</option><option value="35">Android 15 · API 35</option><option value="36">Android 16 · API 36</option></select></div>
-    </section>
-    <section class="prototype-control-group" aria-labelledby="prototypeAccessHeading">
-      <div class="sim-section-title" id="prototypeAccessHeading">Input access · simulated</div>
-      <div class="sim-list">
-        ${simToggle("rootAccess", "Root access granted", "Represents a successful Root/Superuser check.")}
-        ${simToggle("shizukuInstalled", "Shizuku installed", "Package moe.shizuku.privileged.api is available.")}
-        ${simToggle("shizukuRunning", "Shizuku service running", "Represents Shizuku.pingBinder() returning true.")}
-        ${simToggle("shizukuAuthorized", "XtMapper authorised in Shizuku", "Represents Shizuku.checkSelfPermission() returning GRANTED.")}
-      </div>
-    </section>
-    <section class="prototype-control-group" aria-labelledby="prototypePermissionsHeading">
-      <div class="sim-section-title" id="prototypePermissionsHeading">Android permissions · simulated</div>
-      <div class="sim-list">
-        ${simToggle("overlay", "Display over other apps", "Represents Settings.canDrawOverlays(activity).")}
-        ${simToggle("notifications", "Post notifications", "Android 13+ POST_NOTIFICATIONS. Separate from browser notifications.", true)}
-        ${simToggle("allFiles", "All files access", "Represents Environment.isExternalStorageManager() on Android 11+.")}
-        ${simToggle("logSinkAvailable", "Persistent log writer available", "Represents XtLogger.isFileSinkAvailable after the file sink is initialised.")}
-      </div>
-    </section>
-    <section class="prototype-control-group" aria-labelledby="prototypeBrowserHeading">
-      <div class="sim-section-title" id="prototypeBrowserHeading">Browser capabilities · real</div>
-      <div class="sim-notice">These actions use browser APIs on this page. They do not change Android application permissions.</div>
-      <div class="browser-capability" aria-live="polite">
-        <div class="browser-capability-head"><span class="browser-capability-title">Browser notifications</span><span class="browser-capability-state" id="browserNotificationState">Checking…</span></div>
-        <div class="browser-capability-desc">Request browser notification permission after clicking. Browser support and mobile restrictions vary.</div>
-        <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestBrowserNotifications">Request permission</button><button class="tonal-button" type="button" id="testBrowserNotification" disabled>Send test notification</button></div>
-      </div>
-      <div class="browser-capability" aria-live="polite">
-        <div class="browser-capability-head"><span class="browser-capability-title">Persistent browser storage</span><span class="browser-capability-state" id="browserStorageState">Checking…</span></div>
-        <div class="browser-capability-desc" id="browserStorageDetail">Ask the browser to preserve this origin's local data. The browser can grant or deny the request.</div>
-        <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestPersistentStorage">Request persistence</button></div>
-      </div>
-    </section>`;
-  const scenarioSelect = host.querySelector("#simProfileScenario");
-  scenarioSelect.addEventListener("change", () => setLibraryScenario(scenarioSelect.value));
-  const api = host.querySelector("#simApi");
-  api.value = String(permission("androidApi"));
-  const syncVersionGates = () => {
-    const level = Number(api.value);
-    host.querySelectorAll("[data-sim-permission]").forEach(input => {
-      const key = input.dataset.simPermission;
-      const notApplicable = (key === "notifications" && level < 33) || (key === "allFiles" && level < 30);
-      input.disabled = notApplicable;
-      input.closest(".sim-row")?.classList.toggle("is-disabled", notApplicable);
-      const desc = input.closest(".sim-row")?.querySelector(".sim-desc");
-      if (desc) desc.dataset.baseDescription ||= desc.textContent;
-      if (desc) desc.textContent = notApplicable ? `${desc.dataset.baseDescription} Not applicable on this Android version.` : (desc.dataset.baseDescription || desc.textContent);
-    });
-  };
-  api.addEventListener("change", () => {
-    state.permissions.androidApi = Number(api.value);
-    if (state.permissions.androidApi < 33) state.permissions.notifications = null;
-    if (state.permissions.androidApi < 30) state.permissions.allFiles = false;
-    syncVersionGates();
-    updateAll();
-  });
-  syncVersionGates();
-  refreshBrowserCapabilities(host);
-  host.querySelector("#requestBrowserNotifications")?.addEventListener("click", requestBrowserNotificationPermission);
-  host.querySelector("#testBrowserNotification")?.addEventListener("click", sendBrowserTestNotification);
-  host.querySelector("#requestPersistentStorage")?.addEventListener("click", requestBrowserPersistentStorage);
-  host.querySelectorAll("[data-sim-permission]").forEach(input => {
-    input.checked = !!permission(input.dataset.simPermission);
-    input.addEventListener("change", () => {
-      const key = input.dataset.simPermission;
-      state.permissions[key] = input.checked;
-      if (key === "shizukuInstalled" && !input.checked) { state.permissions.shizukuRunning = false; state.permissions.shizukuAuthorized = false; }
-      if (key === "shizukuRunning" && !input.checked) state.permissions.shizukuAuthorized = false;
-      if (key === "shizukuRunning" && input.checked && !permission("shizukuInstalled")) {
-        input.checked = false; state.permissions.shizukuRunning = false; showToast("Install Shizuku before starting its service"); return;
-      }
-      if (key === "shizukuAuthorized" && input.checked && (!permission("shizukuInstalled") || !permission("shizukuRunning"))) {
-        input.checked = false; state.permissions.shizukuAuthorized = false; showToast("Shizuku must be installed and running first"); return;
-      }
-      host.querySelectorAll("[data-sim-permission]").forEach(control => { control.checked = permission(control.dataset.simPermission) === true; });
-      syncVersionGates(); updateAll();
-      showToast(`${input.closest("label").querySelector(".sim-title").textContent}: ${input.checked ? "enabled in simulation" : "disabled in simulation"}`);
-    });
-  });
-  syncPrototypePanelSummary();
-}
-function syncPrototypePanelSummary() {
-  const host = byId("prototypePanelContent");
-  if (!host) return;
-  const select = host.querySelector("#simProfileScenario");
-  const description = host.querySelector("#simProfileScenarioDescription");
-  const summary = host.querySelector("#prototypeCurrentSummary");
-  if (!select) return;
-  select.value = state.libraryScenario;
-  const count = games().length;
-  if (description) description.textContent = state.libraryScenario === "empty"
-    ? "First-launch preview: no keymap profiles exist yet. Add a game or import a backup to create the first profile."
-    : state.libraryScenario === "samples"
-      ? `Demo library: ${count} sample profiles. These are preview data, not profiles loaded from Android.`
-      : `Current browser profiles: ${count}. These were created or imported in this prototype.`;
-  if (summary) {
-    const label = state.libraryScenario === "empty" ? "Empty library" : state.libraryScenario === "samples" ? "Sample library" : "Current profiles";
-    summary.textContent = `${label} · Android API ${permission("androidApi")}`;
-  }
-}
-async function refreshBrowserCapabilities(host = document) {
-  const notificationState = host.querySelector("#browserNotificationState");
-  const notificationButton = host.querySelector("#requestBrowserNotifications");
-  const notificationTest = host.querySelector("#testBrowserNotification");
-  if (notificationState) {
-    if (!('Notification' in window)) notificationState.textContent = "Unsupported";
-    else notificationState.textContent = `Permission: ${Notification.permission}`;
-  }
-  if (notificationButton) notificationButton.disabled = !('Notification' in window) || Notification.permission === "granted";
-  if (notificationTest) notificationTest.disabled = !('Notification' in window) || Notification.permission !== "granted";
-  const storageState = host.querySelector("#browserStorageState");
-  const storageDetail = host.querySelector("#browserStorageDetail");
-  const storageButton = host.querySelector("#requestPersistentStorage");
-  if (!navigator.storage?.persisted) {
-    if (storageState) storageState.textContent = "Unsupported";
-    if (storageDetail) storageDetail.textContent = "This browser does not expose persistent storage status.";
-    if (storageButton) storageButton.disabled = true;
-    return;
-  }
-  try {
-    const persisted = await navigator.storage.persisted();
-    if (storageState) storageState.textContent = persisted ? "Persistent" : "Not persistent";
-    if (storageButton) storageButton.disabled = persisted || !navigator.storage.persist;
-    if (storageDetail && navigator.storage.estimate) {
-      const estimate = await navigator.storage.estimate();
-      const used = Number.isFinite(estimate.usage) ? `${(estimate.usage / 1048576).toFixed(1)} MB used` : "Usage unavailable";
-      const quota = Number.isFinite(estimate.quota) ? `${(estimate.quota / 1048576).toFixed(0)} MB quota` : "quota unavailable";
-      storageDetail.textContent = `${persisted ? "Browser persistence is already granted." : "Ask the browser to preserve this origin's local data."} ${used} · ${quota}.`;
-    }
-  } catch (_) {
-    if (storageState) storageState.textContent = "Unavailable";
-    if (storageDetail) storageDetail.textContent = "The browser did not return storage permission information.";
-  }
-}
-async function requestBrowserNotificationPermission() {
-  if (!('Notification' in window)) return showToast("Browser notifications are not supported here");
-  if (!window.isSecureContext) return showToast("Browser notifications require HTTPS or localhost");
-  try {
-    const result = await Notification.requestPermission();
-    await refreshBrowserCapabilities(byId("prototypePanelContent"));
-    showToast(`Browser notification permission: ${result}`);
-  } catch (error) {
-    openDialog("Browser notification request failed", error?.message || "The browser did not accept the permission request.");
-  }
-}
-function sendBrowserTestNotification() {
-  if (!('Notification' in window) || Notification.permission !== "granted") return showToast("Grant browser notification permission first");
-  try {
-    const notification = new Notification("XtMapper prototype", { body: "Browser notifications are working. This is not Android POST_NOTIFICATIONS." });
-    notification.onclick = () => window.focus();
-    showToast("Browser notification sent");
-  } catch (error) {
-    openDialog("Notification could not be displayed", error?.message || "This browser may require a service worker for notifications on this device.");
-  }
-}async function requestBrowserPersistentStorage() {
-  if (!navigator.storage?.persist) return showToast("Persistent storage is unavailable in this browser");
-  try {
-    const granted = await navigator.storage.persist();
-    await refreshBrowserCapabilities(byId("prototypePanelContent"));
-    showToast(granted ? "Persistent browser storage granted" : "Browser declined persistent storage");
-  } catch (error) {
-    openDialog("Storage request failed", error?.message || "The browser did not grant persistent storage.");
-  }
-}
-
-function simToggle(key, title, desc, tristate = false) {
-  const checked = permission(key) === true;
-  const api = Number(permission("androidApi") || 35);
-  const notApplicable = (key === "notifications" && api < 33) || (key === "allFiles" && api < 30);
-  return `<label class="sim-row ${notApplicable ? "is-disabled" : ""}"><span class="sim-copy"><span class="sim-title">${title}</span><span class="sim-desc">${desc}</span></span><input type="checkbox" data-sim-permission="${key}" ${checked ? "checked" : ""} ${notApplicable ? "disabled" : ""}></label>`;
 }
 
 function showAndroidSettingsSimulation(kind) {
@@ -3001,14 +2754,12 @@ function showLogs() {
   }
   if (!permission("logSinkAvailable")) {
     openDialog("Persistent logging unavailable", `All-files access is granted, but XtLogger.isFileSinkAvailable is false. The app cannot offer persistent log files until its file sink is available.\n\nLog directory: ${directory}`, {
-      confirmText: "Prototype environment",
-      onConfirm: openEnvironmentDialog
+      confirmText: "OK"
     });
     return;
   }
   openDialog("Logs", `Persistent file logging is available in this prototype simulation.\n\nLog directory: ${directory}`, {
-    confirmText: "Prototype environment",
-    onConfirm: openEnvironmentDialog
+    confirmText: "OK"
   });
 }
 function showHelp() {
@@ -3325,84 +3076,96 @@ async function initialiseGoogleMaterialSymbols() {
   }
 }
 initialiseGoogleMaterialSymbols();
-
-
-openEnvironmentDialog();
 updateAll();
 refreshBrowserDevices();
 prototypeReady = true;
 
-/* Same-origin bridge to the parent prototype settings panel. */
-const PROTOTYPE_BRIDGE_IDS = [
-  "simProfileScenario", "simApi",
+
+/* Same-origin bridge: workspace controls update Activity simulation state directly. */
+const PROTOTYPE_PERMISSION_KEYS = new Set([
   "rootAccess", "shizukuInstalled", "shizukuRunning", "shizukuAuthorized",
-  "overlay", "notifications", "allFiles", "logSinkAvailable",
-  "browserNotificationState", "testBrowserNotification", "requestBrowserNotifications",
-  "browserStorageState", "browserStorageDetail", "requestPersistentStorage"
-];
+  "overlay", "notifications", "allFiles", "logSinkAvailable"
+]);
 
 function prototypeBridgeSnapshot() {
-  const state = {};
-  for (const id of PROTOTYPE_BRIDGE_IDS) {
-    const element = byId(id);
-    if (!element) continue;
-    if (element.type === "checkbox") {
-      state[id] = { checked: element.checked, disabled: element.disabled };
-    } else if (element.tagName === "SELECT") {
-      state[id] = { value: element.value, disabled: element.disabled };
-    } else {
-      state[id] = { textContent: element.textContent, disabled: !!element.disabled };
-    }
+  const api = Number(permission("androidApi"));
+  const snapshot = {
+    simProfileScenario: { value: state.libraryScenario, disabled: false },
+    simApi: { value: String(api), disabled: false }
+  };
+  for (const key of PROTOTYPE_PERMISSION_KEYS) {
+    snapshot[key] = {
+      checked: permission(key) === true,
+      disabled: (key === "notifications" && api < 33) || (key === "allFiles" && api < 30)
+    };
   }
-  return state;
+  return snapshot;
 }
 
 function notifyPrototypeParent() {
-  if (window.parent !== window) {
-    window.parent.postMessage(
-      { type: "xtmapper-prototype-state", state: prototypeBridgeSnapshot() },
-      window.location.origin
-    );
+  if (window.parent === window) return;
+  window.parent.postMessage(
+    { type: "xtmapper-prototype-state", state: prototypeBridgeSnapshot() },
+    window.location.origin
+  );
+}
+
+function setSimulatedPermission(key, enabled) {
+  if (!PROTOTYPE_PERMISSION_KEYS.has(key)) return;
+  const next = Boolean(enabled);
+  const api = Number(permission("androidApi"));
+  if ((key === "notifications" && api < 33) || (key === "allFiles" && api < 30)) return;
+  state.permissions[key] = next;
+
+  if (key === "shizukuInstalled" && !next) {
+    state.permissions.shizukuRunning = false;
+    state.permissions.shizukuAuthorized = false;
   }
+  if (key === "shizukuRunning" && !next) state.permissions.shizukuAuthorized = false;
+  if (key === "shizukuRunning" && next && !permission("shizukuInstalled")) {
+    state.permissions.shizukuRunning = false;
+    showToast("Install Shizuku before starting its service");
+    notifyPrototypeParent();
+    return;
+  }
+  if (key === "shizukuAuthorized" && next &&
+      (!permission("shizukuInstalled") || !permission("shizukuRunning"))) {
+    state.permissions.shizukuAuthorized = false;
+    showToast("Shizuku must be installed and running first");
+    notifyPrototypeParent();
+    return;
+  }
+
+  updateAll();
+  showToast(`${key}: ${next ? "enabled in simulation" : "disabled in simulation"}`);
+}
+
+function setSimulatedAndroidApi(value) {
+  const level = Number(value);
+  if (!Number.isInteger(level) || level < 29 || level > 36) return;
+  state.permissions.androidApi = level;
+  if (level < 33) state.permissions.notifications = null;
+  if (level < 30) state.permissions.allFiles = false;
+  updateAll();
 }
 
 window.addEventListener("message", event => {
   if (event.source !== window.parent || event.origin !== window.location.origin) return;
   const message = event.data;
   if (!message || typeof message !== "object") return;
-
   if (message.type === "xtmapper-prototype-sync") {
     notifyPrototypeParent();
     return;
   }
-
   if (message.type !== "xtmapper-prototype-control") return;
-  const control = byId(message.id);
-  if (!control) return;
-
-  if (message.action === "click") {
-    control.click();
-  } else {
-    if (control.type === "checkbox") control.checked = Boolean(message.value);
-    else control.value = String(message.value ?? "");
-    control.dispatchEvent(new Event("change", { bubbles: true }));
+  if (message.id === "simProfileScenario" && message.action !== "click") {
+    setLibraryScenario(message.value);
+  } else if (message.id === "simApi" && message.action !== "click") {
+    setSimulatedAndroidApi(message.value);
+  } else if (PROTOTYPE_PERMISSION_KEYS.has(message.id) && message.action !== "click") {
+    setSimulatedPermission(message.id, message.value);
   }
-  window.setTimeout(notifyPrototypeParent, 120);
 });
-
-document.addEventListener("change", event => {
-  if (event.target.matches("#simProfileScenario, #simApi, [data-sim-permission]")) {
-    window.setTimeout(notifyPrototypeParent, 0);
-  }
-}, true);
-
-document.addEventListener("click", event => {
-  if (event.target.closest("#requestBrowserNotifications, #testBrowserNotification, #requestPersistentStorage")) {
-    window.setTimeout(notifyPrototypeParent, 180);
-    window.setTimeout(notifyPrototypeParent, 900);
-  }
-}, true);
-
 window.addEventListener("load", notifyPrototypeParent, { once: true });
 
 </script>
