@@ -210,6 +210,7 @@ export class DevicePreview {
     const frameViewport = landscape
       ? { width: viewport.height, height: viewport.width }
       : viewport;
+
     await loadTelephoneElement(frame);
     if (generation !== this.renderGeneration) return;
 
@@ -219,49 +220,38 @@ export class DevicePreview {
     const outerWidth = landscape ? frameHeight : frameWidth;
     const outerHeight = landscape ? frameWidth : frameHeight;
 
+    // Keep the Telephone component in its native portrait coordinate space.
+    // The stage handles centering and rotation without changing the component's
+    // own width/height contract.
+    const frameStage = document.createElement("div");
+    frameStage.className = "device-frame__telephone-stage";
+    frameStage.style.position = "absolute";
+    frameStage.style.inset = "0";
+    frameStage.style.display = "grid";
+    frameStage.style.placeItems = "center";
+    frameStage.style.width = "100%";
+    frameStage.style.height = "100%";
+
     const telephone = document.createElement(frame.tag);
     telephone.setAttribute("mode", frame.mode || "dark");
     telephone.style.display = "block";
-    telephone.style.position = "absolute";
+    telephone.style.position = "relative";
     telephone.style.width = frameWidth + "px";
-    telephone.style.height = frameHeight + "px";
-    telephone.style.left = (outerWidth - frameWidth) / 2 + "px";
-    telephone.style.top = (outerHeight - frameHeight) / 2 + "px";
+    telephone.style.maxWidth = "none";
+    telephone.style.height = "auto";
     telephone.style.transformOrigin = "center center";
     telephone.style.transform = landscape ? "rotate(90deg)" : "none";
 
-    this.frame.className = "device-frame device-frame--telephone" +
-      (landscape ? " device-frame--landscape" : "");
-    this.frame.replaceChildren(telephone);
-    this.frame.style.width = outerWidth + "px";
-    this.frame.style.height = outerHeight + "px";
-
-    await nextFrame();
-    await nextFrame();
-    if (generation !== this.renderGeneration) return;
-
-    const shadowRoot = telephone.shadowRoot;
-    const screenshot = shadowRoot && shadowRoot.querySelector(".screenshot");
-    if (!screenshot) {
-      throw new Error("Telephone screenshot viewport was not found.");
-    }
-
-    // clientWidth/clientHeight remain in the component's local portrait
-    // coordinate space even after the outer Telephone element is rotated.
-    const screenWidth = screenshot.clientWidth;
-    const screenHeight = screenshot.clientHeight;
-    if (screenWidth <= 0 || screenHeight <= 0) {
-      throw new Error("Telephone screenshot viewport has no measurable size.");
-    }
-
     const placement = calculateViewportPlacement(
-      screenWidth,
-      screenHeight,
+      metrics.screenWidth,
+      metrics.screenHeight,
       viewport.width,
       viewport.height,
       this.orientation
     );
 
+    // Telephone exposes its screen through a default slot. Keep the iframe in
+    // light DOM so the component owns its frame, clipping and screen geometry.
     const viewportLayer = document.createElement("div");
     viewportLayer.className = "xtmapper-device-viewport";
     viewportLayer.style.position = "absolute";
@@ -276,10 +266,14 @@ export class DevicePreview {
 
     setIframeViewport(this.iframe, viewport);
     viewportLayer.appendChild(this.iframe);
+    telephone.appendChild(viewportLayer);
+    frameStage.appendChild(telephone);
 
-    // Mount into the measured clipping surface, not as a light-DOM slotted
-    // absolute element. This keeps offsets relative to the actual screen.
-    screenshot.replaceChildren(viewportLayer);
+    this.frame.className = "device-frame device-frame--telephone" +
+      (landscape ? " device-frame--landscape" : "");
+    this.frame.replaceChildren(frameStage);
+    this.frame.style.width = outerWidth + "px";
+    this.frame.style.height = outerHeight + "px";
 
     this.frameSize = {
       width: outerWidth,
