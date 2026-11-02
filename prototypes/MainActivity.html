@@ -1849,7 +1849,7 @@ body { display:flex; align-items:center; justify-content:center; padding:12px !i
         </button>
       </div>
     </main>
-    <dialog id="dialog" aria-labelledby="dialogTitle" aria-modal="true" tabindex="-1">
+    <dialog id="dialog" aria-labelledby="dialogTitle" tabindex="-1">
       <section class="dialog-surface">
         <div class="dialog-content">
           <h2 class="dialog-title" id="dialogTitle">XtMapper</h2>
@@ -2132,29 +2132,9 @@ byId("dialog").addEventListener("cancel", event => {
   closeDialog(false);
 });
 byId("dialog").addEventListener("keydown", event => {
-  if (event.key === "Escape") {
-    event.preventDefault();
-    closeDialog(false);
-    return;
-  }
-  if (event.key !== "Tab") return;
-  const activeDialog = byId("dialog");
-  const focusable = [...activeDialog.querySelectorAll(
-    'button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), [href], [tabindex]:not([tabindex="-1"])'
-  )].filter(element => element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
-  if (!focusable.length) {
-    event.preventDefault();
-    activeDialog.focus();
-    return;
-  }
-  const first = focusable[0], last = focusable[focusable.length - 1];
-  if (event.shiftKey && (document.activeElement === first || !activeDialog.contains(document.activeElement))) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && (document.activeElement === last || !activeDialog.contains(document.activeElement))) {
-    event.preventDefault();
-    first.focus();
-  }
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeDialog(false);
 });
 
 function appIconFallbackDataUri() {
