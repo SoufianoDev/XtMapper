@@ -416,7 +416,7 @@ export class DevicePreview {
     if (!this.frameSize || !this.stage || !this.frame) return;
 
     const availableWidth = Math.max(220, this.stage.parentElement.clientWidth - 12);
-    const availableHeight = Math.max(360, window.innerHeight - 150);
+    const availableHeight = Math.max(180, window.innerHeight - 150);
     const scale = calculatePreviewScale(
       this.frameSize.width,
       this.frameSize.height,
