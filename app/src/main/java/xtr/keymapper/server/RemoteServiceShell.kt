@@ -12,6 +12,7 @@ import android.os.SystemProperties
 import xtr.keymapper.BuildConfig
 import xtr.keymapper.Environment
 import xtr.keymapper.activity.MainActivity
+import xtr.keymapper.log.DeviceTelemetry
 import xtr.keymapper.log.Role
 import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
@@ -71,6 +72,7 @@ object RemoteServiceShell {
             )
             Runtime.getRuntime().addShutdownHook(
                 Thread {
+                    DeviceTelemetry.stop()
                     if (!XtLogger.hasFatalEvent) {
                         XtLogger.endSession(SessionStates.STATUS_UNEXPECTED_EXIT)
                     }

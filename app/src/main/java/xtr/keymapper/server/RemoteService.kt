@@ -27,6 +27,7 @@ import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.databinding.CursorBinding
 import xtr.keymapper.keymap.KeymapConfig
 import xtr.keymapper.keymap.KeymapProfile
+import xtr.keymapper.log.DeviceTelemetry
 import xtr.keymapper.log.Role
 import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
@@ -499,6 +500,8 @@ class RemoteService @JvmOverloads constructor(
             return
         }
 
+        DeviceTelemetry.start(context)
+
         if (!isWaylandClient) {
             newService.setMouseLock(true)
             mouseDeviceLifecycle.onInputServiceReady()?.let(::openMouseDevice)
@@ -557,6 +560,7 @@ class RemoteService @JvmOverloads constructor(
     }
 
     private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true) {
+        DeviceTelemetry.stop()
         if (exitProcess && !Selinux.real.restore()) {
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
