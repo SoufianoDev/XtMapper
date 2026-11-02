@@ -3327,27 +3327,6 @@ async function initialiseGoogleMaterialSymbols() {
 initialiseGoogleMaterialSymbols();
 
 
-/* Keep the phone frame and the page-level environment controls separate. */
-const browserPhoneFrame = document.querySelector(".phone");
-const browserPhoneStage = document.querySelector(".stage");
-const prototypePanel = document.querySelector(".prototype-panel");
-const prototypeWorkspace = document.querySelector(".prototype-workspace");
-function fitBrowserPhoneFrame() {
-  if (!browserPhoneFrame || !browserPhoneStage || !prototypeWorkspace) return;
-  const sideLayout = window.matchMedia("(min-width: 820px)").matches;
-  const panelWidth = sideLayout && prototypePanel ? prototypePanel.getBoundingClientRect().width : 0;
-  const gap = sideLayout ? (parseFloat(getComputedStyle(prototypeWorkspace).columnGap) || 24) : 0;
-  const availableWidth = Math.max(160, window.innerWidth - 24 - panelWidth - gap);
-  const availableHeight = sideLayout ? Math.max(280, window.innerHeight - 24) : 900;
-  const scale = Math.min(1, availableWidth / 430, availableHeight / 900);
-  browserPhoneStage.style.width = `${430 * scale}px`;
-  browserPhoneStage.style.height = `${900 * scale}px`;
-  browserPhoneFrame.style.transform = `scale(${scale})`;
-}
-window.addEventListener("resize", fitBrowserPhoneFrame, { passive:true });
-window.visualViewport?.addEventListener("resize", fitBrowserPhoneFrame, { passive:true });
-fitBrowserPhoneFrame();
-
 openEnvironmentDialog();
 updateAll();
 refreshBrowserDevices();
@@ -3427,5 +3406,4 @@ document.addEventListener("click", event => {
 window.addEventListener("load", notifyPrototypeParent, { once: true });
 
 </script>
-</body>
-</html>/* The outer prototype workspace owns the phone frame and visible settings panel. */
+</body></html>
