@@ -147,7 +147,7 @@ export class DevicePreview {
       return;
     }
 
-    const type = width >= 600 || height >= 600 && width > height ? "tablet" : "phone";
+    const type = Math.min(width, height) >= 600 ? "tablet" : "phone";
     this.currentDevice = {
       id: "custom",
       name: "Custom Android viewport",
