@@ -478,6 +478,8 @@ class RemoteService @JvmOverloads constructor(
             }
         }
 
+        val session = ClientSession(clientBinder, deathRecipient)
+
         startTouchpadFor(newService)
 
         val admitted = mClientDeathRegistrations.runIfCurrent(
@@ -487,7 +489,7 @@ class RemoteService @JvmOverloads constructor(
                 requestId == mStartRequestSequence.get() && clientBinder.isBinderAlive
             }
         ) {
-            mInputService.install(ClientSession(clientBinder, deathRecipient), newService)
+            mInputService.install(session, newService)
         }
         if (!admitted) {
             discardUninstalledService(newService)
@@ -500,7 +502,13 @@ class RemoteService @JvmOverloads constructor(
             return
         }
 
-        DeviceTelemetry.start(context)
+        if (!mInputService.runIfOwner(session) {
+            // Telemetry must not outlive the exact session that admitted it.
+            DeviceTelemetry.start(context)
+        }) {
+            XtLogger.warn(TAG, "session committed for shutdown or replaced after admission; telemetry startup withheld")
+            return
+        }
 
         if (!isWaylandClient) {
             newService.setMouseLock(true)
