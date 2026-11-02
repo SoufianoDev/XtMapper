@@ -208,6 +208,28 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 .device-frame--telephone::before {
   display: none;
 }
+.device-frame--mockup {
+  overflow: visible;
+}
+.device-mockup {
+  position: absolute;
+  inset: 0;
+}
+.device-mockup__screen {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  background: #101114;
+}
+.device-mockup__frame {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
 .device-frame--telephone > pixel-9-pro,
 .device-frame--telephone > android-tablet {
   display: block;
