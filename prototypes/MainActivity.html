@@ -1626,6 +1626,55 @@ body { display:flex; align-items:center; justify-content:center; padding:12px !i
   .prototype-panel-content .sim-select { flex:0 0 auto; width:100%; }
 }
 
+/* App-owned overlays are contained by the phone viewport; only prototype controls live outside it. */
+.phone { position:relative; }
+dialog {
+  position:absolute;
+  z-index:80;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  margin:0;
+  padding:12px;
+  overflow:hidden;
+  border:0;
+  border-radius:0;
+  color:var(--md-sys-color-on-surface);
+  background:rgba(0,0,0,.66);
+  box-shadow:none;
+  backdrop-filter:blur(3px);
+}
+dialog[open] { display:flex; }
+dialog::backdrop { background:transparent; }
+.dialog-surface {
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  width:min(380px,100%);
+  max-width:100%;
+  max-height:100%;
+  min-width:0;
+  margin:0;
+  overflow:auto;
+  overscroll-behavior:contain;
+  border:1px solid var(--md-sys-color-outline-variant);
+  border-radius:var(--shape-extra-large);
+  color:var(--md-sys-color-on-surface);
+  background:var(--md-sys-color-surface-container-high);
+  box-shadow:0 18px 60px rgba(0,0,0,.5);
+}
+.toast {
+  position:absolute;
+  z-index:90;
+  bottom:24px;
+  left:50%;
+  max-width:calc(100% - 24px);
+}
 </style>
 </head>
 <body>
@@ -1768,6 +1817,22 @@ body { display:flex; align-items:center; justify-content:center; padding:12px !i
         </button>
       </div>
     </main>
+    <dialog id="dialog" aria-labelledby="dialogTitle" aria-modal="true" tabindex="-1">
+      <section class="dialog-surface">
+        <div class="dialog-content">
+          <h2 class="dialog-title" id="dialogTitle">XtMapper</h2>
+          <p class="dialog-message" id="dialogMessage"></p>
+          <div class="dialog-custom" id="dialogCustom" hidden></div>
+          <div class="profile-actions" id="profileActions" hidden></div>
+          <input class="dialog-input" id="dialogInput" hidden autocomplete="off">
+        </div>
+        <div class="dialog-actions">
+          <button class="text-button" id="dialogCancel" type="button">Cancel</button>
+          <button class="filled-button" id="dialogConfirm" type="button">OK</button>
+        </div>
+      </section>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
 
 
@@ -1793,21 +1858,7 @@ body { display:flex; align-items:center; justify-content:center; padding:12px !i
   </aside>
 </div>
 
-<dialog id="dialog" aria-labelledby="dialogTitle">
-  <div class="dialog-content">
-    <h2 class="dialog-title" id="dialogTitle">XtMapper</h2>
-    <p class="dialog-message" id="dialogMessage"></p>
-    <div class="dialog-custom" id="dialogCustom" hidden></div>
-    <div class="profile-actions" id="profileActions" hidden></div>
-    <input class="dialog-input" id="dialogInput" hidden autocomplete="off">
-  </div>
-  <div class="dialog-actions">
-    <button class="text-button" id="dialogCancel" type="button">Cancel</button>
-    <button class="filled-button" id="dialogConfirm" type="button">OK</button>
-  </div>
-</dialog>
 <input id="backupFile" type="file" accept=".zip,application/zip" hidden>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 const APP_CATALOG = [
@@ -2004,8 +2055,15 @@ function openDialog(title, message, options = {}) {
   byId("dialogCancel").hidden = options.cancel === false;
   dialogAction = options.onConfirm || null;
   dialogCancelAction = options.onCancel || null;
-  if (!byId("dialog").open) byId("dialog").showModal();
-  if (options.input) requestAnimationFrame(() => byId("dialogInput").focus());
+  if (!byId("dialog").open) byId("dialog").show();
+  requestAnimationFrame(() => {
+    const activeDialog = byId("dialog");
+    if (!activeDialog.open) return;
+    const target = options.input ? byId("dialogInput") : activeDialog.querySelector(
+      'button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"])'
+    );
+    (target || activeDialog).focus({ preventScroll:true });
+  });
 }
 function openCustomDialog(title, message, element, options = {}) {
   openDialog(title, message, options);
@@ -2040,6 +2098,31 @@ byId("dialog").addEventListener("click", event => {
 byId("dialog").addEventListener("cancel", event => {
   event.preventDefault();
   closeDialog(false);
+});
+byId("dialog").addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeDialog(false);
+    return;
+  }
+  if (event.key !== "Tab") return;
+  const activeDialog = byId("dialog");
+  const focusable = [...activeDialog.querySelectorAll(
+    'button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), [href], [tabindex]:not([tabindex="-1"])'
+  )].filter(element => element.getClientRects().length && getComputedStyle(element).visibility !== "hidden");
+  if (!focusable.length) {
+    event.preventDefault();
+    activeDialog.focus();
+    return;
+  }
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (event.shiftKey && (document.activeElement === first || !activeDialog.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (document.activeElement === last || !activeDialog.contains(document.activeElement))) {
+    event.preventDefault();
+    first.focus();
+  }
 });
 
 function appIconFallbackDataUri() {
@@ -2765,7 +2848,8 @@ function showProfileActions(id) {
     if (action === "change") openAppPicker("change", game.id);
     if (action === "delete") deleteProfile(game);
   }));
-  byId("dialog").showModal();
+  byId("dialog").show();
+  requestAnimationFrame(() => byId("dialogCancel").focus({ preventScroll:true }));
 }
 function renameProfile(game) {
   openDialog("Rename profile", "The profile key/name changes; its assigned Android package and keymap data remain associated with it.", {
