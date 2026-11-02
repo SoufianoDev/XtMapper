@@ -1458,6 +1458,98 @@ body > dialog { max-width:min(340px, calc(100vw - 28px)); }
   .phone { scroll-behavior:auto; }
 }
 
+
+/* First-launch empty library: a designed state rather than an empty gap. */
+.empty-library {
+  position:relative;
+  display:none;
+  min-height:258px;
+  margin-top:12px;
+  padding:24px 20px 20px;
+  overflow:hidden;
+  border:1px solid rgba(235,115,139,.27);
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(197,46,79,.22), transparent 62%),
+    linear-gradient(145deg, rgba(58,31,44,.94), rgba(30,29,39,.97) 54%, rgba(24,29,39,.98));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 16px 36px rgba(0,0,0,.19);
+  text-align:center;
+}
+.empty-library::after {
+  content:"";
+  position:absolute;
+  width:210px;
+  height:210px;
+  left:50%;
+  top:-145px;
+  border-radius:50%;
+  background:rgba(238,78,111,.10);
+  filter:blur(22px);
+  pointer-events:none;
+}
+.empty-library-visual {
+  position:relative;
+  z-index:1;
+  width:66px;
+  height:66px;
+  margin:0 auto 14px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,170,185,.24);
+  border-radius:21px;
+  color:#fff;
+  background:linear-gradient(145deg,rgba(210,54,86,.52),rgba(85,34,58,.80));
+  box-shadow:0 8px 22px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.empty-library-visual .material-symbols-rounded { font-size:32px; }
+.empty-library-eyebrow {
+  position:relative;
+  z-index:1;
+  color:#ff9aac;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1.15px;
+}
+.empty-library-title {
+  position:relative;
+  z-index:1;
+  margin:7px 0 0;
+  color:#fff;
+  font-size:19px;
+  line-height:25px;
+  font-weight:700;
+  letter-spacing:-.25px;
+}
+.empty-library-description {
+  position:relative;
+  z-index:1;
+  max-width:285px;
+  margin:8px auto 0;
+  color:#c7c0ca;
+  font-size:13px;
+  line-height:19px;
+}
+.empty-library-actions {
+  position:relative;
+  z-index:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:17px;
+}
+.empty-library-actions .filled-button { min-height:42px; padding-inline:17px; }
+.empty-library-actions .text-button { min-height:40px; padding-inline:12px; color:#ff9aac; }
+@media (max-width:380px) {
+  .empty-library { min-height:0; padding:22px 14px 18px; border-radius:18px; }
+  .empty-library-visual { width:60px; height:60px; margin-bottom:12px; }
+  .empty-library-title { font-size:18px; }
+  .empty-library-description { font-size:12px; line-height:18px; }
+  .empty-library-actions { flex-direction:column; gap:5px; }
+  .empty-library-actions .filled-button, .empty-library-actions .text-button { width:100%; }
+}
+
 </style>
 </head>
 <body>
@@ -1526,8 +1618,15 @@ body > dialog { max-width:min(340px, calc(100vw - 28px)); }
         </article>
 
         <div class="game-grid" id="gameGrid" aria-label="Other game profiles"></div>
-        <div class="empty-library" id="emptyLibrary">
-          No game profiles yet. Add a game to create its keymap profile.
+        <div class="empty-library" id="emptyLibrary" role="region" aria-labelledby="emptyLibraryTitle">
+          <div class="empty-library-visual"><span class="material-symbols-rounded" aria-hidden="true">sports_esports</span></div>
+          <div class="empty-library-eyebrow">YOUR LIBRARY</div>
+          <h2 class="empty-library-title" id="emptyLibraryTitle">No game profiles yet</h2>
+          <p class="empty-library-description">Add a game to create your first keymap profile. Each game gets its own controls and settings.</p>
+          <div class="empty-library-actions">
+            <button class="filled-button" type="button" id="emptyAddGameButton"><span class="material-symbols-rounded">add</span>Add your first game</button>
+            <button class="text-button" type="button" id="emptyImportButton"><span class="material-symbols-rounded">upload</span>Import profiles</button>
+          </div>
         </div>
       </section>
 
@@ -1640,8 +1739,9 @@ const APP_CATALOG = [
     image: "https://play-lh.googleusercontent.com/P2wyj2GqMVxXN0SWAMbWke1oNieUL7nKBNcmxX7aSI84MO-DsNh_DUN3ZbJ25ucIfiCHYPVRNB8c8joGMyLyeA=w240-h480"
   }
 ];
-const STORAGE_KEY = "xtmapper-main-prototype-v9";
-const LEGACY_STORAGE_KEY = "xtmapper-main-prototype-v8";
+const STORAGE_KEY = "xtmapper-main-prototype-v10";
+const LEGACY_STORAGE_KEY = "xtmapper-main-prototype-v9";
+const OLDER_STORAGE_KEY = "xtmapper-main-prototype-v8";
 const defaultGames = APP_CATALOG.map((app, index) => ({
   id: `sample-${index + 1}`,
   name: app.name,
@@ -1652,7 +1752,9 @@ const defaultGames = APP_CATALOG.map((app, index) => ({
   lines: [`APPLICATION ${app.packageName}`, "ENABLED"]
 }));
 const DEFAULT_STATE = {
-  games: defaultGames,
+  games: [],
+  previewGames: defaultGames,
+  libraryScenario: "samples",
   selectedId: "sample-1",
   inputMode: "root",
   permissions: {
@@ -1704,20 +1806,26 @@ function loadState() {
   try {
     const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     const legacy = current ? null : JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
-    const saved = current || legacy;
-    if (!saved || ![8, 9].includes(saved.version)) return structuredCloneSafe(DEFAULT_STATE);
+    const older = current || legacy ? null : JSON.parse(localStorage.getItem(OLDER_STORAGE_KEY) || "null");
+    const saved = current || legacy || older;
+    if (!saved || ![8, 9, 10].includes(saved.version)) return structuredCloneSafe(DEFAULT_STATE);
+    const savedGames = Array.isArray(saved.games) ? saved.games : [];
     const loaded = {
       ...structuredCloneSafe(DEFAULT_STATE),
       ...saved,
-      games: Array.isArray(saved.games) ? saved.games : structuredCloneSafe(defaultGames),
+      games: savedGames.filter(g => g && typeof g.id === "string" && typeof g.packageName === "string" && !g.id.startsWith("sample-")),
+      previewGames: Array.isArray(saved.previewGames)
+        ? saved.previewGames
+        : (savedGames.some(g => g?.id?.startsWith("sample-")) ? savedGames.filter(g => g?.id?.startsWith("sample-")) : structuredCloneSafe(defaultGames)),
+      libraryScenario: ["samples", "empty", "current"].includes(saved.libraryScenario) ? saved.libraryScenario : "samples",
       permissions: { ...DEFAULT_STATE.permissions, ...(saved.permissions || {}) },
       settings: { ...DEFAULT_STATE.settings, ...(saved.settings || {}) },
       designatedProfiles: saved.designatedProfiles || {}
     };
     loaded.inputMode = loaded.inputMode === "shizuku" ? "shizuku" : "root";
-    loaded.games = loaded.games.filter(g => g && typeof g.id === "string" && typeof g.packageName === "string");
-    if (!loaded.games.some(g => g.id === loaded.selectedId)) loaded.selectedId = loaded.games[0]?.id || "";
-    if (!current && legacy) localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 9, ...loaded }));
+    const visibleGames = loaded.libraryScenario === "empty" ? [] : loaded.libraryScenario === "samples" ? loaded.previewGames : loaded.games;
+    if (!visibleGames.some(g => g.id === loaded.selectedId)) loaded.selectedId = visibleGames[0]?.id || "";
+    if (!current) localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 10, ...loaded }));
     return loaded;
   } catch (_) {
     return structuredCloneSafe(DEFAULT_STATE);
@@ -1741,12 +1849,13 @@ let prototypeReady = false;
 let storageWarningShown = false;
 
 const byId = id => document.getElementById(id);
-const games = () => state.games;
+const profileCollection = () => state.libraryScenario === "samples" ? state.previewGames : state.games;
+const games = () => state.libraryScenario === "empty" ? [] : profileCollection();
 const selectedGame = () => games().find(g => g.id === state.selectedId) || games()[0] || null;
 const permission = key => state.permissions[key];
 function persistState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 9, ...state }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 10, ...state }));
   } catch (error) {
     if (prototypeReady && !storageWarningShown) {
       storageWarningShown = true;
@@ -1954,10 +2063,28 @@ function updateAll() {
   persistState();
 }
 
+function setLibraryScenario(scenario) {
+  if (!["samples", "empty", "current"].includes(scenario)) return;
+  state.libraryScenario = scenario;
+  const visible = games();
+  if (!visible.some(game => game.id === state.selectedId)) state.selectedId = visible[0]?.id || "";
+  if (!visible.length) activeProfileId = null;
+  updateAll();
+  const labels = {
+    samples: "Sample profiles shown",
+    empty: "First-launch empty library shown",
+    current: `Current profiles shown (${visible.length})`
+  };
+  showToast(labels[scenario]);
+}
+
 function openEnvironmentDialog() {
   const host = document.createElement("div");
   host.innerHTML = `
     <div class="sim-notice">These controls seed simulated Android states for testing the interface. They do not request or grant permissions on your phone and do not start real Android services.</div>
+    <div class="sim-section-title">Profile library</div>
+    <div class="environment-select-row"><label for="simProfileScenario">Library state</label><select class="sim-select" id="simProfileScenario"><option value="samples">Sample profiles</option><option value="empty">No profiles · first launch</option><option value="current">Current profiles</option></select></div>
+    <div class="sim-desc" id="simProfileScenarioDescription">Switch between the sample library, an empty first-launch state, and profiles created or imported in this browser.</div>
     <div class="sim-section-title">Device and Android version</div>
     <div class="environment-select-row"><label for="simApi">Android API level</label><select class="sim-select" id="simApi"><option value="29">Android 10 · API 29</option><option value="30">Android 11 · API 30</option><option value="31">Android 12 · API 31</option><option value="32">Android 12L · API 32</option><option value="33">Android 13 · API 33</option><option value="34">Android 14 · API 34</option><option value="35">Android 15 · API 35</option><option value="36">Android 16 · API 36</option></select></div>
     <div class="sim-section-title">Input access</div>
@@ -1987,6 +2114,22 @@ function openEnvironmentDialog() {
       <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestPersistentStorage">Request persistence</button></div>
     </div>`;
   openCustomDialog("Prototype environment", "Configure the device state used by this browser prototype.", host, { confirm: false, cancelText: "Done" });
+  const scenarioSelect = host.querySelector("#simProfileScenario");
+  const scenarioDescription = host.querySelector("#simProfileScenarioDescription");
+  scenarioSelect.value = state.libraryScenario;
+  const syncScenarioDescription = () => {
+    const count = state.libraryScenario === "empty" ? 0 : games().length;
+    scenarioDescription.textContent = state.libraryScenario === "empty"
+      ? "First-launch preview: no keymap profiles exist yet. Add a game or import a backup to create the first profile."
+      : state.libraryScenario === "samples"
+        ? `Demo library: ${count} sample profiles. These are preview data, not profiles read from Android.`
+        : `Current browser profiles: ${count}. These are profiles created or imported in this prototype.`;
+  };
+  syncScenarioDescription();
+  scenarioSelect.addEventListener("change", () => {
+    setLibraryScenario(scenarioSelect.value);
+    syncScenarioDescription();
+  });
   const api = byId("simApi");
   api.value = String(permission("androidApi"));
   const syncVersionGates = () => {
@@ -2349,7 +2492,8 @@ function profileRawLines(game) {
 function addProfile(app, name) {
   const profileName = name.trim();
   if (!profileName) return showToast("Enter a profile name");
-  if (games().some(g => g.profileName.toLowerCase() === profileName.toLowerCase())) {
+  const targetCollection = profileCollection();
+  if (targetCollection.some(g => g.profileName.toLowerCase() === profileName.toLowerCase())) {
     return showToast("A profile with that name already exists");
   }
   const created = {
@@ -2357,7 +2501,8 @@ function addProfile(app, name) {
     image: app.image, enabled: true,
     lines: [`APPLICATION ${app.packageName}`, "ENABLED"]
   };
-  state.games.push(created);
+  if (state.libraryScenario === "empty") state.libraryScenario = "current";
+  profileCollection().push(created);
   state.selectedId = created.id;
   state.designatedProfiles[app.packageName] = profileName;
   updateAll();
@@ -2476,9 +2621,11 @@ function deleteProfile(game) {
   openDialog("Delete profile?", `Delete the ${game.profileName} keymap profile? This does not uninstall ${game.name}.`, {
     confirmText: "Delete",
     onConfirm: () => {
-      state.games = games().filter(item => item.id !== game.id);
+      const remaining = profileCollection().filter(item => item.id !== game.id);
+      if (state.libraryScenario === "samples") state.previewGames = remaining;
+      else state.games = remaining;
       Object.keys(state.designatedProfiles).forEach(pkg => { if (state.designatedProfiles[pkg] === game.profileName) delete state.designatedProfiles[pkg]; });
-      if (state.selectedId === game.id) state.selectedId = state.games[0]?.id || "";
+      if (state.selectedId === game.id) state.selectedId = remaining[0]?.id || "";
       updateAll();
       showToast("Profile deleted");
     }
@@ -2638,6 +2785,7 @@ byId("backupFile").addEventListener("change", async event => {
   if (!file) return;
   try {
     const entries = await unzipEntries(await file.arrayBuffer());
+    state.libraryScenario = "current";
     let imported = 0;
     for (const entry of entries) {
       if (games().some(game => game.profileName === entry.name)) continue; // Match Android: never overwrite a local profile.
@@ -2934,6 +3082,8 @@ byId("activateButton").addEventListener("click", activateSelected);
 byId("featuredMenu").addEventListener("click", () => { if (selectedGame()) showProfileActions(state.selectedId); });
 byId("editFeaturedButton").addEventListener("click", () => { if (selectedGame()) showEditorBoundary(selectedGame()); });
 byId("addGameButton").addEventListener("click", () => openAppPicker("create"));
+byId("emptyAddGameButton").addEventListener("click", () => openAppPicker("create"));
+byId("emptyImportButton").addEventListener("click", showImportExport);
 byId("rootMode").addEventListener("click", () => changeInputMode("root"));
 byId("shizukuMode").addEventListener("click", () => changeInputMode("shizuku"));
 byId("fixRoot").addEventListener("click", showRootAccessError);
