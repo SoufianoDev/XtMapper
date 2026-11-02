@@ -62,7 +62,7 @@ export function calculatePreviewScale(frameWidth, frameHeight, availableWidth, a
     return 1;
   }
 
-  return Math.max(0.1, Math.min(1, availableWidth / frameWidth, availableHeight / frameHeight));
+  return Math.min(1, availableWidth / frameWidth, availableHeight / frameHeight);
 }
 
 export function calculateScreenFit(screenWidth, screenHeight, viewportWidth, viewportHeight) {
