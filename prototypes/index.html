@@ -63,13 +63,13 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   -webkit-font-smoothing: antialiased;
 }
 .showcase {
-  width: min(1420px, calc(100% - 56px));
+  width: min(1720px, calc(100% - 64px));
   min-height: 100vh;
   margin: 0 auto;
-  padding: 34px 0;
+  padding: 24px 0;
   display: grid;
-  grid-template-columns: minmax(210px, .72fr) minmax(340px, 430px) minmax(300px, 360px);
-  gap: clamp(22px, 3vw, 42px);
+  grid-template-columns: minmax(0, 1fr) minmax(310px, 350px);
+  gap: clamp(28px, 4vw, 64px);
   align-items: center;
 }
 .intro { align-self: start; padding-top: 18px; }
@@ -112,12 +112,43 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   background: rgba(255,255,255,.025);
   font-size: 10px;
 }
-.preview { min-width: 0; display: grid; justify-items: center; gap: 13px; }
-.device-frame {
+.preview { min-width: 0; display: grid; justify-items: center; align-content: center; gap: 14px; }
+.preview-toolbar {
+  width: min(100%, 620px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 4px;
+}
+.preview-toolbar label { margin-right: auto; color: #c9c3cc; font-size: 11px; font-weight: 600; }
+.preview-toolbar select, .preview-toolbar button {
+  min-height: 36px;
+  border: 1px solid rgba(255,255,255,.11);
+  border-radius: 9px;
+  color: var(--text);
+  background: #191a21;
+  padding: 0 11px;
+  font-size: 11px;
+}
+.preview-toolbar button { cursor: pointer; }
+.preview-toolbar button:hover, .preview-toolbar select:hover { border-color: var(--accent-border); background: #22232b; }
+.preview-stage {
   position: relative;
-  width: min(100%, 430px);
-  height: min(900px, calc(100vh - 84px));
-  min-height: 620px;
+  width: var(--stage-width, 378px);
+  height: var(--stage-height, 818px);
+  display: grid;
+  place-items: center;
+}
+.device-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--frame-width, 378px);
+  height: var(--frame-height, 818px);
+  min-height: 0;
+  transform: scale(var(--device-scale, 1));
+  transform-origin: top left;
   padding: 9px;
   border: 1px solid rgba(255,255,255,.13);
   border-radius: 43px;
@@ -151,11 +182,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   border: 0;
   background: #101114;
 }
-.preview-caption {
-  color: var(--subtle);
-  font-size: 10px;
-  letter-spacing: .035em;
-}
+.preview-caption { color: var(--subtle); font-size: 10px; letter-spacing: .035em; }
 .panel {
   display: flex;
   flex-direction: column;
@@ -299,20 +326,21 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   font-size: 9px;
   line-height: 1.5;
 }
-@media (max-width: 1150px) {
-  .showcase { width: min(850px, calc(100% - 36px)); grid-template-columns: minmax(320px, 430px) minmax(290px, 350px); gap: 24px; }
-  .intro { display: none; }
+@media (max-width: 1050px) {
+  .showcase { width: min(900px, calc(100% - 36px)); grid-template-columns: minmax(0, 1fr) minmax(290px, 330px); gap: 24px; }
 }
 @media (max-width: 760px) {
   body { overflow: auto; }
-  .showcase { width: min(100% - 28px, 520px); min-height: 0; padding: 20px 0 30px; grid-template-columns: minmax(0,1fr); gap: 20px; }
-  .device-frame { width: min(100%, 430px); height: min(76svh, 850px); min-height: 540px; }
+  .showcase { width: min(100% - 28px, 620px); min-height: 0; padding: 18px 0 30px; grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .preview-toolbar { max-width: 100%; }
   .panel { min-height: 0; max-height: none; }
   .panel-content { max-height: 70vh; }
 }
 @media (max-width: 390px) {
   .showcase { width: calc(100% - 18px); }
-  .device-frame { min-height: 500px; padding: 7px; border-radius: 34px; }
+  .device-frame { padding: 7px; border-radius: 34px; }
+  .preview-toolbar { gap: 6px; }
+  .preview-toolbar select, .preview-toolbar button { padding: 0 8px; font-size: 10px; }
   .device-screen { border-radius: 27px; }
   .panel { border-radius: 19px; }
   .select-row { grid-template-columns: minmax(0,1fr) minmax(128px, 146px); }
@@ -324,25 +352,26 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 </head>
 <body>
 <main class="showcase">
-  <aside class="intro" aria-label="Prototype information">
-    <div class="eyebrow">Interactive workspace · 01</div>
-    <h1>XtMapper<br>Prototype Lab</h1>
-    <p>A browser-based preview of the XtMapper main screen. The phone frame contains the activity; the controls beside it simulate device and permission states.</p>
-    <div class="tag-row">
-      <span class="tag">Interactive</span>
-      <span class="tag">Responsive</span>
-      <span class="tag">Dark theme</span>
-      <span class="tag">Web prototype</span>
+  <section class="preview" aria-label="Device preview">
+    <div class="preview-toolbar">
+      <label for="devicePreset">Device preview</label>
+      <select id="devicePreset" aria-label="Choose preview device">
+        <option value="android">Android phone · 393 × 852</option>
+        <option value="pixel">Pixel 8 · 412 × 915</option>
+        <option value="galaxy">Galaxy S24 · 360 × 780</option>
+        <option value="compact">Compact Android · 360 × 800</option>
+        <option value="tablet">Android tablet · 800 × 1280</option>
+        <option value="custom">Custom size…</option>
+      </select>
+      <button id="rotateDevice" type="button" aria-label="Rotate device">Rotate</button>
     </div>
-  </aside>
-
-  <section class="preview" aria-label="Phone preview">
-    <div class="device-frame">
-      <div class="device-screen">
-        <iframe id="activityFrame" src="activities/MainActivity.html" title="XtMapper Main Activity preview" loading="eager"></iframe>
+    <div class="preview-stage" id="previewStage">
+      <div class="device-frame" id="deviceFrame">
+        <div class="device-screen">
+          <iframe id="activityFrame" src="activities/MainActivity.html" title="XtMapper app preview" loading="eager"></iframe>
+        </div>
       </div>
     </div>
-    <div class="preview-caption">MAIN ACTIVITY · RESPONSIVE PHONE PREVIEW</div>
   </section>
 
   <aside class="panel" aria-labelledby="panelTitle">
@@ -454,6 +483,64 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 
 <script>
 const activityFrame = document.getElementById("activityFrame");
+const previewStage = document.getElementById("previewStage");
+const deviceFrame = document.getElementById("deviceFrame");
+const devicePreset = document.getElementById("devicePreset");
+const deviceSizes = {
+  android: { width: 393, height: 852 },
+  pixel: { width: 412, height: 915 },
+  galaxy: { width: 360, height: 780 },
+  compact: { width: 360, height: 800 },
+  tablet: { width: 800, height: 1280 }
+};
+let activeDevice = { ...deviceSizes.android };
+let deviceRotated = false;
+
+function fitDevicePreview() {
+  if (!previewStage || !deviceFrame) return;
+  const frameWidth = activeDevice.width + 18;
+  const frameHeight = activeDevice.height + 18;
+  const availableWidth = Math.max(220, previewStage.parentElement.clientWidth);
+  const availableHeight = Math.max(360, window.innerHeight - 150);
+  const scale = Math.min(1, availableWidth / frameWidth, availableHeight / frameHeight);
+  previewStage.style.setProperty("--stage-width", `${frameWidth * scale}px`);
+  previewStage.style.setProperty("--stage-height", `${frameHeight * scale}px`);
+  previewStage.style.setProperty("--frame-width", `${frameWidth}px`);
+  previewStage.style.setProperty("--frame-height", `${frameHeight}px`);
+  previewStage.style.setProperty("--device-scale", String(scale));
+  deviceFrame.style.width = `${frameWidth}px`;
+  deviceFrame.style.height = `${frameHeight}px`;
+}
+
+function applyDevicePreset(name) {
+  if (name === "custom") {
+    const width = Number(prompt("Viewport width in CSS pixels", String(activeDevice.width)));
+    if (!Number.isInteger(width) || width < 280 || width > 1600) {
+      devicePreset.value = Object.keys(deviceSizes).find(key => key !== "tablet" && deviceSizes[key].width === activeDevice.width && deviceSizes[key].height === activeDevice.height) || "android";
+      return;
+    }
+    const height = Number(prompt("Viewport height in CSS pixels", String(activeDevice.height)));
+    if (!Number.isInteger(height) || height < 400 || height > 2400) {
+      devicePreset.value = "android";
+      activeDevice = { ...deviceSizes.android };
+    } else {
+      activeDevice = { width, height };
+    }
+  } else {
+    activeDevice = { ...(deviceSizes[name] || deviceSizes.android) };
+  }
+  deviceRotated = false;
+  fitDevicePreview();
+}
+
+devicePreset.addEventListener("change", () => applyDevicePreset(devicePreset.value));
+document.getElementById("rotateDevice").addEventListener("click", () => {
+  [activeDevice.width, activeDevice.height] = [activeDevice.height, activeDevice.width];
+  deviceRotated = !deviceRotated;
+  fitDevicePreview();
+});
+window.addEventListener("resize", fitDevicePreview);
+fitDevicePreview();
 const stateFieldIds = [
   "simProfileScenario", "simApi",
   "rootAccess", "shizukuInstalled", "shizukuRunning", "shizukuAuthorized",
