@@ -3076,9 +3076,7 @@ async function initialiseGoogleMaterialSymbols() {
   }
 }
 initialiseGoogleMaterialSymbols();
-updateAll();
-refreshBrowserDevices();
-prototypeReady = true;
+
 
 
 /* Same-origin bridge: workspace controls update Activity simulation state directly. */
@@ -3168,5 +3166,9 @@ window.addEventListener("message", event => {
 });
 window.addEventListener("load", notifyPrototypeParent, { once: true });
 
+updateAll();
+refreshBrowserDevices();
+prototypeReady = true;
+notifyPrototypeParent();
 </script>
 </body></html>
