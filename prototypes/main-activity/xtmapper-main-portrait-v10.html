@@ -1817,7 +1817,9 @@ function loadState() {
       previewGames: Array.isArray(saved.previewGames)
         ? saved.previewGames
         : (savedGames.some(g => g?.id?.startsWith("sample-")) ? savedGames.filter(g => g?.id?.startsWith("sample-")) : structuredCloneSafe(defaultGames)),
-      libraryScenario: ["samples", "empty", "current"].includes(saved.libraryScenario) ? saved.libraryScenario : "samples",
+      libraryScenario: ["samples", "empty", "current"].includes(saved.libraryScenario)
+        ? saved.libraryScenario
+        : (savedGames.some(g => g && typeof g.id === "string" && !g.id.startsWith("sample-")) ? "current" : "samples"),
       permissions: { ...DEFAULT_STATE.permissions, ...(saved.permissions || {}) },
       settings: { ...DEFAULT_STATE.settings, ...(saved.settings || {}) },
       designatedProfiles: saved.designatedProfiles || {}
@@ -2785,6 +2787,7 @@ byId("backupFile").addEventListener("change", async event => {
   if (!file) return;
   try {
     const entries = await unzipEntries(await file.arrayBuffer());
+    const previousScenario = state.libraryScenario;
     state.libraryScenario = "current";
     let imported = 0;
     for (const entry of entries) {
@@ -2800,7 +2803,10 @@ byId("backupFile").addEventListener("change", async event => {
       if (!state.games.some(game => game.id === state.selectedId) && state.games[0]) state.selectedId = state.games[0].id;
       updateAll();
       showToast(`${imported} profile(s) imported`);
-    } else showToast("All imported profile names already exist");
+    } else {
+      state.libraryScenario = previousScenario;
+      showToast("All imported profile names already exist");
+    }
   } catch (error) {
     openDialog("Import failed", error?.message || "The selected ZIP archive could not be read.");
   }
