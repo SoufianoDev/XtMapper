@@ -113,6 +113,11 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   font-size: 10px;
 }
 .preview { min-width: 0; display: grid; justify-items: center; align-content: center; gap: 14px; }
+.showcase--landscape-preview { align-items: start; }
+.showcase--landscape-preview .preview {
+  align-self: start;
+  align-content: start;
+}
 .preview-toolbar {
   width: min(100%, 620px);
   display: flex;
