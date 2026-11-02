@@ -67,6 +67,8 @@ export class DevicePreview {
     this.frameSize = null;
     this.renderGeneration = 0;
     this.resizeObserver = null;
+    this.fitFrameRequest = 0;
+    this.viewportResizeHandler = null;
   }
 
   init() {
@@ -88,12 +90,22 @@ export class DevicePreview {
 
     this.rotateButton.addEventListener("click", () => this.rotate());
 
+    // Observe the preview container for element-level layout changes, but
+    // always listen to viewport changes as well. A window can become shorter
+    // without changing the preview element's intrinsic size, so ResizeObserver
+    // alone cannot keep the frame inside the visible viewport.
     if ("ResizeObserver" in window) {
-      this.resizeObserver = new ResizeObserver(() => this.fitCurrentFrame());
-      this.resizeObserver.observe(this.stage.parentElement);
-    } else {
-      window.addEventListener("resize", () => this.fitCurrentFrame());
+      this.resizeObserver = new ResizeObserver(() => this.scheduleFitCurrentFrame());
+      this.resizeObserver.observe(this.preview || this.stage.parentElement);
     }
+
+    this.viewportResizeHandler = () => this.scheduleFitCurrentFrame();
+    window.addEventListener("resize", this.viewportResizeHandler, { passive: true });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", this.viewportResizeHandler, { passive: true });
+    }
+
     return this.render();
   }
 
@@ -418,11 +430,40 @@ export class DevicePreview {
     this.fitCurrentFrame();
   }
 
+  scheduleFitCurrentFrame() {
+    if (this.fitFrameRequest) cancelAnimationFrame(this.fitFrameRequest);
+
+    this.fitFrameRequest = requestAnimationFrame(() => {
+      this.fitFrameRequest = 0;
+      this.fitCurrentFrame();
+    });
+  }
+
   fitCurrentFrame() {
     if (!this.frameSize || !this.stage || !this.frame) return;
 
-    const availableWidth = Math.max(220, this.stage.parentElement.clientWidth - 12);
-    const availableHeight = Math.max(180, window.innerHeight - 150);
+    const preview = this.preview || this.stage.parentElement;
+    const showcase = this.showcase || preview.parentElement;
+    const viewportHeight = window.visualViewport
+      ? Math.min(window.innerHeight, window.visualViewport.height)
+      : window.innerHeight;
+    const stageTop = Math.max(0, this.stage.getBoundingClientRect().top);
+    const previewStyles = getComputedStyle(preview);
+    const showcaseStyles = getComputedStyle(showcase);
+    const rowGap = Number.parseFloat(previewStyles.rowGap) || 0;
+    const captionHeight = this.caption
+      ? this.caption.getBoundingClientRect().height
+      : 0;
+    const bottomPadding = Number.parseFloat(showcaseStyles.paddingBottom) || 0;
+    const bottomSafetySpace = 20;
+
+    // Measure the real space remaining below the stage instead of assuming
+    // that every browser window has the same toolbar/header height.
+    const availableWidth = Math.max(1, preview.clientWidth - 12);
+    const availableHeight = Math.max(
+      1,
+      viewportHeight - stageTop - rowGap - captionHeight - bottomPadding - bottomSafetySpace
+    );
     const scale = calculatePreviewScale(
       this.frameSize.width,
       this.frameSize.height,
