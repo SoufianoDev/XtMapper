@@ -1550,6 +1550,34 @@ body > dialog { max-width:min(340px, calc(100vw - 28px)); }
   .empty-library-actions .filled-button, .empty-library-actions .text-button { width:100%; }
 }
 
+
+/* Create-profile confirmation: identify the selected app and keep its package immutable. */
+.create-profile-confirmation { display:flex; flex-direction:column; gap:12px; }
+.create-profile-app-summary {
+  display:flex; align-items:center; gap:12px; min-width:0;
+  padding:11px; border:1px solid rgba(235,115,139,.20); border-radius:14px;
+  background:linear-gradient(140deg,rgba(73,35,51,.70),rgba(34,31,42,.86));
+}
+.create-profile-app-icon {
+  display:block; flex:0 0 48px; width:48px; height:48px;
+  border:1px solid rgba(255,255,255,.14); border-radius:13px; object-fit:cover;
+}
+.create-profile-app-copy { min-width:0; }
+.create-profile-app-name { color:#fff; font-size:14px; line-height:19px; font-weight:700; overflow-wrap:anywhere; }
+.create-profile-selected-label { margin-top:3px; color:#ff9aac; font-size:11px; }
+.create-profile-package {
+  min-width:0; padding:10px 11px; border:1px solid rgba(255,255,255,.08);
+  border-radius:11px; background:rgba(10,11,15,.36);
+}
+.create-profile-package code {
+  display:block; margin-top:5px; color:#d3cbd4; font:11px/16px ui-monospace,SFMono-Regular,Consolas,monospace;
+  overflow-wrap:anywhere; user-select:text;
+}
+.create-profile-field-label { display:block; color:#f3edf1; font-size:12px; font-weight:700; }
+.create-profile-name-label { margin-top:2px; }
+.create-profile-help { margin:-7px 0 0; color:#aaa4af; font-size:11px; line-height:16px; }
+.dialog-content:has(.create-profile-confirmation) .dialog-input { margin-top:8px; }
+
 </style>
 </head>
 <body>
@@ -2510,6 +2538,83 @@ function addProfile(app, name) {
   updateAll();
   showToast("Profile created and selected");
 }
+function showCreateProfileConfirmation(app) {
+  const host = document.createElement("div");
+  host.className = "create-profile-confirmation";
+
+  const summary = document.createElement("div");
+  summary.className = "create-profile-app-summary";
+
+  const icon = document.createElement("img");
+  icon.className = "create-profile-app-icon";
+  icon.alt = "";
+  setAppIconSource(icon, app.image);
+
+  const appCopy = document.createElement("div");
+  appCopy.className = "create-profile-app-copy";
+
+  const appName = document.createElement("div");
+  appName.className = "create-profile-app-name";
+  appName.textContent = app.name;
+
+  const selectedLabel = document.createElement("div");
+  selectedLabel.className = "create-profile-selected-label";
+  selectedLabel.textContent = "Selected app";
+
+  appCopy.append(appName, selectedLabel);
+  summary.append(icon, appCopy);
+
+  const packageBlock = document.createElement("div");
+  packageBlock.className = "create-profile-package";
+  const packageLabel = document.createElement("div");
+  packageLabel.className = "create-profile-field-label";
+  packageLabel.textContent = "App package · fixed";
+  const packageValue = document.createElement("code");
+  packageValue.textContent = app.packageName;
+  packageBlock.append(packageLabel, packageValue);
+
+  const profileLabel = document.createElement("label");
+  profileLabel.className = "create-profile-field-label create-profile-name-label";
+  profileLabel.htmlFor = "dialogInput";
+  profileLabel.textContent = "Profile name";
+
+  const help = document.createElement("p");
+  help.className = "create-profile-help";
+  help.id = "profileNameHelp";
+  help.textContent = "This name identifies the keymap profile only. The selected app and its package ID will not change.";
+
+  host.append(summary, packageBlock, profileLabel, help);
+
+  openCustomDialog(
+    "Create profile",
+    `Create an enabled keymap profile for ${app.name}?`,
+    host,
+    {
+      input: true,
+      value: app.packageName,
+      placeholder: "Profile name",
+      confirmText: "Create profile",
+      cancelText: "Cancel",
+      onConfirm: value => addProfile(app, value)
+    }
+  );
+
+  const input = byId("dialogInput");
+  input.setAttribute("aria-label", "Profile name");
+  input.setAttribute("aria-describedby", "profileNameHelp");
+}
+
+function openProfileZipPicker() {
+  const input = byId("backupFile");
+  if (!input) {
+    showToast("ZIP file picker is unavailable in this browser.");
+    return;
+  }
+  backupInputMode = "import";
+  input.value = "";
+  input.click();
+}
+
 function openAppPicker(flow, profileId = null) {
   selectedProfileForPicker = profileId;
   const host = document.createElement("div");
@@ -2550,13 +2655,7 @@ function openAppPicker(flow, profileId = null) {
       button.addEventListener("click", () => {
         if (byId("dialog").open) byId("dialog").close();
         if (flow === "create") {
-          openDialog("Create profile", `Create an enabled keymap profile for ${app.name}. The Android app defaults the profile name to the selected package name.`, {
-            input: true,
-            value: app.packageName,
-            placeholder: "Profile name",
-            confirmText: "Create profile",
-            onConfirm: value => addProfile(app, value)
-          });
+          showCreateProfileConfirmation(app);
         } else {
           const game = games().find(g => g.id === selectedProfileForPicker);
           if (!game) return;
@@ -3089,7 +3188,7 @@ byId("featuredMenu").addEventListener("click", () => { if (selectedGame()) showP
 byId("editFeaturedButton").addEventListener("click", () => { if (selectedGame()) showEditorBoundary(selectedGame()); });
 byId("addGameButton").addEventListener("click", () => openAppPicker("create"));
 byId("emptyAddGameButton").addEventListener("click", () => openAppPicker("create"));
-byId("emptyImportButton").addEventListener("click", showImportExport);
+byId("emptyImportButton").addEventListener("click", openProfileZipPicker);
 byId("rootMode").addEventListener("click", () => changeInputMode("root"));
 byId("shizukuMode").addEventListener("click", () => changeInputMode("shizuku"));
 byId("fixRoot").addEventListener("click", showRootAccessError);
