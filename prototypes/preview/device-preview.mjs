@@ -35,12 +35,6 @@ function loadTelephoneElement(frame) {
   return telephoneLoads.get(frame.tag);
 }
 
-function nextFrame() {
-  return new Promise(function (resolve) {
-    requestAnimationFrame(resolve);
-  });
-}
-
 function setIframeViewport(iframe, viewport) {
   iframe.style.display = "block";
   iframe.width = String(viewport.width);
