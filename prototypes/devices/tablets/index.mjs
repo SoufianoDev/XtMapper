@@ -15,5 +15,19 @@ export const tabletDevices = [
       mode: "dark"
     },
     mockup: null
+  },
+  {
+    id: "galaxy-tab-s7",
+    name: "Samsung Galaxy Tab S7",
+    type: "tablet",
+    viewport: { width: 800, height: 1280 },
+    frame: { renderer: "css", padding: 12 },
+    mockup: {
+      provider: "Mobile FIRST",
+      sourcePageUrl: "https://www.webmobilefirst.com/en/mockups/samsung-galaxy-tab-s7/",
+      asset: null,
+      screenRect: null,
+      licenseStatus: "pending-asset-specific-review"
+    }
   }
 ];
