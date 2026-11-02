@@ -84,8 +84,8 @@ class AsyncLogWorkerTest {
         worker.start()
         val thread = worker.threadReference()
         assertSameThread(thread, worker)
-        worker.close(2_000)
-        // join already happened inside close; joining again returns immediately.
+        assertTrue(worker.close(2_000))
+        // File closure is signalled before the worker thread returns.
         thread.join(4_000)
         assertFalse(thread.isAlive)
     }
@@ -102,7 +102,8 @@ class AsyncLogWorkerTest {
         assertTrue(worker.flush(2_000))
         assertTrue(writer.unavailable)
         assertTrue(worker.threadReference().isAlive)
-        worker.close(2_000)
+        assertTrue(worker.close(2_000))
+        worker.threadReference().join(2_000)
         assertFalse(worker.threadReference().isAlive)
     }
 
@@ -135,7 +136,8 @@ class AsyncLogWorkerTest {
         assertTrue(worker.flush(2_000))
         assertEquals(1, worker.droppedCount)
         assertEquals(3, worker.uncertainCount)
-        worker.close(2_000)
+        assertTrue(worker.close(2_000))
+        worker.threadReference().join(2_000)
         assertFalse(worker.threadReference().isAlive)
     }
 
@@ -157,13 +159,18 @@ class AsyncLogWorkerTest {
         val (_, queue, worker) = buildWorker(FileSystemLogStore(tmp.newFolder()), batchMaxRecords = 0)
         queue.offer(record("crash-me"))
         worker.start()
-        assertTrue("flush drains despite the dead worker", worker.flush(2_000))
+        assertTrue("flush drains after batch construction failure", worker.flush(2_000))
         assertEquals(0, queue.pendingWrites.get())
         assertEquals(0, queue.size)
         assertEquals(1, worker.uncertainCount)
         assertEquals(0, worker.droppedCount)
-        worker.close(2_000)
+        worker.threadReference().join(2_000)
         assertFalse(worker.threadReference().isAlive)
+        assertTrue(worker.isClosed)
+        assertTrue(queue.isClosed)
+        assertFalse(queue.offer(record("rejected")))
+        assertTrue(worker.lastError() is IllegalArgumentException)
+        assertTrue(worker.close(2_000))
     }
 
     private class SimulatedWriteError(message: String) : Error(message)
