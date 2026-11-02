@@ -246,14 +246,17 @@ export class DevicePreview {
       throw new Error("Telephone screenshot viewport was not found.");
     }
 
-    const bounds = screenshot.getBoundingClientRect();
-    if (bounds.width <= 0 || bounds.height <= 0) {
+    // clientWidth/clientHeight remain in the component's local portrait
+    // coordinate space even after the outer Telephone element is rotated.
+    const screenWidth = screenshot.clientWidth;
+    const screenHeight = screenshot.clientHeight;
+    if (screenWidth <= 0 || screenHeight <= 0) {
       throw new Error("Telephone screenshot viewport has no measurable size.");
     }
 
     const placement = calculateViewportPlacement(
-      bounds.width,
-      bounds.height,
+      screenWidth,
+      screenHeight,
       viewport.width,
       viewport.height,
       this.orientation
