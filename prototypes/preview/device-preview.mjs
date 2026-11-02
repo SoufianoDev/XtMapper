@@ -96,8 +96,6 @@ export class DevicePreview {
     } else {
       window.addEventListener("resize", () => this.fitCurrentFrame());
     }
-
-    window.addEventListener("resize", () => this.fitCurrentFrame());
     return this.render();
   }
 
@@ -178,6 +176,20 @@ export class DevicePreview {
     const device = this.currentDevice;
     const viewport = getViewportForOrientation(this.currentViewport, this.orientation);
 
+    if (device.mockup &&
+        device.mockup.licenseStatus === "approved" &&
+        device.mockup.asset &&
+        device.mockup.screenRect &&
+        this.orientation === "portrait") {
+      try {
+        await this.renderMockup(device, viewport, generation);
+        return;
+      } catch (error) {
+        if (generation !== this.renderGeneration) return;
+        console.warn("Device mockup unavailable; using the built-in Android frame.", error);
+      }
+    }
+
     if (device.frame.renderer === "telephone" && this.orientation === "portrait") {
       try {
         await this.renderTelephone(device, viewport, generation);
@@ -249,6 +261,94 @@ export class DevicePreview {
     };
     this.frame.style.width = metrics.frameWidth + "px";
     this.frame.style.height = metrics.frameHeight + "px";
+    this.fitCurrentFrame();
+  }
+
+
+  async renderMockup(device, viewport, generation) {
+    const mockup = device.mockup;
+    const rectangle = mockup.screenRect;
+    const image = new Image();
+
+    image.src = mockup.asset;
+    if (typeof image.decode === "function") {
+      await image.decode();
+    } else {
+      await new Promise(function (resolve, reject) {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+    }
+
+    if (generation !== this.renderGeneration) return;
+
+    const validRectangle = rectangle &&
+      [rectangle.x, rectangle.y, rectangle.width, rectangle.height].every(Number.isFinite) &&
+      rectangle.x >= 0 && rectangle.y >= 0 &&
+      rectangle.width > 0 && rectangle.height > 0 &&
+      rectangle.x + rectangle.width <= image.naturalWidth &&
+      rectangle.y + rectangle.height <= image.naturalHeight;
+
+    if (!validRectangle) {
+      throw new Error("Mockup screen rectangle is missing or outside the source image.");
+    }
+
+    const assetScale = viewport.width / rectangle.width;
+    const frameWidth = image.naturalWidth * assetScale;
+    const frameHeight = image.naturalHeight * assetScale;
+    const screenWidth = rectangle.width * assetScale;
+    const screenHeight = rectangle.height * assetScale;
+    const screenFit = calculateScreenFit(
+      screenWidth,
+      screenHeight,
+      viewport.width,
+      viewport.height
+    );
+
+    const screen = document.createElement("div");
+    screen.className = "device-mockup";
+    screen.style.width = frameWidth + "px";
+    screen.style.height = frameHeight + "px";
+
+    const screenSurface = document.createElement("div");
+    screenSurface.className = "device-mockup__screen";
+    screenSurface.style.left = rectangle.x * assetScale + "px";
+    screenSurface.style.top = rectangle.y * assetScale + "px";
+    screenSurface.style.width = screenWidth + "px";
+    screenSurface.style.height = screenHeight + "px";
+
+    const screenRoot = document.createElement("div");
+    screenRoot.className = "device-mockup__viewport";
+    screenRoot.style.position = "absolute";
+    screenRoot.style.left = screenFit.offsetX + "px";
+    screenRoot.style.top = screenFit.offsetY + "px";
+    screenRoot.style.width = viewport.width + "px";
+    screenRoot.style.height = viewport.height + "px";
+    screenRoot.style.transformOrigin = "top left";
+    screenRoot.style.transform = "scale(" + screenFit.scale + ")";
+    screenRoot.style.overflow = "hidden";
+
+    setIframeViewport(this.iframe, viewport);
+    screenRoot.appendChild(this.iframe);
+    screenSurface.appendChild(screenRoot);
+
+    const overlay = document.createElement("img");
+    overlay.className = "device-mockup__frame";
+    overlay.src = image.src;
+    overlay.alt = "";
+    overlay.draggable = false;
+
+    screen.append(screenSurface, overlay);
+    this.frame.className = "device-frame device-frame--mockup";
+    this.frame.replaceChildren(screen);
+    this.frame.style.width = frameWidth + "px";
+    this.frame.style.height = frameHeight + "px";
+
+    this.frameSize = {
+      width: frameWidth,
+      height: frameHeight,
+      engine: mockup.provider || "Device mockup"
+    };
     this.fitCurrentFrame();
   }
 
