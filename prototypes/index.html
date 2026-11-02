@@ -457,9 +457,7 @@ const activityFrame = document.getElementById("activityFrame");
 const stateFieldIds = [
   "simProfileScenario", "simApi",
   "rootAccess", "shizukuInstalled", "shizukuRunning", "shizukuAuthorized",
-  "overlay", "notifications", "allFiles", "logSinkAvailable",
-  "browserNotificationState", "testBrowserNotification", "requestBrowserNotifications",
-  "browserStorageState", "browserStorageDetail", "requestPersistentStorage"
+  "overlay", "notifications", "allFiles", "logSinkAvailable"
 ];
 
 function requestActivityState() {
@@ -468,10 +466,10 @@ function requestActivityState() {
   }
 }
 
-function sendActivityControl(id, value, action = "change") {
+function sendActivityControl(id, value) {
   if (!activityFrame.contentWindow) return;
   activityFrame.contentWindow.postMessage(
-    { type: "xtmapper-prototype-control", id, value, action },
+    { type: "xtmapper-prototype-control", id, value, action: "change" },
     location.origin
   );
 }
@@ -491,12 +489,6 @@ function applyActivityState(state) {
         input.disabled = !!value.disabled;
       }
     }
-    document.querySelectorAll("[data-state-label]").forEach(label => {
-      if (label.dataset.stateLabel === id) label.textContent = value.textContent ?? label.textContent;
-    });
-    document.querySelectorAll("[data-bridge-action]").forEach(button => {
-      if (button.dataset.bridgeAction === id) button.disabled = !!value.disabled;
-    });
   }
 
   const summary = document.querySelector('[data-state-label="prototypeCurrentSummary"]');
@@ -515,10 +507,6 @@ document.querySelectorAll("[data-bridge-id]").forEach(control => {
   });
 });
 
-document.querySelectorAll("[data-bridge-action]").forEach(button => {
-  button.addEventListener("click", () => sendActivityControl(button.dataset.bridgeAction, null, "click"));
-});
-
 window.addEventListener("message", event => {
   if (event.source !== activityFrame.contentWindow || event.origin !== location.origin) return;
   if (event.data?.type === "xtmapper-prototype-state") applyActivityState(event.data.state);
@@ -528,6 +516,90 @@ activityFrame.addEventListener("load", () => {
   requestActivityState();
   window.setTimeout(requestActivityState, 250);
 });
+
+/* Browser capabilities belong to this top-level web page, not the Activity iframe. */
+const notificationState = document.querySelector('[data-state-label="browserNotificationState"]');
+const notificationRequest = document.querySelector('[data-bridge-action="requestBrowserNotifications"]');
+const notificationTest = document.querySelector('[data-bridge-action="testBrowserNotification"]');
+const storageState = document.querySelector('[data-state-label="browserStorageState"]');
+const storageDetail = document.querySelector('[data-state-label="browserStorageDetail"]');
+const storageRequest = document.querySelector('[data-bridge-action="requestPersistentStorage"]');
+
+async function refreshBrowserCapabilities() {
+  const notificationSupported = "Notification" in window;
+  if (notificationState) {
+    notificationState.textContent = notificationSupported
+      ? `Permission: ${Notification.permission}`
+      : "Unsupported";
+  }
+  if (notificationRequest) notificationRequest.disabled = !notificationSupported || Notification.permission === "granted";
+  if (notificationTest) notificationTest.disabled = !notificationSupported || Notification.permission !== "granted";
+
+  if (!navigator.storage?.persisted) {
+    if (storageState) storageState.textContent = "Unsupported";
+    if (storageDetail) storageDetail.textContent = "This browser does not expose persistent storage status.";
+    if (storageRequest) storageRequest.disabled = true;
+    return;
+  }
+  try {
+    const persisted = await navigator.storage.persisted();
+    if (storageState) storageState.textContent = persisted ? "Persistent" : "Not persistent";
+    if (storageRequest) storageRequest.disabled = persisted || !navigator.storage.persist;
+    if (storageDetail && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      const used = Number.isFinite(estimate.usage) ? `${(estimate.usage / 1048576).toFixed(1)} MB used` : "Usage unavailable";
+      const quota = Number.isFinite(estimate.quota) ? `${(estimate.quota / 1048576).toFixed(0)} MB quota` : "quota unavailable";
+      storageDetail.textContent = `${persisted ? "Browser persistence is already granted." : "Ask the browser to preserve this origin's local data."} ${used} · ${quota}.`;
+    }
+  } catch (_) {
+    if (storageState) storageState.textContent = "Unavailable";
+    if (storageDetail) storageDetail.textContent = "The browser did not return storage permission information.";
+    if (storageRequest) storageRequest.disabled = true;
+  }
+}
+
+notificationRequest?.addEventListener("click", async () => {
+  if (!("Notification" in window)) return;
+  if (!window.isSecureContext) {
+    if (notificationState) notificationState.textContent = "HTTPS required";
+    return;
+  }
+  try {
+    const permission = await Notification.requestPermission();
+    if (notificationState) notificationState.textContent = `Permission: ${permission}`;
+    await refreshBrowserCapabilities();
+  } catch (_) {
+    if (notificationState) notificationState.textContent = "Request unavailable";
+  }
+});
+
+notificationTest?.addEventListener("click", () => {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    const notification = new Notification("XtMapper prototype", {
+      body: "Browser notifications are working. This is not Android POST_NOTIFICATIONS."
+    });
+    notification.onclick = () => window.focus();
+  } catch (_) {
+    if (notificationState) notificationState.textContent = "Unable to display";
+  }
+});
+
+storageRequest?.addEventListener("click", async () => {
+  if (!navigator.storage?.persist) return;
+  try {
+    const granted = await navigator.storage.persist();
+    if (storageState) storageState.textContent = granted ? "Persistent" : "Not persistent";
+    if (storageDetail) storageDetail.textContent = granted
+      ? "Browser storage persistence has been granted."
+      : "The browser declined persistent storage.";
+    await refreshBrowserCapabilities();
+  } catch (_) {
+    if (storageState) storageState.textContent = "Unavailable";
+  }
+});
+
+refreshBrowserCapabilities();
 </script>
 </body>
 </html>
