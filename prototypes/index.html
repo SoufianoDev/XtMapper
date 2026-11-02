@@ -404,6 +404,11 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   .panel { border-radius: 19px; }
   .select-row { grid-template-columns: minmax(0,1fr) minmax(128px, 146px); }
 }
+/* Keep the preview and controls inside short landscape browser windows. */
+@media (max-height: 680px) and (min-width: 761px) {
+  .showcase { padding-top: 12px; padding-bottom: 12px; }
+  .panel { min-height: 0; max-height: calc(100vh - 24px); }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
