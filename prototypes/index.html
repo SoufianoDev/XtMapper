@@ -172,11 +172,9 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   position: absolute;
   top: 9px;
   left: 9px;
-  width: var(--device-width, 360px);
-  height: var(--device-height, 800px);
+  width: var(--device-width, 393px);
+  height: var(--device-height, 852px);
   overflow: hidden;
-  transform: scale(var(--preview-scale, 1));
-  transform-origin: top left;
   border-radius: 34px;
   background: #101114;
 }
@@ -391,21 +389,6 @@ button:focus-visible, select:focus-visible, input:focus-visible {
     <div class="panel-content">
       <div class="notice">Android and Shizuku states are simulated. Browser permissions below use real browser APIs and are separate from Android permissions.</div>
 
-      <section class="group" aria-labelledby="deviceGroupTitle">
-        <h3 class="group-title" id="deviceGroupTitle">Web preview device</h3>
-        <div class="select-row device-select-row">
-          <label for="previewDevice">Device size</label>
-          <select id="previewDevice">
-            <option value="android-compact" data-width="360" data-height="800" data-kind="phone" selected>Android phone · Compact</option>
-            <option value="pixel" data-width="412" data-height="915" data-kind="phone">Pixel · Standard</option>
-            <option value="android-large" data-width="432" data-height="960" data-kind="phone">Android phone · Large</option>
-            <option value="tablet" data-width="800" data-height="1280" data-kind="tablet">Android tablet</option>
-            <option value="custom" data-width="390" data-height="844" data-kind="phone">Custom viewport</option>
-          </select>
-        </div>
-        <div class="device-size" id="deviceDimensions" aria-live="polite">360 × 800 CSS px</div>
-      </section>
-
       <section class="group" aria-labelledby="libraryGroupTitle">
         <h3 class="group-title" id="libraryGroupTitle">Profile library</h3>
         <div class="select-row">
@@ -507,33 +490,6 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 const activityFrame = document.getElementById("activityFrame");
 const previewStage = document.getElementById("previewStage");
 const deviceFrame = document.getElementById("deviceFrame");
-const previewDevice = document.getElementById("previewDevice");
-const deviceDimensions = document.getElementById("deviceDimensions");
-
-function fitDevicePreview() {
-  if (!previewStage || !deviceFrame || !previewDevice) return;
-  const option = previewDevice.selectedOptions[0];
-  const width = Number(option.dataset.width);
-  const height = Number(option.dataset.height);
-  const availableWidth = Math.max(0, previewStage.clientWidth - 34);
-  const availableHeight = Math.max(0, previewStage.clientHeight - 34);
-  const scale = Math.min(1, availableWidth / width, availableHeight / height);
-  deviceFrame.style.setProperty("--device-width", `${width}px`);
-  deviceFrame.style.setProperty("--device-height", `${height}px`);
-  deviceFrame.style.setProperty("--preview-scale", String(Math.max(0.1, scale)));
-  deviceFrame.dataset.deviceKind = option.dataset.kind || "phone";
-  deviceDimensions.textContent = `${width} × ${height} CSS px · ${Math.round(scale * 100)}%`;
-}
-
-previewDevice.addEventListener("change", fitDevicePreview);
-if ("ResizeObserver" in window) {
-  new ResizeObserver(fitDevicePreview).observe(previewStage);
-} else {
-  window.addEventListener("resize", fitDevicePreview);
-}
-fitDevicePreview();
-const previewStage = document.getElementById("previewStage");
-const deviceFrame = document.getElementById("deviceFrame");
 const devicePreset = document.getElementById("devicePreset");
 const deviceSizes = {
   android: { width: 393, height: 852 },
@@ -557,6 +513,8 @@ function fitDevicePreview() {
   previewStage.style.setProperty("--frame-width", `${frameWidth}px`);
   previewStage.style.setProperty("--frame-height", `${frameHeight}px`);
   previewStage.style.setProperty("--device-scale", String(scale));
+  deviceFrame.style.setProperty("--device-width", `${activeDevice.width}px`);
+  deviceFrame.style.setProperty("--device-height", `${activeDevice.height}px`);
   deviceFrame.style.width = `${frameWidth}px`;
   deviceFrame.style.height = `${frameHeight}px`;
 }
