@@ -1,0 +1,3431 @@
+<!doctype html>
+<html lang="en" class="icons-pending">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101114">
+<title>XtMapper — Main Activity Screen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&icon_names=add,apps,arrow_forward,battery_full,check,chevron_right,close,delete,description,download,drive_file_rename_outline,folder_open,help,info,keyboard,layers,lock,more_vert,mouse,notifications,open_in_new,play_arrow,refresh,search,settings,signal_cellular_alt,sports_esports,swap_horiz,sync_alt,tune,upload,usb,warning,wifi&display=block" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  /* Brand red is a provisional design token until the README asset is sampled directly. */
+  --md-sys-color-primary: #e84556;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #5a202a;
+  --md-sys-color-on-primary-container: #ffdadd;
+  --md-sys-color-secondary: #c4c5cc;
+  --md-sys-color-on-secondary: #292a30;
+  --md-sys-color-secondary-container: #383a42;
+  --md-sys-color-on-secondary-container: #e2e2e9;
+  --md-sys-color-tertiary: #e4b66c;
+  --md-sys-color-on-tertiary: #352000;
+  --md-sys-color-surface: #101114;
+  --md-sys-color-surface-dim: #101114;
+  --md-sys-color-surface-container-lowest: #0b0c0f;
+  --md-sys-color-surface-container-low: #17191e;
+  --md-sys-color-surface-container: #1d2026;
+  --md-sys-color-surface-container-high: #262930;
+  --md-sys-color-surface-container-highest: #30343c;
+  --md-sys-color-on-surface: #f0f0f3;
+  --md-sys-color-on-surface-variant: #b9bbc3;
+  --md-sys-color-outline: #858791;
+  --md-sys-color-outline-variant: #41444d;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+  --shape-extra-small: 4px;
+  --shape-small: 8px;
+  --shape-medium: 12px;
+  --shape-large: 16px;
+  --shape-extra-large: 28px;
+  --shape-full: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+}
+* { box-sizing: border-box; }
+html { min-height: 100%; background: #090a0c; }
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 28px 14px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(232,69,86,.08), transparent 36rem),
+    #090a0c;
+  color: var(--md-sys-color-on-surface);
+  font-family: Roboto, "Arial", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: 400;
+  font-style: normal;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  font-feature-settings: "liga";
+  -webkit-font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  -webkit-font-smoothing: antialiased;
+}
+.stage { width: 100%; max-width: 430px; margin: 0 auto; }
+.phone {
+  width: 100%;
+  min-height: 890px;
+  overflow: hidden;
+  background: var(--md-sys-color-surface);
+  border: 1px solid #2b2d34;
+  border-radius: 30px;
+  box-shadow: 0 28px 90px rgba(0,0,0,.5);
+}
+.status-bar {
+  height: 28px;
+  padding: 6px 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #e4e4e8;
+  font-size: 12px;
+  font-weight: 600;
+}
+.system-icons { display: flex; align-items: center; gap: 5px; }
+.system-icons .material-symbols-rounded { font-size: 15px; }
+.app-bar {
+  min-height: 60px;
+  padding: 0 16px 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--md-sys-color-surface);
+}
+.app-title { font-size: 22px; font-weight: 700; letter-spacing: -.45px; }
+.icon-button {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: var(--shape-full);
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.icon-button:hover { background: rgba(255,255,255,.07); color: var(--md-sys-color-on-surface); }
+.icon-button:active { background: rgba(255,255,255,.13); }
+.icon-button .material-symbols-rounded { font-size: 23px; }
+main { padding: 0 16px 26px; }
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.section-title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -.25px;
+}
+.add-button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-full);
+  color: var(--md-sys-color-on-surface);
+  background: transparent;
+  font: 500 14px Roboto, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.add-button .material-symbols-rounded { font-size: 19px; }
+.add-button:hover { background: rgba(255,255,255,.06); }
+.service-row {
+  min-height: 66px;
+  margin: 4px 0 23px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--shape-large);
+  background: var(--md-sys-color-surface-container);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.service-mark {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--md-sys-color-outline);
+  box-shadow: 0 0 0 4px rgba(133,135,145,.12);
+}
+.service-mark.running {
+  background: #81c995;
+  box-shadow: 0 0 0 4px rgba(129,201,149,.13);
+}
+.service-copy { min-width: 0; flex: 1; }
+.eyebrow {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .55px;
+  text-transform: uppercase;
+}
+.service-state {
+  margin-top: 3px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.service-action {
+  min-height: 42px;
+  min-width: 100px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--shape-full);
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  font: 600 14px Roboto, sans-serif;
+  cursor: pointer;
+}
+.service-action.stop {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+.library-heading { margin-bottom: 13px; }
+.featured {
+  position: relative;
+  min-height: 166px;
+  overflow: hidden;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-large);
+  background: var(--md-sys-color-surface-container);
+}
+.featured img {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: block;
+  width: 78px;
+  height: 78px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 19px;
+  object-fit: contain;
+  background: #24262d;
+}
+.featured-content {
+  min-height: 164px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 5px;
+}
+.selected-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  margin-bottom: 0;
+  padding: 5px 9px;
+  border-radius: var(--shape-small);
+  background: rgba(16,17,20,.72);
+  color: #f4e7e9;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+.selected-label::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+}
+.featured h2 {
+  grid-column: 2;
+  grid-row: 2;
+  max-width: 100%;
+  margin: 0;
+  font-size: 20px;
+  line-height: 25px;
+  font-weight: 700;
+  letter-spacing: -.35px;
+  overflow-wrap: anywhere;
+}
+.featured-actions {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+.filled-button, .tonal-button, .outlined-button, .text-button {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 15px;
+  border-radius: var(--shape-full);
+  font: 600 13px Roboto, sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+}
+.filled-button {
+  border: 0;
+  color: var(--md-sys-color-on-primary);
+  background: var(--md-sys-color-primary);
+}
+.filled-button:hover { filter: brightness(1.08); }
+.tonal-button {
+  border: 0;
+  color: #f2f0f2;
+  background: rgba(30,31,35,.86);
+  backdrop-filter: blur(8px);
+}
+.tonal-button:hover { background: rgba(50,51,57,.92); }
+.outlined-button {
+  border: 1px solid var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface);
+  background: transparent;
+}
+.outlined-button:hover { background: rgba(255,255,255,.06); }
+.text-button {
+  border: 0;
+  color: var(--md-sys-color-primary);
+  background: transparent;
+  padding: 0 10px;
+}
+.filled-button .material-symbols-rounded,
+.tonal-button .material-symbols-rounded,
+.outlined-button .material-symbols-rounded { font-size: 18px; }
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.game-tile {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  min-height: 132px;
+  overflow: hidden;
+  padding: 13px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-large);
+  background: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease;
+}
+.game-tile:hover { border-color: #777983; background: var(--md-sys-color-surface-container-high); }
+.game-tile-wrap { position: relative; min-width: 0; }
+.tile-menu, .feature-menu {
+  position: absolute;
+  z-index: 2;
+  top: 7px;
+  right: 7px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(8,9,12,.62);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.tile-menu .material-symbols-rounded, .feature-menu .material-symbols-rounded { font-size: 21px; }
+.profile-actions { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+.profile-action {
+  min-height: 48px; width: 100%; padding: 0 10px; border: 0; border-radius: var(--shape-small);
+  display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+  color: var(--md-sys-color-on-surface); background: transparent; font: 500 14px Roboto, sans-serif;
+}
+.profile-action:hover { background: rgba(255,255,255,.07); }
+.profile-action .material-symbols-rounded { color: var(--md-sys-color-on-surface-variant); font-size: 21px; }
+.profile-action.danger, .profile-action.danger .material-symbols-rounded { color: var(--md-sys-color-error); }
+.game-tile:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+.game-tile img {
+  display: block;
+  width: 62px;
+  height: 62px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  object-fit: contain;
+  background: #24262d;
+}
+.tile-info {
+  width: 100%;
+  min-height: 34px;
+  padding: 0 22px 0 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.tile-title {
+  overflow: hidden;
+  color: var(--md-sys-color-on-surface);
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile-subtitle {
+  margin-top: 3px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+  line-height: 15px;
+}
+.game-tile .tile-menu {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(8,9,12,.58);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.tile-menu .material-symbols-rounded { font-size: 20px; }
+.empty-library {
+  display: none;
+  padding: 28px 16px;
+  border: 1px dashed var(--md-sys-color-outline);
+  border-radius: var(--shape-large);
+  text-align: center;
+  color: var(--md-sys-color-on-surface-variant);
+}
+.divider { height: 1px; margin: 22px 0 18px; background: var(--md-sys-color-outline-variant); }
+.subsection { margin-top: 19px; }
+.subsection .section-title { font-size: 17px; line-height: 24px; }
+.mode-panel {
+  margin-top: 9px;
+  padding: 13px 14px;
+  border-radius: var(--shape-large);
+  background: var(--md-sys-color-surface-container);
+}
+.mode-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.mode-label { font-size: 14px; font-weight: 600; }
+.mode-help { color: var(--md-sys-color-on-surface-variant); font-size: 11px; }
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-full);
+  background: var(--md-sys-color-surface-container-lowest);
+}
+.segment {
+  min-height: 42px;
+  border: 0;
+  border-radius: var(--shape-full);
+  color: var(--md-sys-color-on-surface-variant);
+  background: transparent;
+  font: 600 13px Roboto, sans-serif;
+  cursor: pointer;
+}
+.segment[aria-pressed="true"] {
+  color: #fff;
+  background: var(--md-sys-color-primary-container);
+  box-shadow: inset 0 0 0 1px rgba(232,69,86,.35);
+}
+.mode-warning {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 10px 11px;
+  border-radius: var(--shape-medium);
+  color: #f2d7a4;
+  background: rgba(228,182,108,.10);
+  font-size: 12px;
+  line-height: 17px;
+}
+.mode-warning .material-symbols-rounded { font-size: 18px; }
+.permission {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--shape-large);
+  color: var(--md-sys-color-on-error-container);
+  background: rgba(147,0,10,.26);
+}
+.permission > .material-symbols-rounded { font-size: 21px; }
+.permission-copy { flex: 1; min-width: 0; }
+.permission-title { font-size: 13px; font-weight: 600; }
+.permission-desc { margin-top: 2px; font-size: 11px; color: #e2b9b6; }
+.permission button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid rgba(255,180,171,.45);
+  border-radius: var(--shape-full);
+  color: #ffe1dd;
+  background: transparent;
+  font: 600 12px Roboto, sans-serif;
+  cursor: pointer;
+}
+.device-list { margin-top: 9px; display: flex; flex-direction: column; }
+.device-row {
+  min-height: 53px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-bottom: 1px solid rgba(133,135,145,.18);
+}
+.device-row:last-child { border-bottom: 0; }
+.device-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--shape-medium);
+  display: grid;
+  place-items: center;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface-variant);
+}
+.device-icon .material-symbols-rounded { font-size: 19px; }
+.device-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; }
+.device-kind { display: block; margin-top: 2px; color: var(--md-sys-color-on-surface-variant); font-size: 11px; }
+.connected-dot { width: 7px; height: 7px; border-radius: 50%; background: #81c995; }
+.no-devices {
+  display: none;
+  padding: 13px 0 4px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 13px;
+}
+.device-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.data-row {
+  min-height: 58px;
+  margin-top: 8px;
+  padding-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+.data-label { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 500; }
+.data-label .material-symbols-rounded { color: var(--md-sys-color-on-surface-variant); font-size: 20px; }
+.menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: 73px;
+  right: 18px;
+  width: 205px;
+  padding: 6px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-large);
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: 0 8px 28px rgba(0,0,0,.38);
+  display: none;
+}
+.menu-popover.open { display: block; }
+.menu-item {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--shape-small);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  font: 500 13px Roboto, sans-serif;
+  cursor: pointer;
+}
+.menu-item:hover { background: rgba(255,255,255,.07); }
+.menu-item .material-symbols-rounded { font-size: 19px; color: var(--md-sys-color-on-surface-variant); }
+dialog {
+  width: min(340px, calc(100% - 32px));
+  padding: 0;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-extra-large);
+  color: var(--md-sys-color-on-surface);
+  background: var(--md-sys-color-surface-container-high);
+  box-shadow: 0 18px 60px rgba(0,0,0,.5);
+}
+dialog::backdrop { background: rgba(0,0,0,.64); backdrop-filter: blur(3px); }
+.dialog-content { padding: 22px 22px 10px; }
+.dialog-title { margin: 0; font-size: 20px; line-height: 26px; font-weight: 700; }
+.dialog-message { margin: 10px 0 0; color: var(--md-sys-color-on-surface-variant); font-size: 14px; line-height: 21px; }
+.dialog-input {
+  width: 100%;
+  height: 48px;
+  margin-top: 16px;
+  padding: 0 12px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--shape-small);
+  background: var(--md-sys-color-surface-container-lowest);
+  color: var(--md-sys-color-on-surface);
+  font: 15px Roboto, sans-serif;
+}
+.dialog-actions { padding: 14px 16px 16px; display: flex; justify-content: flex-end; gap: 8px; }
+.toast {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: 25px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 16px;
+  border-radius: var(--shape-small);
+  color: #f5f1f2;
+  background: #303238;
+  box-shadow: 0 4px 18px rgba(0,0,0,.35);
+  font-size: 13px;
+  line-height: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 12px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.artwork-note {
+  margin: 13px auto 0;
+  max-width: 430px;
+  color: #8d9099;
+  font-size: 11px;
+  line-height: 16px;
+}
+.artwork-note a { color: #bfc1c8; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 460px) {
+  body { padding: 0; background: var(--md-sys-color-surface); }
+  .phone { min-height: 100svh; border: 0; border-radius: 0; box-shadow: none; }
+  .stage { max-width: none; }
+  .artwork-note { padding: 0 16px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
+
+/* v6 — restrained premium gaming treatment, layered over the Material 3 structure. */
+:root {
+  --brand-crimson: #f05268;
+  --brand-red-deep: #9f1834;
+  --brand-red-shadow: #35131d;
+  --brand-gradient: linear-gradient(112deg, #f05268 0%, #d62d4b 48%, #a51b39 100%);
+}
+body {
+  background:
+    radial-gradient(ellipse at 50% -8%, rgba(200, 31, 58, .18), transparent 31rem),
+    radial-gradient(ellipse at 100% 48%, rgba(111, 22, 41, .08), transparent 28rem),
+    #08090c;
+}
+.phone {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.012), transparent 180px),
+    #101114;
+  border-color: #343039;
+  box-shadow: 0 30px 100px rgba(0,0,0,.58), 0 0 48px rgba(137,19,42,.08);
+}
+.app-bar {
+  background: linear-gradient(180deg, rgba(255,255,255,.018), rgba(16,17,20,0));
+}
+.service-row {
+  border: 1px solid rgba(255,255,255,.055);
+  background: linear-gradient(112deg, #202127 0%, #1a1c22 72%, #191a20 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+.service-action:not(.stop) {
+  background: linear-gradient(110deg, #e8455e 0%, #c72b49 100%);
+  box-shadow: 0 4px 13px rgba(190,31,61,.19);
+}
+.featured {
+  isolation: isolate;
+  border: 1px solid rgba(244,91,113,.34);
+  background:
+    radial-gradient(ellipse at 12% 4%, rgba(255,91,112,.2), transparent 54%),
+    radial-gradient(ellipse at 96% 100%, rgba(111,18,42,.27), transparent 48%),
+    linear-gradient(116deg, #451923 0%, #321720 40%, #242027 72%, #1d2027 100%);
+  box-shadow:
+    0 12px 30px rgba(0,0,0,.2),
+    inset 0 1px 0 rgba(255,255,255,.075),
+    inset 0 -1px 0 rgba(0,0,0,.18);
+}
+.featured::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(124deg, transparent 0 42%, rgba(255,255,255,.035) 49%, transparent 57%),
+    radial-gradient(ellipse at 82% -22%, rgba(248,73,101,.14), transparent 38%);
+}
+.featured::after {
+  content: "";
+  position: absolute;
+  top: -42px;
+  right: 42px;
+  width: 118px;
+  height: 118px;
+  border: 1px solid rgba(255,190,199,.075);
+  border-radius: 34px;
+  transform: rotate(28deg);
+  pointer-events: none;
+}
+.featured-content { position: relative; z-index: 1; }
+.featured img {
+  border-color: rgba(255,255,255,.2);
+  border-radius: 20px;
+  background: #17191f;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.025);
+}
+.selected-label {
+  border: 1px solid rgba(255,255,255,.105);
+  background: rgba(11,10,14,.45);
+  color: #fff0f2;
+  letter-spacing: .15px;
+}
+.selected-label::before {
+  background: #ff6178;
+  box-shadow: 0 0 9px rgba(255,84,112,.72);
+}
+.featured h2 { text-shadow: 0 1px 12px rgba(0,0,0,.18); }
+.featured .filled-button {
+  background: var(--brand-gradient);
+  box-shadow: 0 5px 16px rgba(192,25,57,.26), inset 0 1px 0 rgba(255,255,255,.18);
+  transition: filter .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+.featured .filled-button:hover {
+  filter: brightness(1.08) saturate(1.04);
+  box-shadow: 0 7px 19px rgba(192,25,57,.32), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.featured .filled-button:active { transform: translateY(1px); }
+.featured .tonal-button {
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(13,13,17,.34);
+}
+.featured .tonal-button:hover { background: rgba(13,13,17,.58); }
+.feature-menu {
+  border: 1px solid rgba(255,255,255,.11);
+  background: rgba(12,10,14,.38);
+}
+.game-tile {
+  border-color: #343640;
+  background: linear-gradient(145deg, #202229 0%, #1b1d23 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+.game-tile:hover {
+  border-color: rgba(226,77,99,.48);
+  background: linear-gradient(145deg, #29232b 0%, #202128 100%);
+}
+.game-tile img {
+  border-color: rgba(255,255,255,.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
+.segment[aria-pressed="true"] {
+  background: linear-gradient(112deg, #54212d 0%, #3e1b26 100%);
+  box-shadow: inset 0 0 0 1px rgba(240,82,104,.43), 0 2px 8px rgba(0,0,0,.16);
+}
+.add-button { border-color: #49424b; }
+.add-button:hover { border-color: rgba(240,82,104,.52); }
+.icon-button:hover { color: #fff; }
+@media (max-width: 460px) {
+  body { background: #101114; }
+  .phone { box-shadow: none; }
+}
+
+
+
+/* v7 — full-screen premium brand treatment.
+   Gradients are applied consistently across the screen and interactive surfaces,
+   while keeping text contrast and Material state hierarchy intact. */
+:root {
+  --brand-gradient-screen:
+    radial-gradient(ellipse at 8% 8%, rgba(170, 24, 53, .22), transparent 34%),
+    radial-gradient(ellipse at 96% 28%, rgba(112, 20, 45, .16), transparent 32%),
+    radial-gradient(ellipse at 50% 100%, rgba(88, 16, 38, .13), transparent 42%),
+    linear-gradient(155deg, #171016 0%, #111116 38%, #0d1016 72%, #151016 100%);
+  --brand-gradient-surface:
+    linear-gradient(135deg, rgba(65, 27, 40, .92) 0%, rgba(35, 27, 37, .96) 48%, rgba(26, 29, 37, .98) 100%);
+  --brand-gradient-raised:
+    linear-gradient(145deg, #30202a 0%, #24212b 48%, #1b2029 100%);
+  --brand-gradient-control:
+    linear-gradient(112deg, #f15b70 0%, #d93655 48%, #a91e3c 100%);
+  --brand-gradient-muted:
+    linear-gradient(120deg, rgba(117, 34, 55, .42), rgba(51, 31, 46, .58) 54%, rgba(30, 35, 46, .72));
+}
+html { background: #09090e; }
+body {
+  background:
+    radial-gradient(ellipse at 50% -12%, rgba(232, 52, 83, .24), transparent 38rem),
+    radial-gradient(ellipse at 0% 65%, rgba(112, 26, 57, .14), transparent 30rem),
+    linear-gradient(160deg, #09090e 0%, #100d13 48%, #090d13 100%);
+}
+.phone {
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(184, 34, 64, .20), transparent 33rem),
+    radial-gradient(ellipse at 100% 40%, rgba(88, 29, 55, .12), transparent 27rem),
+    linear-gradient(160deg, #191219 0%, #111117 42%, #0e1118 76%, #151017 100%);
+  border-color: rgba(236, 104, 126, .24);
+  box-shadow: 0 30px 100px rgba(0,0,0,.62), 0 0 64px rgba(160,25,57,.13);
+}
+.status-bar {
+  background: linear-gradient(90deg, rgba(116,25,49,.16), transparent 65%);
+}
+.app-bar {
+  background:
+    linear-gradient(180deg, rgba(105,28,51,.26), rgba(28,20,30,.08) 70%, transparent);
+  border-bottom: 1px solid rgba(255,255,255,.035);
+}
+main {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(178,35,67,.10), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,.012), transparent 35%);
+}
+.service-row {
+  background: var(--brand-gradient-raised);
+  border-color: rgba(238,106,129,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.055), 0 8px 24px rgba(0,0,0,.15);
+}
+.service-action:not(.stop),
+.filled-button:not(.featured .filled-button),
+.permission button,
+.dialog-actions .filled-button {
+  background: var(--brand-gradient-control);
+  color: #fff;
+  box-shadow: 0 5px 16px rgba(188,32,66,.25), inset 0 1px 0 rgba(255,255,255,.2);
+}
+.service-action:not(.stop):hover,
+.filled-button:hover,
+.permission button:hover {
+  filter: brightness(1.09) saturate(1.08);
+  box-shadow: 0 7px 21px rgba(188,32,66,.34), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.service-action.stop {
+  background: linear-gradient(120deg, #38303b, #282b35);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.add-button {
+  background: linear-gradient(120deg, rgba(105,35,55,.28), rgba(40,35,48,.42));
+  border-color: rgba(231,111,133,.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.add-button:hover {
+  background: linear-gradient(120deg, rgba(138,39,64,.46), rgba(50,40,54,.62));
+}
+.featured {
+  background:
+    radial-gradient(ellipse at 5% 0%, rgba(255,88,117,.27), transparent 53%),
+    radial-gradient(ellipse at 100% 100%, rgba(126,18,49,.38), transparent 50%),
+    linear-gradient(125deg, #571c2c 0%, #3c1c2c 34%, #29202e 68%, #1b202b 100%);
+  border-color: rgba(255,113,139,.43);
+  box-shadow: 0 16px 36px rgba(0,0,0,.28), 0 0 34px rgba(166,26,58,.13),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+.featured::before {
+  background:
+    linear-gradient(128deg, transparent 0 34%, rgba(255,255,255,.055) 48%, transparent 59%),
+    radial-gradient(ellipse at 78% 0%, rgba(255,104,133,.20), transparent 42%),
+    linear-gradient(0deg, rgba(10,10,16,.12), transparent 55%);
+}
+.game-tile {
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(137,39,66,.20), transparent 78%),
+    linear-gradient(145deg, #29212b 0%, #20212a 55%, #191e28 100%);
+  border-color: rgba(212,105,128,.20);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 6px 18px rgba(0,0,0,.13);
+}
+.game-tile:hover {
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(191,48,81,.30), transparent 80%),
+    linear-gradient(145deg, #35232f 0%, #25232e 55%, #1d232e 100%);
+}
+.mode-panel {
+  background:
+    linear-gradient(135deg, rgba(80,37,55,.46), rgba(35,31,43,.88) 58%, rgba(25,31,41,.92));
+  border: 1px solid rgba(230,112,136,.13);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.segmented {
+  background: linear-gradient(115deg, rgba(14,13,19,.94), rgba(23,24,33,.96));
+  border-color: rgba(228,116,139,.20);
+}
+.segment[aria-pressed="true"] {
+  background: linear-gradient(115deg, #7b263d 0%, #552238 56%, #392332 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 3px 12px rgba(166,27,59,.20);
+}
+.mode-warning {
+  background: linear-gradient(115deg, rgba(111,75,34,.28), rgba(57,43,40,.48));
+  border: 1px solid rgba(228,182,108,.18);
+}
+.permission {
+  background:
+    linear-gradient(115deg, rgba(122,25,42,.38), rgba(75,29,45,.40) 55%, rgba(43,31,43,.54));
+  border: 1px solid rgba(255,112,126,.20);
+}
+.device-icon {
+  background: linear-gradient(145deg, #3b2936, #252936);
+  border: 1px solid rgba(231,113,137,.13);
+}
+.data-row {
+  border-image: linear-gradient(90deg, rgba(225,91,119,.28), rgba(130,126,149,.12)) 1;
+}
+.menu-popover {
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(174,39,70,.23), transparent 70%),
+    linear-gradient(145deg, #30212d 0%, #24222d 56%, #1c222d 100%);
+  border-color: rgba(242,111,137,.28);
+  box-shadow: 0 16px 38px rgba(0,0,0,.54), 0 0 28px rgba(158,26,58,.14),
+    inset 0 1px 0 rgba(255,255,255,.07);
+  backdrop-filter: blur(18px);
+}
+.menu-item {
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0));
+  transition: background .16s ease, color .16s ease;
+}
+.menu-item:hover {
+  background: linear-gradient(105deg, rgba(176,43,75,.28), rgba(80,46,66,.24) 58%, rgba(255,255,255,.025));
+}
+.profile-action:hover {
+  background: linear-gradient(105deg, rgba(176,43,75,.24), rgba(68,43,62,.24));
+}
+dialog {
+  background:
+    radial-gradient(ellipse at 8% 0%, rgba(197,49,83,.28), transparent 68%),
+    radial-gradient(ellipse at 100% 100%, rgba(71,44,69,.20), transparent 62%),
+    linear-gradient(145deg, #34212e 0%, #26222d 52%, #1c222d 100%);
+  border-color: rgba(245,117,142,.34);
+  box-shadow: 0 24px 75px rgba(0,0,0,.62), 0 0 44px rgba(164,29,62,.17),
+    inset 0 1px 0 rgba(255,255,255,.09);
+  backdrop-filter: blur(20px);
+}
+dialog::backdrop {
+  background: radial-gradient(ellipse at 50% 35%, rgba(87,20,43,.38), rgba(0,0,0,.78) 72%);
+  backdrop-filter: blur(7px);
+}
+.dialog-content {
+  background: linear-gradient(180deg, rgba(255,255,255,.025), transparent 75%);
+}
+.dialog-input {
+  background: linear-gradient(120deg, rgba(18,16,24,.94), rgba(28,28,39,.96));
+  border-color: rgba(235,125,147,.34);
+}
+.dialog-input:focus {
+  outline: 2px solid rgba(241,91,119,.62);
+  border-color: #f15b77;
+}
+.dialog-actions {
+  background: linear-gradient(90deg, rgba(91,30,51,.20), rgba(27,31,41,.18));
+  border-top: 1px solid rgba(255,255,255,.055);
+}
+.tonal-button {
+  background: linear-gradient(120deg, rgba(104,48,68,.42), rgba(48,43,57,.72));
+  border: 1px solid rgba(236,121,145,.15);
+}
+.tonal-button:hover {
+  background: linear-gradient(120deg, rgba(137,49,76,.56), rgba(59,48,64,.82));
+}
+.outlined-button {
+  background: linear-gradient(120deg, rgba(105,37,60,.18), rgba(43,42,55,.24));
+  border-color: rgba(236,121,145,.34);
+}
+.outlined-button:hover {
+  background: linear-gradient(120deg, rgba(126,42,68,.34), rgba(55,46,62,.38));
+}
+.text-button { color: #ff8298; }
+.icon-button:hover {
+  background: linear-gradient(135deg, rgba(168,44,75,.32), rgba(65,45,64,.30));
+}
+.tile-menu, .feature-menu, .game-tile .tile-menu {
+  background: linear-gradient(145deg, rgba(107,30,55,.84), rgba(30,27,38,.88));
+  border: 1px solid rgba(255,255,255,.15);
+  box-shadow: 0 4px 15px rgba(0,0,0,.30);
+}
+.tile-menu:hover, .feature-menu:hover {
+  background: linear-gradient(145deg, rgba(169,43,76,.95), rgba(57,34,52,.96));
+}
+.toast {
+  background: linear-gradient(110deg, #572536, #302532 58%, #202733);
+  border: 1px solid rgba(243,119,143,.25);
+  box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 20px rgba(157,30,61,.15);
+}
+.empty-library {
+  background: linear-gradient(135deg, rgba(96,36,59,.22), rgba(33,35,46,.35));
+  border-color: rgba(224,111,135,.30);
+}
+@media (max-width: 460px) {
+  body { background: var(--brand-gradient-screen); }  .phone {
+    background:
+      radial-gradient(ellipse at 12% 0%, rgba(184,34,64,.20), transparent 33rem),
+      radial-gradient(ellipse at 100% 40%, rgba(88,29,55,.12), transparent 27rem),
+      linear-gradient(160deg, #191219 0%, #111117 42%, #0e1118 76%, #151017 100%);
+  }
+}
+
+
+
+/* v8 — responsive containment, local icon fallback and accessible interaction surfaces. */
+html, body { width: 100%; min-width: 0; overflow-x: clip; }
+body { padding: clamp(0px, 3vh, 28px) 14px; }
+.stage { width: min(100%, 430px); min-width: 0; }
+.phone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: auto;
+  min-height: min(890px, 100svh);
+  overflow-x: clip;
+  overflow-y: visible;
+  isolation: isolate;
+}
+.status-bar { flex: 0 0 auto; padding-top: max(6px, env(safe-area-inset-top)); }
+.app-bar { flex: 0 0 auto; min-width: 0; }
+main {
+  width: 100%; min-width: 0; flex: 1 0 auto;
+  padding: 0 clamp(12px, 3.8vw, 16px) calc(26px + env(safe-area-inset-bottom));
+}
+main > *, main section, .section-heading, .service-row, .featured, .featured-content,
+.game-grid, .mode-panel, .device-row, .data-row { min-width: 0; }
+button, input, select { max-width: 100%; }
+.menu-popover {
+  top: 73px; right: 12px; width: min(230px, calc(100% - 24px));
+  max-width: calc(100% - 24px);
+}
+.section-heading { flex-wrap: wrap; }
+.library-heading { row-gap: 8px; }
+.service-row { flex-wrap: nowrap; }
+.service-copy { min-width: 0; }
+.service-action { min-width: 84px; padding-inline: 12px; flex: 0 0 auto; }
+.service-state { overflow-wrap: anywhere; }
+.featured-content {
+  grid-template-columns: 78px minmax(0, 1fr);
+  min-width: 0;
+}
+.featured h2 { overflow-wrap: anywhere; min-width: 0; }
+.featured-actions { min-width: 0; width: 100%; margin: 9px 0 0; }
+.featured-actions button {
+  min-width: 0; max-width: 100%; flex: 1 1 104px;
+  white-space: normal; overflow-wrap: normal; text-align: center;
+  line-height: 17px; padding-inline: 9px;
+}
+.game-grid { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.game-tile-wrap { width: 100%; min-width: 0; }
+.game-tile { width: 100%; max-width: 100%; min-width: 0; }
+.tile-title, .tile-subtitle { overflow-wrap: anywhere; }
+.permission { flex-wrap: wrap; }
+.permission-copy { flex: 1 1 150px; min-width: 0; }
+.permission button { flex: 0 0 auto; }
+.mode-header { align-items: flex-start; }
+.mode-help { line-height: 16px; }
+.mode-warning { flex-wrap: wrap; }
+.mode-warning > span:nth-child(2) { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+.mode-warning .text-button { margin-left: auto; }
+.segment { min-width: 0; padding-inline: 6px; white-space: normal; line-height: 17px; }
+.data-row { flex-wrap: wrap; align-items: center; }
+.data-row .outlined-button { flex: 0 1 auto; }
+dialog {
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+dialog[open] { overscroll-behavior: contain; }
+.dialog-content { min-width: 0; padding: 20px clamp(16px, 5vw, 22px) 10px; }
+.dialog-message { overflow-wrap: anywhere; }
+.dialog-custom, .profile-actions { min-width: 0; max-height: min(54dvh, 440px); overflow: auto; overscroll-behavior: contain; margin-top: 14px; }
+.dialog-actions { position: sticky; bottom: 0; z-index: 2; flex-wrap: wrap; background: linear-gradient(120deg, #34212e, #24232e); }
+.dialog-actions button { min-width: 76px; }
+.dialog-input { min-width: 0; }
+.toast { left: 50%; width: max-content; max-width: calc(100vw - 24px); overflow-wrap: anywhere; }
+.device-footnote { margin-top: 7px; color: var(--md-sys-color-on-surface-variant); font-size: 10px; line-height: 15px; }
+.device-browser-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
+.device-browser-actions .outlined-button { min-height: 38px; font-size: 12px; padding-inline: 11px; }
+.mode-ready { display: none; margin-top: 9px; color: #9edbb0; font-size: 11px; line-height: 16px; }
+.prototype-note { max-width: 430px; margin: 12px auto 0; padding: 0 8px; color: #92949d; font-size: 10px; line-height: 15px; text-align: center; }
+.sim-notice { padding: 10px 11px; border: 1px solid rgba(239,106,132,.2); border-radius: 12px; background: linear-gradient(120deg,rgba(125,30,55,.22),rgba(38,37,49,.35)); color: #e8cbd1; font-size: 11px; line-height: 16px; }
+.sim-list, .setting-list, .backup-list, .app-picker-list { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.sim-row, .setting-row, .backup-row, .app-picker-row {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 10px 11px; border: 1px solid rgba(255,255,255,.07); border-radius: 12px;
+  background: linear-gradient(115deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+}
+.sim-row .sim-copy, .setting-row .setting-copy, .app-picker-copy { flex: 1; min-width: 0; }
+.sim-title, .setting-title, .app-picker-name { font-size: 13px; font-weight: 600; line-height: 18px; }
+.sim-desc, .setting-desc, .app-picker-package { margin-top: 2px; color: var(--md-sys-color-on-surface-variant); font-size: 10px; line-height: 15px; overflow-wrap: anywhere; }
+.sim-row input[type=checkbox], .setting-row input[type=checkbox], .backup-row input[type=checkbox] { width: 20px; height: 20px; flex: 0 0 auto; accent-color: #e84564; }
+.sim-select, .setting-select, .app-search {
+  width: 100%; min-height: 44px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid rgba(235,125,147,.28); background: #191820; color: #f5edf0;
+  font: 13px Roboto, sans-serif;
+}
+.sim-section-title { margin: 14px 0 7px; color: #ff9aac; font-size: 11px; font-weight: 700; letter-spacing: .7px; text-transform: uppercase; }
+.permission-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,.045); }
+.permission-setting-row > span { flex: 1; min-width: 0; }
+.permission-setting-row strong { display: block; font-size: 14px; }
+.permission-setting-row small { display: block; margin-top: 3px; color: var(--md-sys-color-on-surface-variant); font-size: 11px; line-height: 15px; }
+.permission-setting-row input { width: 22px; height: 22px; accent-color: #e84564; flex: 0 0 auto; }
+.app-picker-row { cursor: pointer; text-align: left; color: var(--md-sys-color-on-surface); width: 100%; }
+.app-picker-row:hover, .app-picker-row:focus-visible { border-color: rgba(241,91,119,.55); background: rgba(167,37,68,.18); }
+.app-picker-row img { width: 42px; height: 42px; object-fit: contain; border-radius: 11px; background: #191a21; flex: 0 0 auto; }
+.app-picker-row .material-symbols-rounded { margin-left: auto; color: #ff91a5; }
+.backup-row { padding: 9px 10px; }
+.backup-row label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 12px; }
+.backup-row span { overflow-wrap: anywhere; }
+.backup-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.backup-actions button { min-height: 40px; flex: 1 1 110px; min-width: 0; }
+.environment-select-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+.environment-select-row label { color: var(--md-sys-color-on-surface-variant); font-size: 12px; }
+.environment-select-row select { width: min(160px, 100%); }
+@media (max-width: 380px) {
+  body { padding: 0; }
+  .phone { min-height: 100svh; border: 0; border-radius: 0; box-shadow: none; }
+  .stage { max-width: none; }
+  .app-bar { padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right)); }
+  main { padding-inline: 12px; }
+  .featured-content { grid-template-columns: 62px minmax(0,1fr); column-gap: 10px; padding: 14px 48px 14px 13px; }
+  .featured img { width: 62px; height: 62px; border-radius: 16px; }
+  .featured h2 { font-size: 17px; line-height: 22px; }
+  .selected-label { font-size: 10px; padding: 4px 7px; }
+  .featured-actions { gap: 7px; margin: 8px 0 0; width: 100%; }
+  .featured-actions button { flex: 1 1 calc(50% - 4px); min-width: 0; padding-inline: 8px; font-size: 12px; }
+  .service-row { padding-inline: 10px; gap: 9px; }
+  .service-action { min-width: 72px; padding-inline: 9px; }
+  .library-heading .section-title { font-size: 18px; }
+  .add-button { padding-inline: 10px; font-size: 12px; }
+  .permission { gap: 8px; }
+  .permission button { flex: 1 0 100%; }
+  .data-row { align-items: flex-start; }
+  .data-row .outlined-button { flex: 1 0 100%; }
+  .menu-popover { right: 8px; }
+}
+@media (max-width: 340px) {
+  .game-grid { grid-template-columns: minmax(0,1fr); }
+  .game-tile { min-height: 84px; flex-direction: row; align-items: center; gap: 11px; padding-right: 54px; }
+  .game-tile img { width: 52px; height: 52px; flex: 0 0 auto; }
+  .tile-info { min-width: 0; width: auto; flex: 1 1 0; padding-right: 0; }
+  .tile-menu { top: 50%; transform: translateY(-50%); }
+  .segmented { grid-template-columns: 1fr 1fr; }
+  .segment { font-size: 11px; }
+}
+@media (min-width: 600px) {
+  body { padding-inline: 20px; }
+  .stage { max-width: 430px; }
+  .phone { min-height: 900px; }
+  main { padding-inline: 24px; }
+  .game-grid { gap: 14px; }
+  .featured-content { grid-template-columns: 86px minmax(0,1fr); }
+  .featured img { width: 86px; height: 86px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* SettingsOverlay mirror: tabbed editor controls, key capture, and advanced settings. */
+.setting-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:12px 0 10px; padding:4px; border:1px solid rgba(235,125,147,.17); border-radius:18px; background:rgba(12,12,18,.48); }
+.setting-tab { min-width:0; min-height:42px; padding:0 5px; border:0; border-radius:14px; background:transparent; color:#c8c1ca; font:600 12px Roboto,sans-serif; }
+.setting-tab.active { background:linear-gradient(115deg,#7b263d,#392232); color:#fff; box-shadow:inset 0 1px 0 rgba(255,255,255,.11); }
+.setting-panel { min-width:0; display:none; flex-direction:column; gap:7px; }
+.setting-panel.active { display:flex; }
+.setting-intro { color:var(--md-sys-color-on-surface-variant); font-size:11px; line-height:16px; margin:3px 0 5px; }
+.setting-section-heading { margin:7px 1px 0; color:#ff9aac; font-size:10px; font-weight:700; letter-spacing:.65px; text-transform:uppercase; }
+.setting-row { min-width:0; }
+.setting-range-row { flex-direction:column; align-items:stretch; gap:7px; }
+.setting-range-row .setting-copy { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.setting-range-row .setting-desc { flex:0 0 auto; }
+.setting-range-row input[type=range] { width:100%; min-width:0; accent-color:#e84564; }
+.setting-inline { flex-wrap:wrap; }
+.setting-inline .setting-copy { min-width:120px; }
+.setting-select { width:auto; min-width:105px; max-width:46%; min-height:40px; }
+.advanced-settings-button { width:100%; justify-content:center; margin-top:8px; }
+.shortcut-setting-row { display:grid; grid-template-columns:minmax(0,1fr) 74px 86px; gap:7px; align-items:center; }
+.shortcut-setting-row .setting-copy { min-width:0; }
+.shortcut-setting-row .setting-desc { overflow-wrap:anywhere; }
+.modifier-select { width:74px; min-width:0; max-width:74px; padding-inline:7px; }
+.shortcut-key-input { width:86px; min-width:0; min-height:42px; border:1px solid rgba(235,125,147,.27); border-radius:10px; background:linear-gradient(120deg,#191820,#25212b); color:#fff; text-align:center; font:600 12px Roboto,sans-serif; }
+.shortcut-key-input.capturing-key { border-color:#ff7188; box-shadow:0 0 0 2px rgba(241,91,119,.2); color:#ff9aac; }
+@media (max-width:340px) {
+  .shortcut-setting-row { grid-template-columns:minmax(0,1fr) 68px 74px; gap:5px; }
+  .modifier-select { width:68px; max-width:68px; font-size:11px; }
+  .shortcut-key-input { width:74px; font-size:11px; }
+  .setting-tab { font-size:11px; }
+}
+@media (max-height:560px) {
+  dialog { max-height:calc(100dvh - 16px); }
+  .dialog-custom, .profile-actions { max-height:42dvh; }
+}
+
+
+
+/* v9 — viewport containment and adaptive dialog/menu behaviour. */
+html, body { max-width:100%; overflow-x:clip; }
+body { padding-left:max(0px, env(safe-area-inset-left)); padding-right:max(0px, env(safe-area-inset-right)); }
+.stage, .phone, main, main > *, .phone * { min-width:0; }
+.phone { max-width:100%; margin-inline:auto; overflow-x:clip; }
+main { flex:0 0 auto; }
+.section-heading, .service-row, .permission, .data-row, .device-browser-actions,
+.setting-inline, .environment-select-row { min-width:0; }
+.section-heading > *, .service-copy, .permission-copy, .data-label,
+.setting-copy, .sim-copy, .app-picker-copy { min-width:0; overflow-wrap:anywhere; }
+.featured { max-width:100%; }
+.featured-content { width:100%; }
+.featured-actions { min-width:0; }
+.featured-actions button { min-width:0; max-width:100%; white-space:normal; }
+.game-grid { min-width:0; }
+.game-tile-wrap, .game-tile { min-width:0; max-width:100%; }
+.game-tile { overflow:hidden; }
+.tile-info, .tile-title, .tile-subtitle { min-width:0; overflow-wrap:anywhere; }
+.menu-popover { z-index:40; max-width:calc(100% - 16px); overflow:hidden; }
+.profile-action { width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; }
+dialog {
+  inset:0; margin:auto; width:min(390px, calc(100vw - 20px));
+  max-width:calc(100vw - 20px); max-height:calc(100dvh - 20px);
+  border-radius:26px; overflow:hidden; display:none;
+}
+dialog[open] { display:flex; flex-direction:column; }
+.dialog-content { min-height:0; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; }
+.dialog-custom, .profile-actions { min-height:0; max-height:min(58dvh, 480px); overflow:auto; }
+.dialog-actions { flex:0 0 auto; }
+.dialog-actions button { min-width:0; max-width:100%; }
+.app-picker-row, .sim-row, .setting-row, .backup-row { max-width:100%; }
+.app-picker-row { flex-wrap:nowrap; }
+.permission-setting-row { min-width:0; flex-wrap:wrap; }
+.permission-setting-row > span { min-width:0; overflow-wrap:anywhere; }
+.setting-tabs { width:100%; }
+.shortcut-setting-row { min-width:0; grid-template-columns:minmax(0,1fr) minmax(62px,74px) minmax(70px,86px); }
+.shortcut-key-input { width:100%; }
+.sim-row.is-disabled { opacity:.48; }
+.sim-row input:disabled { cursor:not-allowed; }
+@media (max-width:380px) {
+  body { padding:0; }
+  .stage { width:100%; }
+  .phone { width:100%; border-radius:0; min-height:100svh; }
+  main { padding-inline:12px; }
+  .section-heading { align-items:center; }
+  .library-heading .section-title { font-size:17px; }
+  .add-button { min-height:40px; padding-inline:9px; }
+  .featured-content { padding:14px 48px 14px 12px; grid-template-columns:58px minmax(0,1fr); column-gap:9px; }
+  .featured img { width:58px; height:58px; }
+  .featured-actions { grid-column:1 / -1; }
+  .featured-actions button { flex:1 1 100%; }
+  .service-row { gap:8px; padding-inline:9px; }
+  .service-action { min-width:72px; padding-inline:8px; }
+  .mode-panel { padding:11px; }
+  .permission { align-items:flex-start; }
+  .permission button { flex:0 0 auto; }
+  .data-row { align-items:flex-start; }
+  .data-row .outlined-button { flex:1 1 100%; }
+  .dialog-content { padding:18px 15px 8px; }
+  .dialog-actions { padding:10px 12px calc(12px + env(safe-area-inset-bottom)); }
+  .shortcut-setting-row { grid-template-columns:minmax(0,1fr) 62px 68px; gap:5px; }
+  .modifier-select { min-width:0; width:62px; max-width:62px; }
+  .shortcut-key-input { min-width:0; width:68px; }
+}
+@media (max-width:320px) {
+  main { padding-inline:10px; }
+  .app-bar { padding-inline:10px; }
+  .game-grid { grid-template-columns:minmax(0,1fr); }
+  .game-tile { flex-direction:row; min-height:78px; padding:10px 48px 10px 11px; }
+  .game-tile img { width:48px; height:48px; flex:0 0 auto; }
+  .tile-info { flex:1 1 0; padding:0; }
+  .tile-menu { top:50%; right:6px; transform:translateY(-50%); }
+  .service-state { font-size:13px; }
+  .service-action { min-width:66px; font-size:12px; }
+  .setting-tabs { gap:3px; }
+  .setting-tab { font-size:10px; }
+  .backup-actions button { flex-basis:100%; }
+}
+@media (max-height:620px) {
+  body { padding-block:0; }
+  .phone { min-height:100dvh; }
+  dialog { max-height:calc(100dvh - 12px); }
+  .dialog-custom, .profile-actions { max-height:48dvh; }
+}
+@media (min-width:600px) {
+  .phone { min-height:900px; }
+}
+
+
+/* Official Google Material Symbols: keep ligature names hidden until the icon font is ready. */
+html.icons-pending .material-symbols-rounded { visibility:hidden; }
+html.icons-unavailable .material-symbols-rounded {
+  visibility:hidden;
+  font-size:0 !important;
+  width:0 !important;
+  overflow:hidden;
+}
+.service-action { min-width:100px; padding-inline:16px; font-size:14px; }
+.backup-actions button { min-height:42px; }
+.device-browser-actions .outlined-button { min-height:42px; font-size:13px; padding-inline:15px; }
+.menu-popover { width:min(240px, calc(100% - 24px)); right:12px; }
+.dialog { max-width:calc(100vw - 24px); }
+.dialog-content, .dialog-custom { overflow-wrap:anywhere; }
+.app-picker-row img { flex:0 0 42px; }
+.app-picker-row, .backup-row, .setting-row { min-width:0; }
+.sim-row, .permission-setting-row { min-width:0; }
+.browser-capability { display:flex; flex-direction:column; gap:8px; margin-top:10px; padding:12px; border:1px solid rgba(235,125,147,.18); border-radius:14px; background:linear-gradient(145deg,rgba(40,29,40,.82),rgba(20,23,31,.88)); }
+.browser-capability-head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.browser-capability-title { color:#fff; font-size:13px; font-weight:700; }
+.browser-capability-state { color:#cfc4cd; font-size:11px; text-align:right; }
+.browser-capability-desc { color:#a9a5af; font-size:11px; line-height:16px; }
+.browser-capability-actions { display:flex; gap:7px; flex-wrap:wrap; }
+.browser-capability-actions button { min-height:40px; flex:1 1 125px; }
+.browser-input-panel { display:flex; flex-direction:column; gap:10px; }
+.browser-input-reading { padding:12px; border:1px solid rgba(235,125,147,.18); background:rgba(12,13,18,.72); border-radius:12px; min-height:72px; }
+.browser-input-reading strong { display:block; font-size:13px; color:#fff; margin-bottom:5px; }
+.browser-input-reading span { font-size:12px; color:#c7c1ca; overflow-wrap:anywhere; }
+.browser-input-history { display:flex; flex-direction:column; gap:5px; max-height:150px; overflow:auto; }
+.browser-input-event { display:flex; justify-content:space-between; gap:12px; padding:7px 9px; border-radius:9px; background:rgba(255,255,255,.045); color:#ddd6df; font-size:11px; }
+.browser-input-event code { color:#ff9aac; }
+@media (max-width:380px) {
+  .game-grid { grid-template-columns:minmax(0,1fr); gap:9px; }
+  .game-tile { min-height:80px; flex-direction:row; align-items:center; gap:11px; padding:10px 50px 10px 11px; }
+  .game-tile img { width:50px; height:50px; flex:0 0 50px; margin:0; }
+  .tile-info { width:auto; min-width:0; flex:1 1 0; padding:0; }
+  .tile-menu { top:50%; right:6px; transform:translateY(-50%); }
+  .service-action { min-width:96px; padding-inline:14px; }
+  .dialog-content { padding-inline:14px; }
+  .shortcut-setting-row { grid-template-columns:minmax(0,1fr) minmax(56px,66px) minmax(64px,74px); gap:5px; }
+  .modifier-select { width:100%; max-width:66px; }
+  .shortcut-key-input { width:100%; }
+}
+@media (max-width:320px) {
+  main { padding-inline:10px; }
+  .app-bar { padding-inline:10px; }
+  .service-row { gap:7px; padding-inline:8px; }
+  .service-action { min-width:88px; padding-inline:11px; }
+  .service-state { font-size:13px; }
+  .setting-tabs { gap:3px; }
+  .setting-tab { font-size:11px; }
+  .dialog-actions { gap:7px; }
+  .dialog-actions button { flex:1 1 100%; }
+  .browser-capability-actions button { flex-basis:100%; }
+  .app-picker-row { gap:9px; }
+  .app-picker-package { overflow-wrap:anywhere; }
+}
+@media (max-height:620px) {
+  .phone { min-height:100dvh; }
+  dialog { max-height:calc(100dvh - 12px); }
+  .dialog-content { min-height:0; }
+}
+
+/* Browser presentation: fit the complete handset into the viewport. */
+html, body {
+  width:100%;
+  height:100%;
+  min-height:0;
+  margin:0;
+  overflow:hidden !important;
+}
+body {
+  box-sizing:border-box;
+  min-height:100dvh;
+  height:100dvh;
+  padding:12px !important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(166,34,62,.14), transparent 42rem),
+    radial-gradient(ellipse at 50% 0%, rgba(232,69,86,.08), transparent 36rem),
+    #08090c !important;
+}
+.stage {
+  position:relative;
+  flex:0 0 auto;
+  width:430px;
+  height:900px;
+  max-width:none;
+  margin:0;
+}
+.phone {
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  flex-wrap:nowrap;
+  width:430px;
+  height:900px;
+  min-height:0 !important;
+  max-height:none;
+  max-width:none;
+  margin:0;
+  overflow:hidden;
+  border:6px solid #292a31 !important;
+  border-radius:42px !important;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(184,34,64,.20), transparent 33rem),
+    radial-gradient(ellipse at 100% 40%, rgba(88,29,55,.12), transparent 27rem),
+    linear-gradient(160deg, #191219 0%, #111117 42%, #0e1118 76%, #151017 100%) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.10),
+    0 32px 100px rgba(0,0,0,.62),
+    0 0 54px rgba(150,26,52,.12);
+  transform-origin:top left;
+}
+.phone::before {
+  content:"";
+  position:absolute;
+  z-index:60;
+  top:7px;
+  left:50%;
+  width:72px;
+  height:5px;
+  border-radius:999px;
+  background:rgba(3,4,7,.82);
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.08);
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+.phone > .status-bar {
+  flex:0 0 28px;
+  min-height:28px;
+  padding-top:8px;
+}
+.phone > .app-bar {
+  flex:0 0 60px;
+  min-height:60px;
+}
+.phone > main {
+  flex:1 1 auto !important;
+  min-height:0 !important;
+  height:0;
+  overflow-x:hidden;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(220,105,128,.40) transparent;
+  -webkit-overflow-scrolling:touch;
+}
+.phone > main::-webkit-scrollbar { width:4px; }
+.phone > main::-webkit-scrollbar-track { background:transparent; }
+.phone > main::-webkit-scrollbar-thumb {
+  border-radius:999px;
+  background:rgba(220,105,128,.40);
+}
+.artwork-note, .prototype-note { display:none !important; }
+.menu-popover { position:absolute; z-index:55; }
+body > dialog { max-width:min(340px, calc(100vw - 28px)); }
+@media (prefers-reduced-motion:reduce) {
+  .phone { scroll-behavior:auto; }
+}
+
+
+/* First-launch empty library: a designed state rather than an empty gap. */
+.empty-library {
+  position:relative;
+  display:none;
+  min-height:258px;
+  margin-top:12px;
+  padding:24px 20px 20px;
+  overflow:hidden;
+  border:1px solid rgba(235,115,139,.27);
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(197,46,79,.22), transparent 62%),
+    linear-gradient(145deg, rgba(58,31,44,.94), rgba(30,29,39,.97) 54%, rgba(24,29,39,.98));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 16px 36px rgba(0,0,0,.19);
+  text-align:center;
+}
+.empty-library::after {
+  content:"";
+  position:absolute;
+  width:210px;
+  height:210px;
+  left:50%;
+  top:-145px;
+  border-radius:50%;
+  background:rgba(238,78,111,.10);
+  filter:blur(22px);
+  pointer-events:none;
+}
+.empty-library-visual {
+  position:relative;
+  z-index:1;
+  width:66px;
+  height:66px;
+  margin:0 auto 14px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,170,185,.24);
+  border-radius:21px;
+  color:#fff;
+  background:linear-gradient(145deg,rgba(210,54,86,.52),rgba(85,34,58,.80));
+  box-shadow:0 8px 22px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.empty-library-visual .material-symbols-rounded { font-size:32px; }
+.empty-library-eyebrow {
+  position:relative;
+  z-index:1;
+  color:#ff9aac;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:1.15px;
+}
+.empty-library-title {
+  position:relative;
+  z-index:1;
+  margin:7px 0 0;
+  color:#fff;
+  font-size:19px;
+  line-height:25px;
+  font-weight:700;
+  letter-spacing:-.25px;
+}
+.empty-library-description {
+  position:relative;
+  z-index:1;
+  max-width:285px;
+  margin:8px auto 0;
+  color:#c7c0ca;
+  font-size:13px;
+  line-height:19px;
+}
+.empty-library-actions {
+  position:relative;
+  z-index:1;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-top:17px;
+}
+.empty-library-actions .filled-button { min-height:42px; padding-inline:17px; }
+.empty-library-actions .text-button { min-height:40px; padding-inline:12px; color:#ff9aac; }
+@media (max-width:380px) {
+  .empty-library { min-height:0; padding:22px 14px 18px; border-radius:18px; }
+  .empty-library-visual { width:60px; height:60px; margin-bottom:12px; }
+  .empty-library-title { font-size:18px; }
+  .empty-library-description { font-size:12px; line-height:18px; }
+  .empty-library-actions { flex-direction:column; gap:5px; }
+  .empty-library-actions .filled-button, .empty-library-actions .text-button { width:100%; }
+}
+
+
+/* Create-profile confirmation: identify the selected app and keep its package immutable. */
+.create-profile-confirmation { display:flex; flex-direction:column; gap:12px; }
+.create-profile-app-summary {
+  display:flex; align-items:center; gap:12px; min-width:0;
+  padding:11px; border:1px solid rgba(235,115,139,.20); border-radius:14px;
+  background:linear-gradient(140deg,rgba(73,35,51,.70),rgba(34,31,42,.86));
+}
+.create-profile-app-icon {
+  display:block; flex:0 0 48px; width:48px; height:48px;
+  border:1px solid rgba(255,255,255,.14); border-radius:13px; object-fit:cover;
+}
+.create-profile-app-copy { min-width:0; }
+.create-profile-app-name { color:#fff; font-size:14px; line-height:19px; font-weight:700; overflow-wrap:anywhere; }
+.create-profile-selected-label { margin-top:3px; color:#ff9aac; font-size:11px; }
+.create-profile-package {
+  min-width:0; padding:10px 11px; border:1px solid rgba(255,255,255,.08);
+  border-radius:11px; background:rgba(10,11,15,.36);
+}
+.create-profile-package code {
+  display:block; margin-top:5px; color:#d3cbd4; font:11px/16px ui-monospace,SFMono-Regular,Consolas,monospace;
+  overflow-wrap:anywhere; user-select:text;
+}
+.create-profile-field-label { display:block; color:#f3edf1; font-size:12px; font-weight:700; }
+.create-profile-name-label { margin-top:2px; }
+.create-profile-help { margin:-7px 0 0; color:#aaa4af; font-size:11px; line-height:16px; }
+.dialog-content:has(.create-profile-confirmation) .dialog-input { margin-top:8px; }
+
+
+
+/* This document is rendered only inside the outer phone preview iframe. */
+html, body {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+}
+body {
+  display: block !important;
+  padding: 0 !important;
+  background: var(--md-sys-color-surface) !important;
+}
+.prototype-workspace {
+  display: block !important;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+}
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+}
+.phone {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none !important;
+}
+.prototype-panel {
+  display: none !important;
+}
+</style>
+</head>
+<body>
+<div class="prototype-workspace">
+<div class="stage">
+  <div class="phone" id="app">
+    <div class="status-bar" aria-hidden="true">
+      <span>9:41</span>
+      <span class="system-icons">
+        <span class="material-symbols-rounded">signal_cellular_alt</span>
+        <span class="material-symbols-rounded">wifi</span>
+        <span class="material-symbols-rounded">battery_full</span>
+      </span>
+    </div>
+
+    <header class="app-bar">
+      <div class="app-title">XtMapper</div>
+      <button class="icon-button" id="moreButton" aria-label="More options" aria-expanded="false">
+        <span class="material-symbols-rounded">more_vert</span>
+      </button>
+    </header>
+
+    <div class="menu-popover" id="mainMenu" role="menu" aria-label="XtMapper menu">
+      <button class="menu-item" data-action="settings"><span class="material-symbols-rounded">settings</span>Settings</button>
+      <button class="menu-item" data-action="help"><span class="material-symbols-rounded">help</span>Help</button>
+      <button class="menu-item" data-action="logs"><span class="material-symbols-rounded">description</span>Logs</button>
+      <button class="menu-item" data-action="import-export"><span class="material-symbols-rounded">sync_alt</span>Import / Export</button>
+    </div>
+
+    <main>
+      <section class="service-row" aria-label="Input service">
+        <span class="service-mark" id="serviceMark"></span>
+        <div class="service-copy">
+          <div class="eyebrow">Input service</div>
+          <div class="service-state" id="serviceState" aria-live="polite">Service stopped</div>
+        </div>
+        <button class="service-action" id="serviceButton">Start</button>
+      </section>
+
+      <section aria-labelledby="gamesHeading">
+        <div class="section-heading library-heading">
+          <h1 class="section-title" id="gamesHeading">Your games</h1>
+          <button class="add-button" id="addGameButton">
+            <span class="material-symbols-rounded">add</span>
+            Add games
+          </button>
+        </div>
+
+        <article class="featured" id="featuredCard" aria-label="Selected game profile">
+          <button class="feature-menu" id="featuredMenu" type="button" aria-label="Selected profile actions"><span class="material-symbols-rounded">more_vert</span></button>
+          <div class="featured-content">
+            <img id="featuredImage" alt="" src="https://play-lh.googleusercontent.com/4KLtYEExeMc9gcYZz1BgAiV87IZ8onX3aGld_lJ8xMydt1MP7m--a6dn0aGNMemq-IiwGrrhqt81TA-Qbve8=w240-h480">
+            <div class="selected-label">Selected profile</div>
+            <h2 id="featuredTitle">Call of Duty: Mobile</h2>
+            <div class="featured-actions">
+              <button class="filled-button" id="activateButton">
+                <span class="material-symbols-rounded">play_arrow</span>
+                Activate profile
+              </button>
+              <button class="tonal-button" id="editFeaturedButton">
+                <span class="material-symbols-rounded">tune</span>
+                Edit controls
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <div class="game-grid" id="gameGrid" aria-label="Other game profiles"></div>
+        <div class="empty-library" id="emptyLibrary" role="region" aria-labelledby="emptyLibraryTitle">
+          <div class="empty-library-visual"><span class="material-symbols-rounded" aria-hidden="true">sports_esports</span></div>
+          <div class="empty-library-eyebrow">YOUR LIBRARY</div>
+          <h2 class="empty-library-title" id="emptyLibraryTitle">No game profiles yet</h2>
+          <p class="empty-library-description">Add a game to create your first keymap profile. Each game gets its own controls and settings.</p>
+          <div class="empty-library-actions">
+            <button class="filled-button" type="button" id="emptyAddGameButton"><span class="material-symbols-rounded">add</span>Add your first game</button>
+            <button class="text-button" type="button" id="emptyImportButton"><span class="material-symbols-rounded">upload</span>Import profiles</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="divider"></div>
+
+      <section class="subsection" aria-labelledby="modeHeading">
+        <div class="mode-header">
+          <div>
+            <h2 class="section-title" id="modeHeading">Input mode</h2>
+            <div class="mode-help">Choose how XtMapper gets input access</div>
+          </div>
+        </div>
+        <div class="mode-panel">
+          <div class="segmented" role="group" aria-label="Input mode">
+            <button class="segment" id="rootMode" aria-pressed="true">Root</button>
+            <button class="segment" id="shizukuMode" aria-pressed="false">Shizuku (ADB)</button>
+          </div>
+          <div class="mode-warning" id="rootWarning">
+            <span class="material-symbols-rounded">warning</span>
+            <span id="rootWarningText">Root access is not available in the prototype environment.</span>
+            <button class="text-button" id="fixRoot">Fix</button>
+          </div>
+          <div class="mode-warning" id="shizukuWarning">
+            <span class="material-symbols-rounded">info</span>
+            <span id="shizukuWarningText">Shizuku needs to be installed, running and authorised.</span>
+            <button class="text-button" id="fixShizuku">Fix</button>
+          </div>
+          <div class="mode-ready" id="modeReady" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="permission" id="overlayPermission" role="status">
+        <span class="material-symbols-rounded">layers</span>
+        <div class="permission-copy">
+          <div class="permission-title">Display over other apps</div>
+          <div class="permission-desc">Required to show mapped controls over a game.</div>
+        </div>
+        <button id="grantOverlay">Grant</button>
+      </section>
+
+      <section class="subsection" aria-labelledby="devicesHeading">
+        <div class="section-heading">
+          <h2 class="section-title" id="devicesHeading">Connected devices</h2>
+          <button class="text-button" id="testInputButton">Test input</button>
+        </div>
+        <div class="device-list" id="deviceList"></div>
+        <div class="no-devices" id="noDevices">No gamepad or browser-authorised HID device detected.</div>
+        <div class="device-footnote" id="deviceFootnote">Browser security does not expose the system keyboard as a connected-device record. Android detects keyboard, gamepad and joystick input devices natively.</div>
+        <div class="device-browser-actions">
+          <button class="outlined-button" id="pairDeviceButton"><span class="material-symbols-rounded">usb</span>Pair HID device</button>
+          <button class="text-button" id="refreshDevicesButton">Refresh</button>
+        </div>
+      </section>
+
+      <div class="data-row">
+        <div class="data-label">
+          <span class="material-symbols-rounded">folder_open</span>
+          Profile backups
+        </div>
+        <button class="outlined-button" id="importExportButton">
+          Import / Export
+          <span class="material-symbols-rounded">arrow_forward</span>
+        </button>
+      </div>
+    </main>
+    <dialog id="dialog" aria-labelledby="dialogTitle" tabindex="-1">
+      <section class="dialog-surface">
+        <div class="dialog-content">
+          <h2 class="dialog-title" id="dialogTitle">XtMapper</h2>
+          <p class="dialog-message" id="dialogMessage"></p>
+          <div class="dialog-custom" id="dialogCustom" hidden></div>
+          <div class="profile-actions" id="profileActions" hidden></div>
+          <input class="dialog-input" id="dialogInput" hidden autocomplete="off">
+        </div>
+        <div class="dialog-actions">
+          <button class="text-button" id="dialogCancel" type="button">Cancel</button>
+          <button class="filled-button" id="dialogConfirm" type="button">OK</button>
+        </div>
+      </section>
+    </dialog>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+  </div>
+
+  <aside class="prototype-panel" id="prototypePanel" aria-labelledby="prototypePanelTitle">
+    <header class="prototype-panel-heading">
+      <div class="prototype-panel-kicker">WEB PREVIEW CONTROLS</div>
+      <h1 id="prototypePanelTitle">Prototype environment</h1>
+      <p>Change the preview state independently from the XtMapper app screen.</p>
+    </header>
+    <div class="prototype-panel-content" id="prototypePanelContent"></div>
+    <details class="prototype-panel-notes">
+      <summary>Prototype scope and artwork credits</summary>
+      <p class="artwork-note">
+    Interactive browser prototype. Android-only capabilities (Root, Shizuku service state, Overlay, notification runtime permission and All files access) are simulated here; this page cannot grant them on a device. Profiles and simulation state are saved in this browser. App picker entries are a sample catalogue, not a live Android installed-app query.<br><br>
+    App icons referenced from the current Google Play listings:
+    <a href="https://play.google.com/store/apps/details?id=com.activision.callofduty.shooter" target="_blank" rel="noreferrer">Call of Duty: Mobile</a>,
+    <a href="https://play.google.com/store/apps/details?id=com.dts.freefiremax" target="_blank" rel="noreferrer">Free Fire MAX</a>,
+    and <a href="https://play.google.com/store/apps/details?id=com.shootergamesonline.blockstrike" target="_blank" rel="noreferrer">Block Strike</a>.
+    The prototype uses app icons only; it does not derive or fabricate game banners. These are demo profiles, not data loaded from XtMapper.
+  </p>
+  <p class="prototype-note">Prototype only: browser UI interactions, ZIP files and supported browser HID permissions are real browser operations. Root, Shizuku, Android Settings, PackageManager, InputDevice and TouchPointer remain simulated because a web page cannot call Android framework APIs.</p>
+    </details>
+  </aside>
+</div>
+
+<input id="backupFile" type="file" accept=".zip,application/zip" hidden>
+
+<script>
+const APP_CATALOG = [
+  {
+    name: "Call of Duty: Mobile",
+    packageName: "com.activision.callofduty.shooter",
+    image: "https://play-lh.googleusercontent.com/4KLtYEExeMc9gcYZz1BgAiV87IZ8onX3aGld_lJ8xMydt1MP7m--a6dn0aGNMemq-IiwGrrhqt81TA-Qbve8=w240-h480"
+  },
+  {
+    name: "Free Fire MAX",
+    packageName: "com.dts.freefiremax",
+    image: "https://play-lh.googleusercontent.com/SDYv1Th3VdjfM0MwObMIvH3L2I2owroB3leEtbMrFJZYRklHroxw_AspZZmno_8DBdiar3d03kHsyjBsnvcdlg=w240-h480"
+  },
+  {
+    name: "Block Strike",
+    packageName: "com.shootergamesonline.blockstrike",
+    image: "https://play-lh.googleusercontent.com/P2wyj2GqMVxXN0SWAMbWke1oNieUL7nKBNcmxX7aSI84MO-DsNh_DUN3ZbJ25ucIfiCHYPVRNB8c8joGMyLyeA=w240-h480"
+  }
+];
+const STORAGE_KEY = "xtmapper-main-prototype-v10";
+const LEGACY_STORAGE_KEY = "xtmapper-main-prototype-v9";
+const OLDER_STORAGE_KEY = "xtmapper-main-prototype-v8";
+const defaultGames = APP_CATALOG.map((app, index) => ({
+  id: `sample-${index + 1}`,
+  name: app.name,
+  profileName: app.packageName,
+  packageName: app.packageName,
+  image: app.image,
+  enabled: true,
+  lines: [`APPLICATION ${app.packageName}`, "ENABLED"]
+}));
+const DEFAULT_STATE = {
+  games: [],
+  previewGames: defaultGames,
+  libraryScenario: "samples",
+  selectedId: "sample-1",
+  inputMode: "root",
+  permissions: {
+    rootAccess: true,
+    shizukuInstalled: false,
+    shizukuRunning: false,
+    shizukuAuthorized: false,
+    overlay: false,
+    notifications: null,
+    allFiles: false,
+    logSinkAvailable: true,
+    androidApi: 35
+  },
+  settings: {
+    showControls: false,
+    showControlsOpacity: 0.2,
+    floatingKeysSize: 1,
+    mouseSensitivity: 1,
+    scrollSpeed: 1,
+    swipeDelayMs: 10,
+    shiftTransitionMs: 100,
+    ctrlMouseWheelZoom: false,
+    ctrlDragMouseGesture: true,
+    rightClickMouseAim: true,
+    keyGraveMouseAim: true,
+    mouseAimToggle: true,
+    mouseAimShortcutKey: "",
+    disableAutoProfiling: true,
+    useShizuku: false,
+    editorOverlay: false,
+    touchJitter: false,
+    touchJitterSpread: 15,
+    blockKeyboardInput: false,
+    pointerMode: 7,
+    touchpadInputMode: 5,
+    launchEditorShortcutKey: "KEY_E",
+    pauseResumeShortcutKey: "KEY_P",
+    switchProfileShortcutKey: "KEY_S",
+    blockKeyboardShortcutKey: "KEY_B",
+    launchEditorShortcutKeyModifier: "Ctrl",
+    pauseResumeShortcutKeyModifier: "Ctrl",
+    switchProfileShortcutKeyModifier: "Ctrl",
+    blockKeyboardShortcutKeyModifier: "Ctrl"
+  },
+  designatedProfiles: {}
+};
+
+function loadState() {
+  try {
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+    const legacy = current ? null : JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || "null");
+    const older = current || legacy ? null : JSON.parse(localStorage.getItem(OLDER_STORAGE_KEY) || "null");
+    const saved = current || legacy || older;
+    if (!saved || ![8, 9, 10].includes(saved.version)) return structuredCloneSafe(DEFAULT_STATE);
+    const savedGames = Array.isArray(saved.games) ? saved.games : [];
+    const loaded = {
+      ...structuredCloneSafe(DEFAULT_STATE),
+      ...saved,
+      games: savedGames.filter(g => g && typeof g.id === "string" && typeof g.packageName === "string" && !g.id.startsWith("sample-")),
+      previewGames: Array.isArray(saved.previewGames)
+        ? saved.previewGames
+        : (savedGames.some(g => g?.id?.startsWith("sample-")) ? savedGames.filter(g => g?.id?.startsWith("sample-")) : structuredCloneSafe(defaultGames)),
+      libraryScenario: ["samples", "empty", "current"].includes(saved.libraryScenario)
+        ? saved.libraryScenario
+        : (savedGames.some(g => g && typeof g.id === "string" && !g.id.startsWith("sample-")) ? "current" : "samples"),
+      permissions: { ...DEFAULT_STATE.permissions, ...(saved.permissions || {}) },
+      settings: { ...DEFAULT_STATE.settings, ...(saved.settings || {}) },
+      designatedProfiles: saved.designatedProfiles || {}
+    };
+    loaded.inputMode = loaded.inputMode === "shizuku" ? "shizuku" : "root";
+    const visibleGames = loaded.libraryScenario === "empty" ? [] : loaded.libraryScenario === "samples" ? loaded.previewGames : loaded.games;
+    if (!visibleGames.some(g => g.id === loaded.selectedId)) loaded.selectedId = visibleGames[0]?.id || "";
+    if (!current) localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 10, ...loaded }));
+    return loaded;
+  } catch (_) {
+    return structuredCloneSafe(DEFAULT_STATE);
+  }
+}
+function structuredCloneSafe(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+let state = loadState();
+let serviceRunning = false; // A browser reload must never pretend an Android foreground service is running.
+let activeProfileId = null;
+let dialogAction = null;
+let dialogCancelAction = null;
+let toastTimer = null;
+let selectedAppForPicker = null;
+let selectedProfileForPicker = null;
+let backupInputMode = "import";
+let connectedBrowserDevices = [];
+let lastTestMessage = "";
+let prototypeReady = false;
+let storageWarningShown = false;
+
+const byId = id => document.getElementById(id);
+const profileCollection = () => state.libraryScenario === "samples" ? state.previewGames : state.games;
+const games = () => state.libraryScenario === "empty" ? [] : profileCollection();
+const selectedGame = () => games().find(g => g.id === state.selectedId) || games()[0] || null;
+const permission = key => state.permissions[key];
+function persistState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 10, ...state }));
+  } catch (error) {
+    if (prototypeReady && !storageWarningShown) {
+      storageWarningShown = true;
+      showToast("Browser storage is unavailable. Changes last for this tab only.");
+    }
+  }
+}
+function uid() {
+  return globalThis.crypto?.randomUUID?.() || `profile-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function byPackage(packageName) {
+  return APP_CATALOG.find(app => app.packageName === packageName) || {
+    name: packageName || "Unknown app", packageName, image: ""
+  };
+}
+
+function showToast(message) {
+  const toast = byId("toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function resetDialogContent() {
+  byId("dialogCustom").hidden = true;
+  byId("dialogCustom").replaceChildren();
+  byId("profileActions").hidden = true;
+  byId("profileActions").replaceChildren();
+  byId("dialogInput").hidden = true;
+  byId("dialogInput").value = "";
+  byId("dialogMessage").hidden = false;
+  byId("dialogConfirm").hidden = false;
+  byId("dialogCancel").hidden = false;
+  byId("dialogCancel").textContent = "Cancel";
+  byId("dialogConfirm").textContent = "OK";
+  byId("dialogTitle").textContent = "XtMapper";
+  byId("dialogMessage").textContent = "";
+  dialogAction = null;
+  dialogCancelAction = null;
+}
+function openDialog(title, message, options = {}) {
+  resetDialogContent();
+  byId("dialogTitle").textContent = title;
+  byId("dialogMessage").textContent = message || "";
+  byId("dialogInput").hidden = !options.input;
+  byId("dialogInput").value = options.value || "";
+  byId("dialogInput").placeholder = options.placeholder || "";
+  byId("dialogInput").type = options.inputType || "text";
+  byId("dialogConfirm").textContent = options.confirmText || "OK";
+  byId("dialogCancel").textContent = options.cancelText || "Cancel";
+  byId("dialogConfirm").hidden = options.confirm === false;
+  byId("dialogCancel").hidden = options.cancel === false;
+  dialogAction = options.onConfirm || null;
+  dialogCancelAction = options.onCancel || null;
+  if (!byId("dialog").open) byId("dialog").showModal();
+  requestAnimationFrame(() => {
+    const activeDialog = byId("dialog");
+    if (!activeDialog.open) return;
+    const target = options.input ? byId("dialogInput") : activeDialog.querySelector(
+      'button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden]), select:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"])'
+    );
+    (target || activeDialog).focus({ preventScroll:true });
+  });
+}
+function openCustomDialog(title, message, element, options = {}) {
+  openDialog(title, message, options);
+  const custom = byId("dialogCustom");
+  custom.hidden = false;
+  custom.append(element);
+}
+function closeDialog(confirm) {
+  const value = byId("dialogInput").value;
+  const action = dialogAction;
+  const cancelAction = dialogCancelAction;
+  if (pendingShortcutCapture) {
+    const capture = document.querySelector(`[data-key-capture="${pendingShortcutCapture}"]`);
+    if (capture) {
+      const stored = state.settings[pendingShortcutCapture] || "";
+      capture.value = stored.replace(/^KEY_/, "") || "Not set";
+      capture.classList.remove("capturing-key");
+    }
+    pendingShortcutCapture = null;
+  }
+  dialogAction = null;
+  dialogCancelAction = null;
+  if (byId("dialog").open) byId("dialog").close();
+  if (confirm && action) action(value);
+  if (!confirm && cancelAction) cancelAction();
+}
+byId("dialogCancel").addEventListener("click", () => closeDialog(false));
+byId("dialogConfirm").addEventListener("click", () => closeDialog(true));
+byId("dialog").addEventListener("click", event => {
+  if (event.target === byId("dialog")) closeDialog(false);
+});
+byId("dialog").addEventListener("cancel", event => {
+  event.preventDefault();
+  closeDialog(false);
+});
+byId("dialog").addEventListener("keydown", event => {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  closeDialog(false);
+});
+
+function appIconFallbackDataUri() {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8e263f"/><stop offset="1" stop-color="#24232e"/></linearGradient></defs><rect width="96" height="96" rx="22" fill="url(#g)"/><path d="M27 34h42a13 13 0 0 1 12.2 17l-4.4 14a7 7 0 0 1-11 3.4L55 60H41l-10.8 8.4A7 7 0 0 1 19.2 65l-4.4-14A13 13 0 0 1 27 34Z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M31 43v15M23.5 50.5h15" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="62" cy="47" r="3" fill="#fff"/><circle cx="70" cy="55" r="3" fill="#fff"/></svg>';
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+const APP_ICON_FALLBACK = appIconFallbackDataUri();
+function setAppIconSource(image, source) {
+  image.style.visibility = "visible";
+  image.style.backgroundImage = `url("${APP_ICON_FALLBACK}")`;
+  image.style.backgroundSize = "cover";
+  image.style.backgroundPosition = "center";
+  image.onerror = () => {
+    image.onerror = null;
+    image.dataset.fallbackApplied = "true";
+    image.src = APP_ICON_FALLBACK;
+    image.style.visibility = "visible";
+  };
+  image.src = source || APP_ICON_FALLBACK;
+}
+
+function renderGames() {
+  const grid = byId("gameGrid");
+  grid.replaceChildren();
+  const current = selectedGame();
+  byId("featuredCard").hidden = !current;
+  byId("emptyLibrary").style.display = current ? "none" : "block";
+  if (!current) {
+    grid.style.display = "none";
+    return;
+  }
+  grid.style.display = games().length > 1 ? "grid" : "none";
+  byId("featuredTitle").textContent = current.name;
+  const featuredImage = byId("featuredImage");
+  featuredImage.alt = `${current.name} app icon`;
+  setAppIconSource(featuredImage, current.image);
+
+  games().filter(game => game.id !== current.id).forEach(game => {
+    const wrap = document.createElement("article");
+    wrap.className = "game-tile-wrap";
+    const select = document.createElement("button");
+    select.type = "button";
+    select.className = "game-tile";
+    select.setAttribute("aria-label", `Select ${game.name}`);
+    select.addEventListener("click", () => selectGame(game.id));
+    const image = document.createElement("img");
+    image.alt = "";
+    image.loading = "lazy";
+    setAppIconSource(image, game.image);
+    const info = document.createElement("span");
+    info.className = "tile-info";
+    const title = document.createElement("span");
+    title.className = "tile-title";
+    title.textContent = game.name;
+    const subtitle = document.createElement("span");
+    subtitle.className = "tile-subtitle";
+    subtitle.textContent = `Profile · ${game.profileName}`;
+    info.append(title, subtitle);
+    select.append(image, info);
+    const menu = document.createElement("button");
+    menu.type = "button";
+    menu.className = "tile-menu";
+    menu.setAttribute("aria-label", `Actions for ${game.name}`);
+    menu.innerHTML = '<span class="material-symbols-rounded">more_vert</span>';
+    menu.addEventListener("click", event => { event.stopPropagation(); showProfileActions(game.id); });
+    wrap.append(select, menu);
+    grid.append(wrap);
+  });
+}
+function selectGame(id) {
+  const game = games().find(item => item.id === id);
+  if (!game) return;
+  state.selectedId = id;
+  state.designatedProfiles[game.packageName] = game.profileName;
+  persistState();
+  renderGames();
+  showToast(`${game.name} profile selected`);
+}
+
+function updateService() {
+  byId("serviceMark").classList.toggle("running", serviceRunning);
+  const activeGame = games().find(game => game.id === activeProfileId);
+  byId("serviceState").textContent = serviceRunning ? (activeGame ? `Service running · ${activeGame.name}` : "Service running") : "Service stopped";
+  byId("serviceButton").textContent = serviceRunning ? "Stop" : "Start";
+  byId("serviceButton").classList.toggle("stop", serviceRunning);
+  byId("serviceButton").setAttribute("aria-label", serviceRunning ? "Stop input service" : "Start input service");
+}
+function shizukuProblem() {
+  if (!permission("shizukuInstalled")) return "Shizuku is not installed.";
+  if (!permission("shizukuRunning")) return "Shizuku is installed but its service is not running.";
+  if (!permission("shizukuAuthorized")) return "XtMapper has not been authorised in Shizuku.";
+  return "";
+}
+function updateInputMode() {
+  byId("rootMode").setAttribute("aria-pressed", String(state.inputMode === "root"));
+  byId("shizukuMode").setAttribute("aria-pressed", String(state.inputMode === "shizuku"));
+  const rootProblem = state.inputMode === "root" && !permission("rootAccess");
+  byId("rootWarning").style.display = rootProblem ? "flex" : "none";
+  const shizukuMessage = shizukuProblem();
+  byId("shizukuWarning").style.display = state.inputMode === "shizuku" && !!shizukuMessage ? "flex" : "none";
+  byId("shizukuWarningText").textContent = shizukuMessage || "";
+  const ready = state.inputMode === "root" ? permission("rootAccess") : !shizukuMessage;
+  byId("modeReady").style.display = ready ? "block" : "none";
+  byId("modeReady").textContent = ready ? `${state.inputMode === "root" ? "Root" : "Shizuku"} access is ready in the prototype simulation.` : "";
+  byId("overlayPermission").style.display = permission("overlay") ? "none" : "flex";
+}
+function updateAll() {
+  renderGames();
+  updateService();
+  updateInputMode();
+  syncPrototypePanelSummary();
+  persistState();
+}
+
+function setLibraryScenario(scenario) {
+  if (!["samples", "empty", "current"].includes(scenario)) return;
+  state.libraryScenario = scenario;
+  const visible = games();
+  if (!visible.some(game => game.id === state.selectedId)) state.selectedId = visible[0]?.id || "";
+  if (!visible.length) activeProfileId = null;
+  updateAll();
+  const labels = {
+    samples: "Sample profiles shown",
+    empty: "First-launch empty library shown",
+    current: `Current profiles shown (${visible.length})`
+  };
+  showToast(labels[scenario]);
+}
+
+function openEnvironmentDialog() {
+  const host = byId("prototypePanelContent");
+  if (!host) return;
+  host.innerHTML = `
+    <div class="sim-notice">Android states below are simulated for this browser preview. They do not grant permissions or start services on a connected Android device.</div>
+    <section class="prototype-control-group" aria-labelledby="prototypeLibraryHeading">
+      <div class="sim-section-title" id="prototypeLibraryHeading">Profile library</div>
+      <div class="environment-select-row"><label for="simProfileScenario">Preview state</label><select class="sim-select" id="simProfileScenario"><option value="samples">Sample profiles</option><option value="empty">No profiles · first launch</option><option value="current">Current profiles</option></select></div>
+      <div class="sim-desc" id="simProfileScenarioDescription">Choose which profile collection appears in the phone preview.</div>
+      <div class="prototype-state-summary" id="prototypeCurrentSummary"></div>
+    </section>
+    <section class="prototype-control-group" aria-labelledby="prototypeAndroidHeading">
+      <div class="sim-section-title" id="prototypeAndroidHeading">Android device</div>
+      <div class="environment-select-row"><label for="simApi">Android version</label><select class="sim-select" id="simApi"><option value="29">Android 10 · API 29</option><option value="30">Android 11 · API 30</option><option value="31">Android 12 · API 31</option><option value="32">Android 12L · API 32</option><option value="33">Android 13 · API 33</option><option value="34">Android 14 · API 34</option><option value="35">Android 15 · API 35</option><option value="36">Android 16 · API 36</option></select></div>
+    </section>
+    <section class="prototype-control-group" aria-labelledby="prototypeAccessHeading">
+      <div class="sim-section-title" id="prototypeAccessHeading">Input access · simulated</div>
+      <div class="sim-list">
+        ${simToggle("rootAccess", "Root access granted", "Represents a successful Root/Superuser check.")}
+        ${simToggle("shizukuInstalled", "Shizuku installed", "Package moe.shizuku.privileged.api is available.")}
+        ${simToggle("shizukuRunning", "Shizuku service running", "Represents Shizuku.pingBinder() returning true.")}
+        ${simToggle("shizukuAuthorized", "XtMapper authorised in Shizuku", "Represents Shizuku.checkSelfPermission() returning GRANTED.")}
+      </div>
+    </section>
+    <section class="prototype-control-group" aria-labelledby="prototypePermissionsHeading">
+      <div class="sim-section-title" id="prototypePermissionsHeading">Android permissions · simulated</div>
+      <div class="sim-list">
+        ${simToggle("overlay", "Display over other apps", "Represents Settings.canDrawOverlays(activity).")}
+        ${simToggle("notifications", "Post notifications", "Android 13+ POST_NOTIFICATIONS. Separate from browser notifications.", true)}
+        ${simToggle("allFiles", "All files access", "Represents Environment.isExternalStorageManager() on Android 11+.")}
+        ${simToggle("logSinkAvailable", "Persistent log writer available", "Represents XtLogger.isFileSinkAvailable after the file sink is initialised.")}
+      </div>
+    </section>
+    <section class="prototype-control-group" aria-labelledby="prototypeBrowserHeading">
+      <div class="sim-section-title" id="prototypeBrowserHeading">Browser capabilities · real</div>
+      <div class="sim-notice">These actions use browser APIs on this page. They do not change Android application permissions.</div>
+      <div class="browser-capability" aria-live="polite">
+        <div class="browser-capability-head"><span class="browser-capability-title">Browser notifications</span><span class="browser-capability-state" id="browserNotificationState">Checking…</span></div>
+        <div class="browser-capability-desc">Request browser notification permission after clicking. Browser support and mobile restrictions vary.</div>
+        <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestBrowserNotifications">Request permission</button><button class="tonal-button" type="button" id="testBrowserNotification" disabled>Send test notification</button></div>
+      </div>
+      <div class="browser-capability" aria-live="polite">
+        <div class="browser-capability-head"><span class="browser-capability-title">Persistent browser storage</span><span class="browser-capability-state" id="browserStorageState">Checking…</span></div>
+        <div class="browser-capability-desc" id="browserStorageDetail">Ask the browser to preserve this origin's local data. The browser can grant or deny the request.</div>
+        <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestPersistentStorage">Request persistence</button></div>
+      </div>
+    </section>`;
+  const scenarioSelect = host.querySelector("#simProfileScenario");
+  scenarioSelect.addEventListener("change", () => setLibraryScenario(scenarioSelect.value));
+  const api = host.querySelector("#simApi");
+  api.value = String(permission("androidApi"));
+  const syncVersionGates = () => {
+    const level = Number(api.value);
+    host.querySelectorAll("[data-sim-permission]").forEach(input => {
+      const key = input.dataset.simPermission;
+      const notApplicable = (key === "notifications" && level < 33) || (key === "allFiles" && level < 30);
+      input.disabled = notApplicable;
+      input.closest(".sim-row")?.classList.toggle("is-disabled", notApplicable);
+      const desc = input.closest(".sim-row")?.querySelector(".sim-desc");
+      if (desc) desc.dataset.baseDescription ||= desc.textContent;
+      if (desc) desc.textContent = notApplicable ? `${desc.dataset.baseDescription} Not applicable on this Android version.` : (desc.dataset.baseDescription || desc.textContent);
+    });
+  };
+  api.addEventListener("change", () => {
+    state.permissions.androidApi = Number(api.value);
+    if (state.permissions.androidApi < 33) state.permissions.notifications = null;
+    if (state.permissions.androidApi < 30) state.permissions.allFiles = false;
+    syncVersionGates();
+    updateAll();
+  });
+  syncVersionGates();
+  refreshBrowserCapabilities(host);
+  host.querySelector("#requestBrowserNotifications")?.addEventListener("click", requestBrowserNotificationPermission);
+  host.querySelector("#testBrowserNotification")?.addEventListener("click", sendBrowserTestNotification);
+  host.querySelector("#requestPersistentStorage")?.addEventListener("click", requestBrowserPersistentStorage);
+  host.querySelectorAll("[data-sim-permission]").forEach(input => {
+    input.checked = !!permission(input.dataset.simPermission);
+    input.addEventListener("change", () => {
+      const key = input.dataset.simPermission;
+      state.permissions[key] = input.checked;
+      if (key === "shizukuInstalled" && !input.checked) { state.permissions.shizukuRunning = false; state.permissions.shizukuAuthorized = false; }
+      if (key === "shizukuRunning" && !input.checked) state.permissions.shizukuAuthorized = false;
+      if (key === "shizukuRunning" && input.checked && !permission("shizukuInstalled")) {
+        input.checked = false; state.permissions.shizukuRunning = false; showToast("Install Shizuku before starting its service"); return;
+      }
+      if (key === "shizukuAuthorized" && input.checked && (!permission("shizukuInstalled") || !permission("shizukuRunning"))) {
+        input.checked = false; state.permissions.shizukuAuthorized = false; showToast("Shizuku must be installed and running first"); return;
+      }
+      host.querySelectorAll("[data-sim-permission]").forEach(control => { control.checked = permission(control.dataset.simPermission) === true; });
+      syncVersionGates(); updateAll();
+      showToast(`${input.closest("label").querySelector(".sim-title").textContent}: ${input.checked ? "enabled in simulation" : "disabled in simulation"}`);
+    });
+  });
+  syncPrototypePanelSummary();
+}
+function syncPrototypePanelSummary() {
+  const host = byId("prototypePanelContent");
+  if (!host) return;
+  const select = host.querySelector("#simProfileScenario");
+  const description = host.querySelector("#simProfileScenarioDescription");
+  const summary = host.querySelector("#prototypeCurrentSummary");
+  if (!select) return;
+  select.value = state.libraryScenario;
+  const count = games().length;
+  if (description) description.textContent = state.libraryScenario === "empty"
+    ? "First-launch preview: no keymap profiles exist yet. Add a game or import a backup to create the first profile."
+    : state.libraryScenario === "samples"
+      ? `Demo library: ${count} sample profiles. These are preview data, not profiles loaded from Android.`
+      : `Current browser profiles: ${count}. These were created or imported in this prototype.`;
+  if (summary) {
+    const label = state.libraryScenario === "empty" ? "Empty library" : state.libraryScenario === "samples" ? "Sample library" : "Current profiles";
+    summary.textContent = `${label} · Android API ${permission("androidApi")}`;
+  }
+}
+async function refreshBrowserCapabilities(host = document) {
+  const notificationState = host.querySelector("#browserNotificationState");
+  const notificationButton = host.querySelector("#requestBrowserNotifications");
+  const notificationTest = host.querySelector("#testBrowserNotification");
+  if (notificationState) {
+    if (!('Notification' in window)) notificationState.textContent = "Unsupported";
+    else notificationState.textContent = `Permission: ${Notification.permission}`;
+  }
+  if (notificationButton) notificationButton.disabled = !('Notification' in window) || Notification.permission === "granted";
+  if (notificationTest) notificationTest.disabled = !('Notification' in window) || Notification.permission !== "granted";
+  const storageState = host.querySelector("#browserStorageState");
+  const storageDetail = host.querySelector("#browserStorageDetail");
+  const storageButton = host.querySelector("#requestPersistentStorage");
+  if (!navigator.storage?.persisted) {
+    if (storageState) storageState.textContent = "Unsupported";
+    if (storageDetail) storageDetail.textContent = "This browser does not expose persistent storage status.";
+    if (storageButton) storageButton.disabled = true;
+    return;
+  }
+  try {
+    const persisted = await navigator.storage.persisted();
+    if (storageState) storageState.textContent = persisted ? "Persistent" : "Not persistent";
+    if (storageButton) storageButton.disabled = persisted || !navigator.storage.persist;
+    if (storageDetail && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      const used = Number.isFinite(estimate.usage) ? `${(estimate.usage / 1048576).toFixed(1)} MB used` : "Usage unavailable";
+      const quota = Number.isFinite(estimate.quota) ? `${(estimate.quota / 1048576).toFixed(0)} MB quota` : "quota unavailable";
+      storageDetail.textContent = `${persisted ? "Browser persistence is already granted." : "Ask the browser to preserve this origin's local data."} ${used} · ${quota}.`;
+    }
+  } catch (_) {
+    if (storageState) storageState.textContent = "Unavailable";
+    if (storageDetail) storageDetail.textContent = "The browser did not return storage permission information.";
+  }
+}
+async function requestBrowserNotificationPermission() {
+  if (!('Notification' in window)) return showToast("Browser notifications are not supported here");
+  if (!window.isSecureContext) return showToast("Browser notifications require HTTPS or localhost");
+  try {
+    const result = await Notification.requestPermission();
+    await refreshBrowserCapabilities(byId("prototypePanelContent"));
+    showToast(`Browser notification permission: ${result}`);
+  } catch (error) {
+    openDialog("Browser notification request failed", error?.message || "The browser did not accept the permission request.");
+  }
+}
+function sendBrowserTestNotification() {
+  if (!('Notification' in window) || Notification.permission !== "granted") return showToast("Grant browser notification permission first");
+  try {
+    const notification = new Notification("XtMapper prototype", { body: "Browser notifications are working. This is not Android POST_NOTIFICATIONS." });
+    notification.onclick = () => window.focus();
+    showToast("Browser notification sent");
+  } catch (error) {
+    openDialog("Notification could not be displayed", error?.message || "This browser may require a service worker for notifications on this device.");
+  }
+}async function requestBrowserPersistentStorage() {
+  if (!navigator.storage?.persist) return showToast("Persistent storage is unavailable in this browser");
+  try {
+    const granted = await navigator.storage.persist();
+    await refreshBrowserCapabilities(byId("prototypePanelContent"));
+    showToast(granted ? "Persistent browser storage granted" : "Browser declined persistent storage");
+  } catch (error) {
+    openDialog("Storage request failed", error?.message || "The browser did not grant persistent storage.");
+  }
+}
+
+function simToggle(key, title, desc, tristate = false) {
+  const checked = permission(key) === true;
+  const api = Number(permission("androidApi") || 35);
+  const notApplicable = (key === "notifications" && api < 33) || (key === "allFiles" && api < 30);
+  return `<label class="sim-row ${notApplicable ? "is-disabled" : ""}"><span class="sim-copy"><span class="sim-title">${title}</span><span class="sim-desc">${desc}</span></span><input type="checkbox" data-sim-permission="${key}" ${checked ? "checked" : ""} ${notApplicable ? "disabled" : ""}></label>`;
+}
+
+function showAndroidSettingsSimulation(kind) {
+  const configs = {
+    overlay: {
+      title: "Display over other apps",
+      message: "Android Settings · Special app access",
+      detail: "Allow XtMapper to display mapped touch controls over games and other apps.",
+      key: "overlay",
+      label: "Allow display over other apps"
+    },
+    allFiles: {
+      title: "All files access",
+      message: "Android Settings · Special app access",
+      detail: "XtMapper uses this access for its optional persistent log files. Android 11 and later require this special app access.",
+      key: "allFiles",
+      label: "Allow access to manage all files"
+    }
+  };
+  const config = configs[kind];
+  if (!config) return;
+  const host = document.createElement("div");
+  host.innerHTML = `
+    <div class="sim-notice">Simulated Android Settings screen. The real Android permission cannot be changed from a web page.</div>
+    <div class="permission-setting-row" style="margin-top:12px">
+      <span><strong>${config.label}</strong><small>${config.detail}</small></span>
+      <input type="checkbox" id="simPermissionToggle" aria-label="${config.label}">
+    </div>`;
+  openCustomDialog(config.title, config.message, host, { confirm: false, cancelText: "Back" });
+  const toggle = host.querySelector("#simPermissionToggle");
+  toggle.checked = !!permission(config.key);
+  toggle.addEventListener("change", () => {
+    state.permissions[config.key] = toggle.checked;
+    persistState();
+    updateInputMode();
+    showToast(`${config.label}: ${toggle.checked ? "allowed in simulation" : "not allowed"}`);
+  });
+}
+
+function showRootAccessError() {
+  openDialog("Superuser access request", "XtMapper requires a successful Root/Superuser check before starting TouchPointer. This is a simulated Superuser prompt; it cannot request SU access from your browser.", {
+    confirmText: "Grant Root",
+    cancelText: "Deny",
+    onConfirm: () => {
+      state.permissions.rootAccess = true;
+      persistState();
+      updateInputMode();
+      showToast("Root access granted in simulation. Start the service again.");
+    },
+    onCancel: () => {
+      state.permissions.rootAccess = false;
+      persistState();
+      updateInputMode();
+      showToast("Root access denied in simulation");
+    }
+  });
+}
+function showShizukuHelp(problem) {
+  if (!permission("shizukuInstalled")) {
+    const host = document.createElement("div");
+    host.innerHTML = `<div class="sim-notice">The app checks whether package <code>moe.shizuku.privileged.api</code> is installed. Installation must happen on Android, outside this browser prototype.</div><p style="font-size:13px;line-height:20px;margin:12px 0 0"><a href="https://play.google.com/store/apps/details?id=moe.shizuku.privileged.api" target="_blank" rel="noreferrer" style="color:#ff9aac">Open Shizuku on Google Play</a><br><a href="https://shizuku.rikka.app/guide/setup/" target="_blank" rel="noreferrer" style="color:#ff9aac">Official setup guide</a></p>`;
+    openCustomDialog("Shizuku is not installed", problem, host, { confirm: false, cancelText: "Close" });
+  } else if (!permission("shizukuRunning")) {
+    const host = document.createElement("div");
+    host.innerHTML = `<div class="sim-notice">The Shizuku binder is not available. Start the Shizuku service in the Shizuku app, then return to XtMapper. On non-rooted Android 11+, the official guide uses Wireless debugging.</div><p style="margin:12px 0 0;font-size:13px"><a href="https://shizuku.rikka.app/guide/setup/" target="_blank" rel="noreferrer" style="color:#ff9aac">Read the official setup guide</a></p>`;
+    openCustomDialog("Shizuku is not running", problem, host, { confirm: false, cancelText: "Close" });
+  } else if (!permission("shizukuAuthorized")) {
+    openDialog("Allow XtMapper in Shizuku?", "Shizuku is running and XtMapper is requesting permission. This models Shizuku.requestPermission(0); the choice here only changes the prototype state.", {
+      confirmText: "Allow",
+      cancelText: "Deny",
+      onConfirm: () => {
+        state.permissions.shizukuAuthorized = true;
+        persistState();
+        updateAll();
+        showToast("Shizuku authorisation granted in simulation");
+      },
+      onCancel: () => {
+        state.permissions.shizukuAuthorized = false;
+        persistState();
+        updateAll();
+        showToast("Shizuku authorisation denied in simulation");
+      }
+    });
+  }
+}
+
+function requestNotificationPermission() {
+  if (permission("androidApi") < 33 || permission("notifications") === true) return;
+  openDialog("Allow XtMapper to send notifications?", "Android 13 and later use POST_NOTIFICATIONS. XtMapper requests this after starting its foreground service. The service can start without this grant, but notification visibility is affected.", {
+    confirmText: "Allow",
+    cancelText: "Don't allow",
+    onConfirm: () => {
+      state.permissions.notifications = true;
+      persistState();
+      showToast("Notifications allowed in simulation");
+    },
+    onCancel: () => {
+      state.permissions.notifications = false;
+      persistState();
+      showToast("Notifications denied in simulation");
+    }
+  });
+}
+function validateInputAccess() {
+  if (state.inputMode === "root") {
+    if (!permission("rootAccess")) { showRootAccessError(); return false; }
+    return true;
+  }
+  if (!permission("shizukuInstalled") || !permission("shizukuRunning") || !permission("shizukuAuthorized")) {
+    showShizukuHelp(shizukuProblem());
+    return false;
+  }
+  return true;
+}
+function requestServiceStart(successMessage) {
+  if (!validateInputAccess()) return;
+  if (!permission("overlay")) {
+    openDialog("Permission required", "XtMapper checks Settings.canDrawOverlays(activity) before it binds and starts TouchPointer. Open the simulated Android Settings page, allow display over other apps, return here, then tap Start again.", {
+      confirmText: "Open settings",
+      onConfirm: () => showAndroidSettingsSimulation("overlay")
+    });
+    return;
+  }
+  serviceRunning = true;
+  activeProfileId = selectedGame()?.id || null;
+  updateService();
+  showToast(successMessage);
+  requestNotificationPermission();
+}
+function toggleService() {
+  if (serviceRunning) {
+    serviceRunning = false;
+    activeProfileId = null;
+    updateService();
+    showToast("Input service stopped in prototype");
+  } else {
+    requestServiceStart("Input service started in prototype");
+  }
+}
+function activateSelected() {
+  const game = selectedGame();
+  if (!game) {
+    showToast("Create a profile before activating it");
+    return;
+  }
+  if (serviceRunning) {
+    activeProfileId = game.id;
+    updateService();
+    showToast(`Active profile switched to ${game.name}`);
+    return;
+  }
+  requestServiceStart(`Profile activated: ${game.name}`);
+}
+function changeInputMode(nextMode) {
+  if (state.inputMode === nextMode) return;
+  const wasRunning = serviceRunning;
+  if (wasRunning) {
+    serviceRunning = false;
+    activeProfileId = null;
+    updateService();
+  }
+  state.inputMode = nextMode;
+  state.settings.useShizuku = nextMode === "shizuku";
+  persistState();
+  updateInputMode();
+  showToast(`Input mode changed to ${nextMode === "root" ? "Root" : "Shizuku (ADB)"}`);
+  if (wasRunning) requestServiceStart("Input service restarted with the selected mode");
+}
+function testInput() {
+  if (!validateInputAccess()) return;
+  if (!serviceRunning) {
+    showToast("Start the input service before testing");
+    return;
+  }
+  openBrowserInputTester(state.inputMode === "root" ? "Root" : "Shizuku (ADB)");
+}
+function openBrowserInputTester(mode) {
+  const host = document.createElement("div");
+  host.className = "browser-input-panel";
+  host.innerHTML = `
+    <div class="sim-notice">Android's Test Input action checks the Root/Shizuku and service state, then displays a Toast. The panel below is an additional live browser test; it cannot validate Android input injection or TouchPointer events.</div>
+    <div class="browser-input-reading"><strong>Keyboard event</strong><span id="browserKeyReading">Press any key while this dialog is open.</span></div>
+    <div class="browser-input-reading"><strong>Gamepad status</strong><span id="browserGamepadReading">Checking browser Gamepad API…</span></div>
+    <div class="browser-input-history" id="browserInputHistory"></div>
+    <div class="sim-desc">Validated simulated input mode: ${mode}. Browser keyboard events and Gamepad API data are observed by this page only.</div>`;
+  let active = true;
+  const keyReading = () => host.querySelector("#browserKeyReading");
+  const gamepadReading = () => host.querySelector("#browserGamepadReading");
+  const history = () => host.querySelector("#browserInputHistory");
+  const onKey = event => {
+    if (!active || !host.isConnected) return;
+    if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,[contenteditable=true]")) return;
+    const value = `key=${event.key} · code=${event.code || "unavailable"} · repeat=${event.repeat}`;
+    keyReading().textContent = value;
+    const row = document.createElement("div"); row.className = "browser-input-event";
+    const label = document.createElement("span"); label.textContent = event.type === "keydown" ? "Key down" : "Key up";
+    const code = document.createElement("code"); code.textContent = event.code || event.key;
+    row.append(label, code); history().prepend(row);
+    while (history().children.length > 8) history().lastElementChild.remove();
+  };
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("keyup", onKey, true);
+  const poll = () => {
+    if (!active || !host.isConnected) return;
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    if (!pads.length) { gamepadReading().textContent = "No browser-visible gamepad detected. Press a gamepad button to wake it, then refresh devices."; return; }
+    gamepadReading().textContent = pads.map(pad => {
+      const pressed = pad.buttons.map((button, index) => button.pressed ? index : -1).filter(index => index >= 0);
+      const axes = pad.axes.map((axis, index) => `${index}:${axis.toFixed(2)}`).join(" · ");
+      return `${pad.id || `Gamepad ${pad.index + 1}`} · buttons ${pressed.join(", ") || "none"} · axes ${axes || "none"}`;
+    }).join("\n");
+  };
+  poll();
+  const timer = window.setInterval(poll, 180);
+  const cleanup = () => {
+    active = false;
+    document.removeEventListener("keydown", onKey, true);
+    document.removeEventListener("keyup", onKey, true);
+    window.clearInterval(timer);
+  };
+  openCustomDialog("Test input", "Live browser input preview", host, { confirm: false, cancelText: "Done", onCancel: cleanup });
+  // Also stop polling if the dialog is replaced by another UI action.
+  byId("dialog").addEventListener("close", cleanup, { once: true });
+}
+
+function profileRawLines(game) {
+  const lines = Array.isArray(game.lines) ? [...game.lines] : [];
+  const filtered = lines.filter(line => !/^APPLICATION\s/.test(line) && line !== "ENABLED");
+  filtered.push(`APPLICATION ${game.packageName}`);
+  if (game.enabled !== false) filtered.push("ENABLED");
+  return [...new Set(filtered)];
+}
+function addProfile(app, name) {
+  const profileName = name.trim();
+  if (!profileName) return showToast("Enter a profile name");
+  const targetCollection = profileCollection();
+  if (targetCollection.some(g => g.profileName.toLowerCase() === profileName.toLowerCase())) {
+    return showToast("A profile with that name already exists");
+  }
+  const created = {
+    id: uid(), name: app.name, profileName, packageName: app.packageName,
+    image: app.image, enabled: true,
+    lines: [`APPLICATION ${app.packageName}`, "ENABLED"]
+  };
+  if (state.libraryScenario === "empty") state.libraryScenario = "current";
+  profileCollection().push(created);
+  state.selectedId = created.id;
+  state.designatedProfiles[app.packageName] = profileName;
+  updateAll();
+  showToast("Profile created and selected");
+}
+function showCreateProfileConfirmation(app) {
+  const host = document.createElement("div");
+  host.className = "create-profile-confirmation";
+
+  const summary = document.createElement("div");
+  summary.className = "create-profile-app-summary";
+
+  const icon = document.createElement("img");
+  icon.className = "create-profile-app-icon";
+  icon.alt = "";
+  setAppIconSource(icon, app.image);
+
+  const appCopy = document.createElement("div");
+  appCopy.className = "create-profile-app-copy";
+
+  const appName = document.createElement("div");
+  appName.className = "create-profile-app-name";
+  appName.textContent = app.name;
+
+  const selectedLabel = document.createElement("div");
+  selectedLabel.className = "create-profile-selected-label";
+  selectedLabel.textContent = "Selected app";
+
+  appCopy.append(appName, selectedLabel);
+  summary.append(icon, appCopy);
+
+  const packageBlock = document.createElement("div");
+  packageBlock.className = "create-profile-package";
+  const packageLabel = document.createElement("div");
+  packageLabel.className = "create-profile-field-label";
+  packageLabel.textContent = "App package · fixed";
+  const packageValue = document.createElement("code");
+  packageValue.textContent = app.packageName;
+  packageBlock.append(packageLabel, packageValue);
+
+  const profileLabel = document.createElement("label");
+  profileLabel.className = "create-profile-field-label create-profile-name-label";
+  profileLabel.htmlFor = "dialogInput";
+  profileLabel.textContent = "Profile name";
+
+  const help = document.createElement("p");
+  help.className = "create-profile-help";
+  help.id = "profileNameHelp";
+  help.textContent = "This name identifies the keymap profile only. The selected app and its package ID will not change.";
+
+  host.append(summary, packageBlock, profileLabel, help);
+
+  openCustomDialog(
+    "Create profile",
+    `Create an enabled keymap profile for ${app.name}?`,
+    host,
+    {
+      input: true,
+      value: app.packageName,
+      placeholder: "Profile name",
+      confirmText: "Create profile",
+      cancelText: "Cancel",
+      onConfirm: value => addProfile(app, value)
+    }
+  );
+
+  const input = byId("dialogInput");
+  input.setAttribute("aria-label", "Profile name");
+  input.setAttribute("aria-describedby", "profileNameHelp");
+}
+
+function openProfileZipPicker() {
+  const input = byId("backupFile");
+  if (!input) {
+    showToast("ZIP file picker is unavailable in this browser.");
+    return;
+  }
+  backupInputMode = "import";
+  input.value = "";
+  input.click();
+}
+
+function openAppPicker(flow, profileId = null) {
+  selectedProfileForPicker = profileId;
+  const host = document.createElement("div");
+  host.innerHTML = `<input class="app-search" id="appSearch" type="search" placeholder="Search apps" aria-label="Search sample apps"><div class="sim-desc" style="margin:7px 1px 9px">Sample launcher catalogue. A browser cannot query Android PackageManager for installed apps.</div><div class="app-picker-list" id="appPickerList"></div>`;
+  openCustomDialog(flow === "create" ? "Choose an app" : "Change assigned app", "Select a launcher app to associate with this profile.", host, { confirm: false, cancelText: "Cancel" });
+  const list = host.querySelector("#appPickerList");
+  const renderList = query => {
+    list.replaceChildren();
+    const filtered = APP_CATALOG.filter(app => `${app.name} ${app.packageName}`.toLowerCase().includes(query.toLowerCase()));
+    if (!filtered.length) {
+      const empty = document.createElement("p");
+      empty.className = "sim-desc";
+      empty.textContent = "No matching sample app.";
+      list.append(empty);
+      return;
+    }
+    filtered.forEach(app => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "app-picker-row";
+      const img = document.createElement("img");
+      img.alt = "";
+      setAppIconSource(img, app.image);
+      const copy = document.createElement("span");
+      copy.className = "app-picker-copy";
+      const name = document.createElement("span");
+      name.className = "app-picker-name";
+      name.textContent = app.name;
+      const pkg = document.createElement("span");
+      pkg.className = "app-picker-package";
+      pkg.textContent = app.packageName;
+      copy.append(name, pkg);
+      button.append(img, copy);
+      const icon = document.createElement("span");
+      icon.className = "material-symbols-rounded";
+      icon.textContent = "chevron_right";
+      button.append(icon);
+      button.addEventListener("click", () => {
+        if (byId("dialog").open) byId("dialog").close();
+        if (flow === "create") {
+          showCreateProfileConfirmation(app);
+        } else {
+          const game = games().find(g => g.id === selectedProfileForPicker);
+          if (!game) return;
+          game.packageName = app.packageName;
+          game.name = app.name;
+          game.image = app.image;
+          game.lines = profileRawLines(game);
+          if (!Object.prototype.hasOwnProperty.call(state.designatedProfiles, app.packageName)) {
+            state.designatedProfiles[app.packageName] = game.profileName;
+          }
+          updateAll();
+          showToast("Assigned app changed");
+        }
+      });
+      list.append(button);
+    });
+  };
+  renderList("");
+  host.querySelector("#appSearch").addEventListener("input", event => renderList(event.target.value));
+}
+function showProfileActions(id) {
+  const game = games().find(g => g.id === id);
+  if (!game) return;
+  const host = byId("profileActions");
+  resetDialogContent();
+  byId("dialogTitle").textContent = game.name;
+  byId("dialogMessage").textContent = `Profile · ${game.profileName}`;
+  host.hidden = false;
+  host.innerHTML = `
+    <button class="profile-action" data-profile-action="edit"><span class="material-symbols-rounded">tune</span>Edit keymap</button>
+    <button class="profile-action" data-profile-action="rename"><span class="material-symbols-rounded">drive_file_rename_outline</span>Rename profile</button>
+    <button class="profile-action" data-profile-action="change"><span class="material-symbols-rounded">swap_horiz</span>Change assigned app</button>
+    <button class="profile-action danger" data-profile-action="delete"><span class="material-symbols-rounded">delete</span>Delete profile</button>`;
+  byId("dialogConfirm").hidden = true;
+  byId("dialogCancel").textContent = "Done";
+  host.querySelectorAll("[data-profile-action]").forEach(button => button.addEventListener("click", () => {
+    const action = button.dataset.profileAction;
+    byId("dialog").close();
+    if (action === "edit") showEditorBoundary(game);
+    if (action === "rename") renameProfile(game);
+    if (action === "change") openAppPicker("change", game.id);
+    if (action === "delete") deleteProfile(game);
+  }));
+  byId("dialog").showModal();
+  requestAnimationFrame(() => byId("dialogCancel").focus({ preventScroll:true }));
+}
+function renameProfile(game) {
+  openDialog("Rename profile", "The profile key/name changes; its assigned Android package and keymap data remain associated with it.", {
+    input: true, value: game.profileName, placeholder: "Profile name", confirmText: "Save",
+    onConfirm: value => {
+      const name = value.trim();
+      if (!name) return showToast("Profile name cannot be empty");
+      if (games().some(g => g.id !== game.id && g.profileName.toLowerCase() === name.toLowerCase())) return showToast("That profile name is already in use");
+      const oldName = game.profileName;
+      Object.keys(state.designatedProfiles).forEach(pkg => { if (state.designatedProfiles[pkg] === oldName) state.designatedProfiles[pkg] = name; });
+      game.profileName = name;
+      game.lines = profileRawLines(game);
+      state.designatedProfiles[game.packageName] = name;
+      updateAll();
+      showToast("Profile renamed");
+    }
+  });
+}
+function deleteProfile(game) {
+  openDialog("Delete profile?", `Delete the ${game.profileName} keymap profile? This does not uninstall ${game.name}.`, {
+    confirmText: "Delete",
+    onConfirm: () => {
+      const remaining = profileCollection().filter(item => item.id !== game.id);
+      if (state.libraryScenario === "samples") state.previewGames = remaining;
+      else state.games = remaining;
+      Object.keys(state.designatedProfiles).forEach(pkg => { if (state.designatedProfiles[pkg] === game.profileName) delete state.designatedProfiles[pkg]; });
+      if (state.selectedId === game.id) state.selectedId = remaining[0]?.id || "";
+      updateAll();
+      showToast("Profile deleted");
+    }
+  });
+}
+function showEditorBoundary(game) {
+  openDialog("Keymap editor", `Android opens EditorActivity for profile “${game.profileName}”. This is a separate activity from MainActivity, so this Main Activity prototype keeps the navigation hand-off explicit rather than pretending to edit a real keymap here.`, {
+    confirmText: "Select profile",
+    onConfirm: () => selectGame(game.id)
+  });
+}
+
+/* ImportExportActivity-compatible ZIP format: one ZIP entry per profile,
+   entry name = profile key, entry text = newline-separated SharedPreferences values. */
+const crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function zipStore(entries) {
+  const encoder = new TextEncoder();
+  const locals = [], centrals = [];
+  let offset = 0, centralSize = 0;
+  for (const entry of entries) {
+    const name = encoder.encode(entry.name);
+    const data = encoder.encode(entry.data);
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + name.length + data.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true);
+    lv.setUint16(8, 0, true); lv.setUint16(10, 0, true); lv.setUint16(12, 0, true);
+    lv.setUint32(14, crc, true); lv.setUint32(18, data.length, true); lv.setUint32(22, data.length, true);
+    lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true);
+    local.set(name, 30); local.set(data, 30 + name.length);
+    const central = new Uint8Array(46 + name.length);
+    const cv = new DataView(central.buffer);
+    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0, true);
+    cv.setUint32(16, crc, true); cv.setUint32(20, data.length, true); cv.setUint32(24, data.length, true);
+    cv.setUint16(28, name.length, true); cv.setUint16(30, 0, true); cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true); cv.setUint16(36, 0, true); cv.setUint32(38, 0, true); cv.setUint32(42, offset, true);
+    central.set(name, 46);
+    locals.push(local); centrals.push(central); offset += local.length; centralSize += central.length;
+  }
+  const end = new Uint8Array(22); const ev = new DataView(end.buffer);
+  ev.setUint32(0, 0x06054b50, true); ev.setUint16(4, 0, true); ev.setUint16(6, 0, true);
+  ev.setUint16(8, entries.length, true); ev.setUint16(10, entries.length, true);
+  ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true); ev.setUint16(20, 0, true);
+  return new Blob([...locals, ...centrals, end], { type: "application/zip" });
+}
+async function unzipEntries(buffer) {
+  const view = new DataView(buffer);
+  let eocd = -1;
+  for (let i = buffer.byteLength - 22; i >= Math.max(0, buffer.byteLength - 65557); i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("This file is not a valid ZIP archive.");
+  const count = view.getUint16(eocd + 10, true);
+  let cursor = view.getUint32(eocd + 16, true);
+  const decoder = new TextDecoder();
+  const entries = [];
+  for (let n = 0; n < count; n++) {
+    if (view.getUint32(cursor, true) !== 0x02014b50) throw new Error("Invalid ZIP central directory.");
+    const method = view.getUint16(cursor + 10, true);
+    const compressedSize = view.getUint32(cursor + 20, true);
+    const uncompressedSize = view.getUint32(cursor + 24, true);
+    const nameLength = view.getUint16(cursor + 28, true);
+    const extraLength = view.getUint16(cursor + 30, true);
+    const commentLength = view.getUint16(cursor + 32, true);
+    const localOffset = view.getUint32(cursor + 42, true);
+    const name = decoder.decode(new Uint8Array(buffer, cursor + 46, nameLength));
+    cursor += 46 + nameLength + extraLength + commentLength;
+    if (!name || name.includes("/") || name.includes("\\") || name === "." || name === "..") continue;
+    if (uncompressedSize > 8 * 1024 * 1024) throw new Error(`Profile “${name}” is too large to import safely.`);
+    if (view.getUint32(localOffset, true) !== 0x04034b50) throw new Error("Invalid ZIP local entry.");
+    const localNameLength = view.getUint16(localOffset + 26, true);
+    const localExtraLength = view.getUint16(localOffset + 28, true);
+    const dataOffset = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = new Uint8Array(buffer, dataOffset, compressedSize);
+    let data;
+    if (method === 0) data = new Uint8Array(compressed);
+    else if (method === 8 && "DecompressionStream" in window) {
+      const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      data = new Uint8Array(await new Response(stream).arrayBuffer());
+    } else throw new Error("This browser cannot decompress this ZIP method. Exported XtMapper stored ZIP files are supported.");
+    if (data.length !== uncompressedSize) throw new Error(`ZIP size mismatch in profile “${name}”.`);
+    entries.push({ name, text: decoder.decode(data) });
+  }
+  return entries;
+}
+function showImportExport() {
+  const host = document.createElement("div");
+  const list = document.createElement("div");
+  list.className = "backup-list";
+  const controls = document.createElement("div");
+  controls.className = "backup-actions";
+  const selectAll = document.createElement("button");
+  selectAll.type = "button"; selectAll.className = "tonal-button"; selectAll.textContent = "Select all";
+  const exportButton = document.createElement("button");
+  exportButton.type = "button"; exportButton.className = "filled-button"; exportButton.textContent = "Export selected";
+  const importButton = document.createElement("button");
+  importButton.type = "button"; importButton.className = "outlined-button"; importButton.textContent = "Import ZIP";
+  controls.append(selectAll, exportButton, importButton);
+  host.append(list, controls);
+  function render() {
+    list.replaceChildren();
+    if (!games().length) {
+      const empty = document.createElement("p"); empty.className = "sim-desc"; empty.textContent = "No profiles available to export."; list.append(empty);
+    }
+    games().forEach(game => {
+      const row = document.createElement("div"); row.className = "backup-row";
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input"); checkbox.type = "checkbox"; checkbox.dataset.backupId = game.id;
+      const name = document.createElement("span"); name.textContent = `${game.profileName} · ${game.name}`;
+      label.append(checkbox, name); row.append(label); list.append(row);
+    });
+    exportButton.disabled = list.querySelectorAll("input:checked").length === 0;
+  }
+  openCustomDialog("Profile backups", "The Android app exports selected profiles as a ZIP archive and imports ZIP entries without overwriting existing profiles.", host, { confirm: false, cancelText: "Done" });
+  render();
+  selectAll.addEventListener("click", () => {
+    const boxes = [...list.querySelectorAll("input")];
+    const shouldCheck = boxes.some(box => !box.checked);
+    boxes.forEach(box => { box.checked = shouldCheck; });
+    selectAll.textContent = shouldCheck ? "Clear selection" : "Select all";
+    exportButton.disabled = !boxes.some(box => box.checked);
+  });
+  list.addEventListener("change", () => {
+    exportButton.disabled = list.querySelectorAll("input:checked").length === 0;
+  });
+  exportButton.addEventListener("click", () => {
+    const ids = [...list.querySelectorAll("input:checked")].map(box => box.dataset.backupId);
+    const chosen = games().filter(game => ids.includes(game.id));
+    if (!chosen.length) return;
+    const entries = chosen.map(game => ({ name: game.profileName, data: profileRawLines(game).join("\n") + "\n" }));
+    const blob = zipStore(entries);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = `XtMapper-${new Date().toISOString().slice(0,10)}.zip`;
+    document.body.append(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    showToast(`${chosen.length} profile(s) exported to ZIP`);
+  });
+  importButton.addEventListener("click", () => { backupInputMode = "import"; byId("backupFile").click(); });
+}
+byId("backupFile").addEventListener("change", async event => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  try {
+    const entries = await unzipEntries(await file.arrayBuffer());
+    const previousScenario = state.libraryScenario;
+    state.libraryScenario = "current";
+    let imported = 0;
+    for (const entry of entries) {
+      if (games().some(game => game.profileName === entry.name)) continue; // Match Android: never overwrite a local profile.
+      const lines = entry.text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+      const appLine = lines.find(line => line.startsWith("APPLICATION "));
+      const packageName = appLine?.slice("APPLICATION ".length).trim() || "xtr.keymapper";
+      const app = byPackage(packageName);
+      state.games.push({ id: uid(), name: app.name, profileName: entry.name, packageName, image: app.image, enabled: lines.includes("ENABLED"), lines });
+      imported++;
+    }
+    if (imported) {
+      if (!state.games.some(game => game.id === state.selectedId) && state.games[0]) state.selectedId = state.games[0].id;
+      updateAll();
+      showToast(`${imported} profile(s) imported`);
+    } else {
+      state.libraryScenario = previousScenario;
+      showToast("All imported profile names already exist");
+    }
+  } catch (error) {
+    openDialog("Import failed", error?.message || "The selected ZIP archive could not be read.");
+  }
+});
+
+function showLogs() {
+  const api = permission("androidApi");
+  const directory = "/storage/emulated/0/XtMapper/Logs"; // Release-build LogDirectories path.
+  if (api < 30) {
+    openDialog("Logs unavailable", `The current XtMapper code reports persistent file logging as unsupported below Android 11.\n\nLog directory: ${directory}`);
+    return;
+  }
+  if (!permission("allFiles")) {
+    openDialog("Logs access required", `On Android 11 and later, XtLogger enables its persistent file sink only after Environment.isExternalStorageManager() returns true.\n\nLog directory: ${directory}`, {
+      confirmText: "Grant access",
+      onConfirm: () => showAndroidSettingsSimulation("allFiles")
+    });
+    return;
+  }
+  if (!permission("logSinkAvailable")) {
+    openDialog("Persistent logging unavailable", `All-files access is granted, but XtLogger.isFileSinkAvailable is false. The app cannot offer persistent log files until its file sink is available.\n\nLog directory: ${directory}`, {
+      confirmText: "Prototype environment",
+      onConfirm: openEnvironmentDialog
+    });
+    return;
+  }
+  openDialog("Logs", `Persistent file logging is available in this prototype simulation.\n\nLog directory: ${directory}`, {
+    confirmText: "Prototype environment",
+    onConfirm: openEnvironmentDialog
+  });
+}
+function showHelp() {
+  const host = document.createElement("div");
+  host.innerHTML = `<div class="sim-notice">XtMapper maps keyboard and mouse input to touch interactions for Android games. The help screen in Android is a separate InfoActivity backed by local documentation assets.</div><p style="margin:12px 0 0;font-size:13px;line-height:20px"><a style="color:#ff9aac" href="https://github.com/SoufianoDev/XtMapper" target="_blank" rel="noreferrer">XtMapper repository</a></p>`;
+  openCustomDialog("Help", "Project information", host, { confirm: false, cancelText: "Close" });
+}
+let currentSettingsTab = "sliders";
+let pendingShortcutCapture = null;
+function showSettings(tab = currentSettingsTab) {
+  currentSettingsTab = tab;
+  const host = document.createElement("div");
+  const render = () => {
+    const settings = state.settings;
+    const rootMode = state.inputMode === "root";
+    host.innerHTML = `
+      <div class="sim-notice">This mirrors the SettingsOverlay and KeymapConfig controls in XtMapper. Changes are stored only in this browser prototype; they are not written to Android SharedPreferences or the running service.</div>
+      <div class="setting-tabs" role="tablist" aria-label="Editor settings">
+        <button class="setting-tab ${currentSettingsTab === "sliders" ? "active" : ""}" data-setting-tab="sliders" role="tab" aria-selected="${currentSettingsTab === "sliders"}">Sliders</button>
+        <button class="setting-tab ${currentSettingsTab === "shortcuts" ? "active" : ""}" data-setting-tab="shortcuts" role="tab" aria-selected="${currentSettingsTab === "shortcuts"}">Shortcuts</button>
+        <button class="setting-tab ${currentSettingsTab === "misc" ? "active" : ""}" data-setting-tab="misc" role="tab" aria-selected="${currentSettingsTab === "misc"}">Misc</button>
+      </div>
+      <section class="setting-panel ${currentSettingsTab === "sliders" ? "active" : ""}" role="tabpanel" ${currentSettingsTab !== "sliders" ? "hidden" : ""}>
+        ${settingRange("mouseSensitivity", "Mouse sensitivity", "×", 0, 5, 0.1)}
+        ${settingRange("scrollSpeed", "Scroll speed", "×", 0, 5, 0.1)}
+        ${settingRange("swipeDelayMs", "Swipe delay", "ms", 0, 500, 1)}
+        ${settingRange("shiftTransitionMs", "Shift transition", "ms", 0, 500, 10)}
+        ${settingRange("floatingKeysSize", "Floating keys size", "×", 0, 1, 0.05)}
+        ${settingRange("touchJitterSpread", "Touch jitter spread", "px", 0, 50, 1)}
+      </section>
+      <section class="setting-panel ${currentSettingsTab === "shortcuts" ? "active" : ""}" role="tabpanel" ${currentSettingsTab !== "shortcuts" ? "hidden" : ""}>
+        <p class="setting-intro">Select a shortcut field, then press the key you want to assign. Modifier keys are configured separately.</p>
+        ${shortcutSettingRow("launchEditorShortcutKey", "Launch editor", "launchEditorShortcutKeyModifier")}
+        ${shortcutSettingRow("pauseResumeShortcutKey", "Pause / resume", "pauseResumeShortcutKeyModifier")}
+        ${shortcutSettingRow("switchProfileShortcutKey", "Switch profile", "switchProfileShortcutKeyModifier")}
+        ${rootMode ? shortcutSettingRow("blockKeyboardShortcutKey", "Block keyboard", "blockKeyboardShortcutKeyModifier") : `<div class="sim-notice">Block keyboard shortcut is available only in Root mode.</div>`}
+        ${shortcutSettingRow("mouseAimShortcutKey", "Mouse aim", null)}
+        <div class="setting-row setting-inline"><span class="setting-copy"><span class="setting-title">Mouse aim action</span><span class="setting-desc">Choose whether the assigned shortcut toggles or holds mouse aim.</span></span><select class="setting-select" data-setting-choice="mouseAimToggle"><option value="true" ${settings.mouseAimToggle ? "selected" : ""}>Toggle</option><option value="false" ${!settings.mouseAimToggle ? "selected" : ""}>Hold</option></select></div>
+      </section>
+      <section class="setting-panel ${currentSettingsTab === "misc" ? "active" : ""}" role="tabpanel" ${currentSettingsTab !== "misc" ? "hidden" : ""}>
+        <div class="setting-section-heading">Mouse gestures</div>
+        ${settingToggle("ctrlMouseWheelZoom", "Ctrl + mouse wheel", "Use Ctrl + wheel for pinch-to-zoom.")}
+        ${settingToggle("ctrlDragMouseGesture", "Ctrl + drag", "Use Ctrl + drag as a mouse gesture.")}
+        <div class="setting-section-heading">Mouse aim triggers</div>
+        ${settingToggle("keyGraveMouseAim", "Grave key", "Use the grave key to trigger mouse aim.")}
+        ${settingToggle("rightClickMouseAim", "Right click", "Use right mouse click to trigger mouse aim.")}
+        <div class="setting-section-heading">Pointer and touchpad</div>
+        <div class="setting-row setting-inline"><span class="setting-copy"><span class="setting-title">Pointer mode</span><span class="setting-desc">How the pointer is rendered.</span></span><select class="setting-select" data-setting-choice="pointerMode"><option value="8" ${settings.pointerMode === 8 ? "selected" : ""}>Combined</option><option value="7" ${settings.pointerMode === 7 ? "selected" : ""}>Overlay</option><option value="6" ${settings.pointerMode === 6 ? "selected" : ""}>System</option></select></div>
+        <div class="setting-row setting-inline"><span class="setting-copy"><span class="setting-title">Touchpad input</span><span class="setting-desc">Choose touchpad movement behavior.</span></span><select class="setting-select" data-setting-choice="touchpadInputMode"><option value="3" ${settings.touchpadInputMode === 3 ? "selected" : ""}>Direct</option><option value="4" ${settings.touchpadInputMode === 4 ? "selected" : ""}>Relative</option><option value="5" ${settings.touchpadInputMode === 5 ? "selected" : ""}>Disabled</option></select></div>
+        <button class="outlined-button advanced-settings-button" id="advancedSettingsButton"><span class="material-symbols-rounded">settings</span>Advanced settings</button>
+      </section>`;
+    host.querySelectorAll("[data-setting-tab]").forEach(button => button.addEventListener("click", () => {
+      currentSettingsTab = button.dataset.settingTab;
+      render();
+    }));
+    host.querySelectorAll("[data-setting]").forEach(input => {
+      input.checked = !!state.settings[input.dataset.setting];
+      input.addEventListener("change", () => {
+        const key = input.dataset.setting;
+        state.settings[key] = input.checked;
+        if (key === "touchJitter" && !input.checked) state.settings.touchJitterSpread = 0;
+        if (key === "useShizuku") state.inputMode = input.checked ? "shizuku" : "root";
+        updateInputMode();
+        persistState();
+      });
+    });
+    host.querySelectorAll("[data-setting-range]").forEach(input => {
+      input.addEventListener("input", () => {
+        const key = input.dataset.settingRange;
+        state.settings[key] = Number(input.value);
+        if (key === "touchJitterSpread") state.settings.touchJitter = Number(input.value) > 0;
+        const output = host.querySelector(`[data-range-output="${key}"]`);
+        if (output) output.textContent = formatSettingValue(key, Number(input.value));
+        persistState();
+      });
+    });
+    host.querySelectorAll("[data-setting-choice]").forEach(input => input.addEventListener("change", () => {
+      const key = input.dataset.settingChoice;
+      state.settings[key] = key === "mouseAimToggle" ? input.value === "true" : Number(input.value);
+      persistState();
+    }));
+    host.querySelectorAll("[data-key-capture]").forEach(input => input.addEventListener("click", () => {
+      pendingShortcutCapture = input.dataset.keyCapture;
+      input.value = "Press a key…";
+      input.classList.add("capturing-key");
+      input.focus();
+    }));
+    host.querySelectorAll("[data-shortcut-modifier]").forEach(input => input.addEventListener("change", () => {
+      state.settings[input.dataset.shortcutModifier] = input.value;
+      persistState();
+    }));
+    const advancedButton = host.querySelector("#advancedSettingsButton");
+    if (advancedButton) advancedButton.addEventListener("click", showAdvancedSettings);
+  };
+  openCustomDialog("Settings", "Editor settings", host, { confirm: false, cancelText: "Done" });
+  render();
+}
+function formatSettingValue(key, value) {
+  if (key === "swipeDelayMs" || key === "shiftTransitionMs") return `${Math.round(value)} ms`;
+  if (key === "touchJitterSpread") return `${Math.round(value)} px`;
+  if (key === "showControlsOpacity") return `${Math.round(value * 100)}%`;
+  if (key === "floatingKeysSize") return `${value.toFixed(2)}×`;
+  return `${value.toFixed(1)}×`;
+}
+function settingRange(key, title, unit, min, max, step) {
+  const value = Number(state.settings[key] ?? min);
+  return `<div class="setting-row setting-range-row"><span class="setting-copy"><span class="setting-title">${title}</span><span class="setting-desc" data-range-output="${key}">${formatSettingValue(key, value)}</span></span><input type="range" min="${min}" max="${max}" step="${step}" value="${value}" data-setting-range="${key}" aria-label="${title}"></div>`;
+}
+function shortcutSettingRow(key, title, modifierKey) {
+  const stored = state.settings[key] || "";
+  const shown = stored.replace(/^KEY_/, "") || "Not set";
+  return `<div class="setting-row shortcut-setting-row"><span class="setting-copy"><span class="setting-title">${title}</span><span class="setting-desc">Shortcut key</span></span>${modifierKey ? `<select class="setting-select modifier-select" data-shortcut-modifier="${modifierKey}" aria-label="${title} modifier"><option value="Ctrl" ${state.settings[modifierKey] === "Ctrl" ? "selected" : ""}>Ctrl</option><option value="Alt" ${state.settings[modifierKey] === "Alt" ? "selected" : ""}>Alt</option></select>` : ""}<input class="shortcut-key-input" type="text" readonly value="${shown}" data-key-capture="${key}" aria-label="Capture ${title} key" title="Click, then press a key"></div>`;
+}
+function showAdvancedSettings() {
+  const host = document.createElement("div");
+  const settings = state.settings;
+  host.innerHTML = `
+    <div class="sim-notice">These are the options in SettingsOverlay.showSettingsDialog(). Changes stay in this prototype and do not reach KeymapConfig on Android.</div>
+    ${settingToggle("disableAutoProfiling", "Disable automatic profiling", "Stop selecting profiles automatically when apps change.")}
+    ${settingToggle("useShizuku", "Use Shizuku", "Switch the configured input mode from Root to Shizuku.")}
+    <div data-root-only ${state.inputMode === "root" ? "" : "hidden"}>${settingToggle("blockKeyboardInput", "Block keyboard input", "Root mode only.")}</div>
+    <div class="sim-notice" data-shizuku-only ${state.inputMode === "root" ? "hidden" : ""}>Block keyboard input is hidden while Shizuku mode is selected.</div>
+    ${settingToggle("editorOverlay", "Open editor as overlay", "Show the editor in an overlay window instead of a full activity.")}
+    ${settingToggle("touchJitter", "Touch jitter", "Add a small random spread to touch positions.")}
+    ${settingRange("touchJitterSpread", "Touch jitter spread", "px", 0, 50, 1)}
+    ${settingToggle("showControls", "Show controls", "Show the keymap controls overlay when the input service is active.")}
+    ${settingRange("showControlsOpacity", "Controls opacity", "%", 0, 1, 0.05)}`;
+  const rangeOutput = host.querySelectorAll("[data-range-output]");
+  rangeOutput.forEach(output => {
+    if (output.dataset.rangeOutput === "showControlsOpacity") output.textContent = `${Math.round(settings.showControlsOpacity * 100)}%`;
+  });
+  openCustomDialog("Advanced settings", "Advanced EditorUI settings", host, {
+    confirm: false, cancelText: "Back", onCancel: () => showSettings(currentSettingsTab)
+  });
+  host.querySelectorAll("[data-setting]").forEach(input => {
+    input.checked = !!state.settings[input.dataset.setting];
+    input.addEventListener("change", () => {
+      const key = input.dataset.setting;
+      state.settings[key] = input.checked;
+      if (key === "useShizuku") {
+        const nextMode = input.checked ? "shizuku" : "root";
+        if (input.checked) state.settings.blockKeyboardInput = false;
+        const rootOnly = host.querySelector("[data-root-only]");
+        const shizukuOnly = host.querySelector("[data-shizuku-only]");
+        if (rootOnly) rootOnly.hidden = input.checked;
+        if (shizukuOnly) shizukuOnly.hidden = !input.checked;
+        changeInputMode(nextMode);
+        return;
+      }
+      if (key === "touchJitter") state.settings.touchJitterSpread = input.checked ? (state.settings.touchJitterSpread || 15) : 0;
+      if (key === "blockKeyboardInput" && state.inputMode !== "root") state.settings.blockKeyboardInput = false;
+      updateInputMode();
+      persistState();
+    });
+  });
+  host.querySelectorAll("[data-setting-range]").forEach(input => input.addEventListener("input", () => {
+    const key = input.dataset.settingRange;
+    state.settings[key] = Number(input.value);
+    if (key === "touchJitterSpread") state.settings.touchJitter = Number(input.value) > 0;
+    const output = host.querySelector(`[data-range-output="${key}"]`);
+    if (output) output.textContent = key === "showControlsOpacity" ? `${Math.round(Number(input.value)*100)}%` : formatSettingValue(key, Number(input.value));
+    persistState();
+  }));
+}
+function settingToggle(key, title, desc) {
+  return `<label class="setting-row"><span class="setting-copy"><span class="setting-title">${title}</span><span class="setting-desc">${desc}</span></span><input type="checkbox" data-setting="${key}" ${state.settings[key] ? "checked" : ""}></label>`;
+}
+
+async function refreshBrowserDevices() {
+  const devices = [];
+  if (navigator.getGamepads) {
+    try {
+      [...navigator.getGamepads()].filter(Boolean).forEach(pad => devices.push({ name: pad.id || `Gamepad ${pad.index+1}`, kind: "Gamepad", key: `gamepad-${pad.index}` }));
+    } catch (_) {}
+  }
+  if (navigator.hid?.getDevices) {
+    try {
+      const hidDevices = await navigator.hid.getDevices();
+      hidDevices.forEach((device, index) => devices.push({ name: device.productName || `HID device ${index+1}`, kind: "Browser-authorised HID", key: `hid-${device.vendorId}-${device.productId}-${index}` }));
+    } catch (_) {}
+  }
+  connectedBrowserDevices = devices;
+  const list = byId("deviceList");
+  list.replaceChildren();
+  devices.forEach(device => {
+    const row = document.createElement("div"); row.className = "device-row";
+    const icon = document.createElement("span"); icon.className = "device-icon";
+    icon.innerHTML = `<span class="material-symbols-rounded">${device.kind === "Gamepad" ? "sports_esports" : "usb"}</span>`;
+    const name = document.createElement("span"); name.className = "device-name";
+    const strong = document.createElement("span"); strong.textContent = device.name;
+    const kind = document.createElement("span"); kind.className = "device-kind"; kind.textContent = device.kind;
+    name.append(strong, kind);
+    const dot = document.createElement("span"); dot.className = "connected-dot"; dot.setAttribute("aria-label", "Connected");
+    row.append(icon, name, dot); list.append(row);
+  });
+  byId("noDevices").style.display = devices.length ? "none" : "block";
+  byId("deviceFootnote").textContent = "This list uses browser Gamepad and previously authorised WebHID devices. Unlike Android InputDevice, a browser cannot enumerate the system keyboard or every joystick device.";
+}
+async function pairHidDevice() {
+  if (!window.isSecureContext) {
+    openDialog("Secure context required", "WebHID is only available in secure contexts. Open this prototype from HTTPS or localhost, and use a Chromium-based browser that supports WebHID.");
+    return;
+  }
+  if (!navigator.hid?.requestDevice) {
+    openDialog("WebHID unavailable", "This browser does not expose WebHID. You can still use the prototype; Android XtMapper detects supported hardware natively through InputDevice.");
+    return;
+  }
+  try {
+    await navigator.hid.requestDevice({ filters: [] });
+    await refreshBrowserDevices();
+    showToast("Browser HID device permission updated");
+  } catch (error) {
+    if (error?.name === "NotFoundError") showToast("No HID device selected");
+    else if (error?.name === "NotAllowedError") showToast("HID access was cancelled");
+    else openDialog("HID access failed", error?.message || "The browser could not access this HID device.");
+  }
+}
+if (navigator.getGamepads) {
+  window.addEventListener("gamepadconnected", refreshBrowserDevices);
+  window.addEventListener("gamepaddisconnected", refreshBrowserDevices);
+}
+if (navigator.hid?.addEventListener) {
+  navigator.hid.addEventListener("connect", refreshBrowserDevices);
+  navigator.hid.addEventListener("disconnect", refreshBrowserDevices);
+}
+
+byId("moreButton").addEventListener("click", () => {
+  const menu = byId("mainMenu");
+  menu.classList.toggle("open");
+  byId("moreButton").setAttribute("aria-expanded", String(menu.classList.contains("open")));
+});
+document.addEventListener("click", event => {
+  if (!event.target.closest("#mainMenu") && !event.target.closest("#moreButton")) {
+    byId("mainMenu").classList.remove("open");
+    byId("moreButton").setAttribute("aria-expanded", "false");
+  }
+});
+byId("mainMenu").querySelectorAll("[data-action]").forEach(item => item.addEventListener("click", () => {
+  const action = item.dataset.action;
+  byId("mainMenu").classList.remove("open");
+  byId("moreButton").setAttribute("aria-expanded", "false");
+  if (action === "settings") showSettings();
+  if (action === "help") showHelp();
+  if (action === "logs") showLogs();
+  if (action === "import-export") showImportExport();
+}));
+byId("serviceButton").addEventListener("click", toggleService);
+byId("activateButton").addEventListener("click", activateSelected);
+byId("featuredMenu").addEventListener("click", () => { if (selectedGame()) showProfileActions(state.selectedId); });
+byId("editFeaturedButton").addEventListener("click", () => { if (selectedGame()) showEditorBoundary(selectedGame()); });
+byId("addGameButton").addEventListener("click", () => openAppPicker("create"));
+byId("emptyAddGameButton").addEventListener("click", () => openAppPicker("create"));
+byId("emptyImportButton").addEventListener("click", openProfileZipPicker);
+byId("rootMode").addEventListener("click", () => changeInputMode("root"));
+byId("shizukuMode").addEventListener("click", () => changeInputMode("shizuku"));
+byId("fixRoot").addEventListener("click", showRootAccessError);
+byId("fixShizuku").addEventListener("click", () => showShizukuHelp(shizukuProblem()));
+byId("grantOverlay").addEventListener("click", () => showAndroidSettingsSimulation("overlay"));
+byId("testInputButton").addEventListener("click", testInput);
+byId("importExportButton").addEventListener("click", showImportExport);
+byId("pairDeviceButton").addEventListener("click", pairHidDevice);
+byId("refreshDevicesButton").addEventListener("click", refreshBrowserDevices);
+
+document.addEventListener("keydown", event => {
+  if (pendingShortcutCapture) {
+    if (["Shift", "Control", "Alt", "Meta"].includes(event.key)) return;
+    const target = document.querySelector(`[data-key-capture="${pendingShortcutCapture}"]`);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (target) { target.value = (state.settings[pendingShortcutCapture] || "").replace(/^KEY_/, "") || "Not set"; target.classList.remove("capturing-key"); }
+      pendingShortcutCapture = null;
+      showToast("Shortcut capture cancelled");
+      return;
+    }
+    event.preventDefault();
+    const special = { Space: "KEY_SPACE", Backquote: "KEY_GRAVE", Enter: "KEY_ENTER", Escape: "KEY_ESCAPE", ArrowUp: "KEY_UP", ArrowDown: "KEY_DOWN", ArrowLeft: "KEY_LEFT", ArrowRight: "KEY_RIGHT", Tab: "KEY_TAB" };
+    const code = event.code || event.key;
+    const normalized = special[code] || (code.startsWith("Key") ? `KEY_${code.slice(3)}` : code.startsWith("Digit") ? `KEY_${code.slice(5)}` : code.startsWith("Numpad") ? `KEY_NUMPAD${code.slice(6)}` : `KEY_${String(event.key).toUpperCase().replace(/[^A-Z0-9]/g, "")}`);
+    state.settings[pendingShortcutCapture] = normalized;
+    if (target) { target.value = normalized.replace(/^KEY_/, ""); target.classList.remove("capturing-key"); }
+    const captured = pendingShortcutCapture;
+    pendingShortcutCapture = null;
+    persistState();
+    showToast(`${captured.replace(/ShortcutKey$/, "").replace(/([A-Z])/g, " $1").trim()} shortcut set to ${normalized.replace(/^KEY_/, "")}`);
+    return;
+  }
+  if (event.key === "Escape") {
+    byId("mainMenu").classList.remove("open");
+    byId("moreButton").setAttribute("aria-expanded", "false");
+  }
+});
+
+
+const GOOGLE_MATERIAL_SYMBOLS = ["add","apps","arrow_forward","battery_full","check","chevron_right","close","delete","description","download","drive_file_rename_outline","folder_open","help","info","keyboard","layers","lock","more_vert","mouse","notifications","open_in_new","play_arrow","refresh","search","settings","signal_cellular_alt","sports_esports","swap_horiz","sync_alt","tune","upload","usb","warning","wifi"];
+
+async function initialiseGoogleMaterialSymbols() {
+  const root = document.documentElement;
+  root.classList.add("icons-pending");
+  try {
+    if (!document.fonts?.load) throw new Error("Font Loading API unavailable");
+    const loadedFaces = await Promise.race([
+      document.fonts.load('400 22px "Material Symbols Rounded"', "settings"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Google icon font timed out")), 5000))
+    ]);
+    const fontReady = loadedFaces.some(face =>
+      face.family.replaceAll('"', "") === "Material Symbols Rounded" && face.status === "loaded"
+    );
+    if (!fontReady) throw new Error("Google Material Symbols font did not load");
+    root.classList.remove("icons-pending", "icons-unavailable");
+  } catch (error) {
+    root.classList.remove("icons-pending");
+    root.classList.add("icons-unavailable");
+    console.warn("Google Material Symbols are unavailable; icon labels are hidden instead of showing broken ligature text.", error);
+  }
+}
+initialiseGoogleMaterialSymbols();
+
+
+/* Keep the phone frame and the page-level environment controls separate. */
+const browserPhoneFrame = document.querySelector(".phone");
+const browserPhoneStage = document.querySelector(".stage");
+const prototypePanel = document.querySelector(".prototype-panel");
+const prototypeWorkspace = document.querySelector(".prototype-workspace");
+function fitBrowserPhoneFrame() {
+  if (!browserPhoneFrame || !browserPhoneStage || !prototypeWorkspace) return;
+  const sideLayout = window.matchMedia("(min-width: 820px)").matches;
+  const panelWidth = sideLayout && prototypePanel ? prototypePanel.getBoundingClientRect().width : 0;
+  const gap = sideLayout ? (parseFloat(getComputedStyle(prototypeWorkspace).columnGap) || 24) : 0;
+  const availableWidth = Math.max(160, window.innerWidth - 24 - panelWidth - gap);
+  const availableHeight = sideLayout ? Math.max(280, window.innerHeight - 24) : 900;
+  const scale = Math.min(1, availableWidth / 430, availableHeight / 900);
+  browserPhoneStage.style.width = `${430 * scale}px`;
+  browserPhoneStage.style.height = `${900 * scale}px`;
+  browserPhoneFrame.style.transform = `scale(${scale})`;
+}
+window.addEventListener("resize", fitBrowserPhoneFrame, { passive:true });
+window.visualViewport?.addEventListener("resize", fitBrowserPhoneFrame, { passive:true });
+fitBrowserPhoneFrame();
+
+openEnvironmentDialog();
+updateAll();
+refreshBrowserDevices();
+prototypeReady = true;
+
+/* Same-origin bridge to the parent prototype settings panel. */
+const PROTOTYPE_BRIDGE_IDS = [
+  "simProfileScenario", "simApi",
+  "rootAccess", "shizukuInstalled", "shizukuRunning", "shizukuAuthorized",
+  "overlay", "notifications", "allFiles", "logSinkAvailable",
+  "browserNotificationState", "testBrowserNotification", "requestBrowserNotifications",
+  "browserStorageState", "browserStorageDetail", "requestPersistentStorage"
+];
+
+function prototypeBridgeSnapshot() {
+  const state = {};
+  for (const id of PROTOTYPE_BRIDGE_IDS) {
+    const element = byId(id);
+    if (!element) continue;
+    if (element.type === "checkbox") {
+      state[id] = { checked: element.checked, disabled: element.disabled };
+    } else if (element.tagName === "SELECT") {
+      state[id] = { value: element.value, disabled: element.disabled };
+    } else {
+      state[id] = { textContent: element.textContent, disabled: !!element.disabled };
+    }
+  }
+  return state;
+}
+
+function notifyPrototypeParent() {
+  if (window.parent !== window) {
+    window.parent.postMessage(
+      { type: "xtmapper-prototype-state", state: prototypeBridgeSnapshot() },
+      window.location.origin
+    );
+  }
+}
+
+window.addEventListener("message", event => {
+  if (event.source !== window.parent || event.origin !== window.location.origin) return;
+  const message = event.data;
+  if (!message || typeof message !== "object") return;
+
+  if (message.type === "xtmapper-prototype-sync") {
+    notifyPrototypeParent();
+    return;
+  }
+
+  if (message.type !== "xtmapper-prototype-control") return;
+  const control = byId(message.id);
+  if (!control) return;
+
+  if (message.action === "click") {
+    control.click();
+  } else {
+    if (control.type === "checkbox") control.checked = Boolean(message.value);
+    else control.value = String(message.value ?? "");
+    control.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  window.setTimeout(notifyPrototypeParent, 120);
+});
+
+document.addEventListener("change", event => {
+  if (event.target.matches("#simProfileScenario, #simApi, [data-sim-permission]")) {
+    window.setTimeout(notifyPrototypeParent, 0);
+  }
+}, true);
+
+document.addEventListener("click", event => {
+  if (event.target.closest("#requestBrowserNotifications, #testBrowserNotification, #requestPersistentStorage")) {
+    window.setTimeout(notifyPrototypeParent, 180);
+    window.setTimeout(notifyPrototypeParent, 900);
+  }
+}, true);
+
+window.addEventListener("load", notifyPrototypeParent, { once: true });
+
+</script>
+</body>
+</html>/* The outer prototype workspace owns the phone frame and visible settings panel. */
