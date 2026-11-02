@@ -1626,40 +1626,51 @@ body { display:flex; align-items:center; justify-content:center; padding:12px !i
   .prototype-panel-content .sim-select { flex:0 0 auto; width:100%; }
 }
 
-/* App-owned overlays are contained by the phone viewport; only prototype controls live outside it. */
+/* Keep app-owned overlays inside the phone, while the prototype panel stays in the page layout. */
 .phone { position:relative; }
-dialog {
+.phone > dialog {
   position:absolute;
   z-index:80;
   inset:0;
   display:none;
   align-items:center;
   justify-content:center;
+  box-sizing:border-box;
   width:100%;
   height:100%;
   max-width:none;
   max-height:none;
   margin:0;
-  padding:12px;
+  padding:0;
   overflow:hidden;
   border:0;
   border-radius:0;
   color:var(--md-sys-color-on-surface);
-  background:rgba(0,0,0,.66);
+  background:transparent;
   box-shadow:none;
-  backdrop-filter:blur(3px);
 }
-dialog[open] { display:flex; }
-dialog::backdrop { background:transparent; }
-.dialog-surface {
+.phone > dialog[open] { display:flex; }
+.phone > dialog::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.64);
+  backdrop-filter:blur(3px);
+  pointer-events:none;
+}
+.phone > dialog::backdrop { background:transparent; }
+.phone > dialog > .dialog-surface {
+  position:relative;
+  z-index:1;
   box-sizing:border-box;
   display:flex;
   flex-direction:column;
-  width:min(380px,100%);
-  max-width:100%;
-  max-height:100%;
+  width:min(380px,calc(100% - 24px));
+  max-width:calc(100% - 24px);
+  max-height:calc(100% - 24px);
   min-width:0;
   margin:0;
+  padding:0;
   overflow:auto;
   overscroll-behavior:contain;
   border:1px solid var(--md-sys-color-outline-variant);
@@ -1668,12 +1679,33 @@ dialog::backdrop { background:transparent; }
   background:var(--md-sys-color-surface-container-high);
   box-shadow:0 18px 60px rgba(0,0,0,.5);
 }
-.toast {
+.phone > dialog .dialog-content { min-width:0; padding:20px clamp(16px,5vw,22px) 10px; }
+.phone > dialog .dialog-message { overflow-wrap:anywhere; }
+.phone > dialog .dialog-custom,
+.phone > dialog .profile-actions {
+  min-width:0;
+  max-height:min(54dvh,440px);
+  overflow:auto;
+  overscroll-behavior:contain;
+  margin-top:14px;
+}
+.phone > dialog .dialog-actions {
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  flex-wrap:wrap;
+  background:linear-gradient(120deg,#34212e,#24232e);
+}
+.phone > dialog .dialog-actions button { min-width:76px; }
+.phone > dialog .dialog-input { min-width:0; }
+.phone > .toast {
   position:absolute;
   z-index:90;
-  bottom:24px;
+  bottom:25px;
   left:50%;
+  width:max-content;
   max-width:calc(100% - 24px);
+  overflow-wrap:anywhere;
 }
 </style>
 </head>
@@ -1834,7 +1866,7 @@ dialog::backdrop { background:transparent; }
     </dialog>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </div>
-
+  </div>
 
   <aside class="prototype-panel" id="prototypePanel" aria-labelledby="prototypePanelTitle">
     <header class="prototype-panel-heading">
