@@ -82,3 +82,33 @@ export function calculateScreenFit(screenWidth, screenHeight, viewportWidth, vie
     offsetY: (screenHeight - renderedHeight) / 2
   };
 }
+
+export function calculateViewportPlacement(
+  screenWidth,
+  screenHeight,
+  viewportWidth,
+  viewportHeight,
+  orientation
+) {
+  const values = [screenWidth, screenHeight, viewportWidth, viewportHeight];
+  if (!values.every(Number.isFinite) || values.some(function (value) { return value <= 0; })) {
+    throw new TypeError("Screen and viewport dimensions must be positive numbers.");
+  }
+
+  const landscape = orientation === "landscape";
+  const availableWidth = landscape ? screenHeight : screenWidth;
+  const availableHeight = landscape ? screenWidth : screenHeight;
+  const scale = Math.min(
+    availableWidth / viewportWidth,
+    availableHeight / viewportHeight
+  );
+
+  return {
+    left: (screenWidth - viewportWidth) / 2,
+    top: (screenHeight - viewportHeight) / 2,
+    scale: scale,
+    transform: landscape
+      ? "rotate(-90deg) scale(" + scale + ")"
+      : "scale(" + scale + ")"
+  };
+}
