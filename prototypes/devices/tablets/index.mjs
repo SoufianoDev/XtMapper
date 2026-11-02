@@ -5,7 +5,7 @@ export const tabletDevices = [
     id: "tablet",
     name: "Android tablet",
     type: "tablet",
-    viewport: { width: 800, height: 1242 },
+    viewport: { width: 800, height: 1280 },
     frame: {
       renderer: "telephone",
       tag: "android-tablet",
