@@ -53,6 +53,8 @@ function setIframeViewport(iframe, viewport) {
 export class DevicePreview {
   constructor() {
     this.stage = document.getElementById("previewStage");
+    this.preview = this.stage && this.stage.parentElement;
+    this.showcase = this.preview && this.preview.parentElement;
     this.frame = document.getElementById("deviceFrame");
     this.iframe = document.getElementById("activityFrame");
     this.select = document.getElementById("devicePreset");
@@ -168,6 +170,10 @@ export class DevicePreview {
   }
 
   async render() {
+    const landscape = this.orientation === "landscape";
+    if (this.preview) this.preview.classList.toggle("preview--landscape", landscape);
+    if (this.showcase) this.showcase.classList.toggle("showcase--landscape-preview", landscape);
+
     const generation = ++this.renderGeneration;
     const device = this.currentDevice;
     const viewport = getViewportForOrientation(this.currentViewport, this.orientation);
