@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#101114">
-<title>XtMapper — Main Activity · Responsive interactive prototype v9</title>
+<title>XtMapper — Main Activity · Responsive interactive prototype v10</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&family=Material+Symbols+Rounded:opsz,Wght,FILL,GRAD@20..48,400,0,0" rel="stylesheet">
 <style>
 :root {
   color-scheme: dark;
@@ -1307,6 +1307,70 @@ dialog[open] { display:flex; flex-direction:column; }
   .phone { min-height:900px; }
 }
 
+
+/* v10 — icon and layout repair. Keep the v7 button rhythm and use vector icons when web fonts are unavailable. */
+body.icons-pending .material-symbols-rounded { display:inline-block; width:1.05em; height:1.05em; overflow:hidden; font-size:0 !important; }
+.svg-icon { display:inline-flex !important; align-items:center; justify-content:center; width:1.05em; height:1.05em; flex:0 0 auto; line-height:1; overflow:visible; }
+.svg-icon .fallback-icon { display:block; width:100%; height:100%; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+.svg-icon[data-icon-name="play_arrow"] .fallback-icon { fill:currentColor; stroke:none; }
+.system-icons .svg-icon { width:15px; height:15px; }
+.icon-button .svg-icon { width:23px; height:23px; }
+.tile-menu .svg-icon, .feature-menu .svg-icon { width:21px; height:21px; }
+.profile-action .svg-icon { width:21px; height:21px; }
+.service-action { min-width:100px; padding-inline:16px; font-size:14px; }
+.backup-actions button { min-height:42px; }
+.device-browser-actions .outlined-button { min-height:42px; font-size:13px; padding-inline:15px; }
+.menu-popover { width:min(240px, calc(100% - 24px)); right:12px; }
+.dialog { max-width:calc(100vw - 24px); }
+.dialog-content, .dialog-custom { overflow-wrap:anywhere; }
+.app-picker-row img { flex:0 0 42px; }
+.app-picker-row, .backup-row, .setting-row { min-width:0; }
+.sim-row, .permission-setting-row { min-width:0; }
+.browser-capability { display:flex; flex-direction:column; gap:8px; margin-top:10px; padding:12px; border:1px solid rgba(235,125,147,.18); border-radius:14px; background:linear-gradient(145deg,rgba(40,29,40,.82),rgba(20,23,31,.88)); }
+.browser-capability-head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.browser-capability-title { color:#fff; font-size:13px; font-weight:700; }
+.browser-capability-state { color:#cfc4cd; font-size:11px; text-align:right; }
+.browser-capability-desc { color:#a9a5af; font-size:11px; line-height:16px; }
+.browser-capability-actions { display:flex; gap:7px; flex-wrap:wrap; }
+.browser-capability-actions button { min-height:40px; flex:1 1 125px; }
+.browser-input-panel { display:flex; flex-direction:column; gap:10px; }
+.browser-input-reading { padding:12px; border:1px solid rgba(235,125,147,.18); background:rgba(12,13,18,.72); border-radius:12px; min-height:72px; }
+.browser-input-reading strong { display:block; font-size:13px; color:#fff; margin-bottom:5px; }
+.browser-input-reading span { font-size:12px; color:#c7c1ca; overflow-wrap:anywhere; }
+.browser-input-history { display:flex; flex-direction:column; gap:5px; max-height:150px; overflow:auto; }
+.browser-input-event { display:flex; justify-content:space-between; gap:12px; padding:7px 9px; border-radius:9px; background:rgba(255,255,255,.045); color:#ddd6df; font-size:11px; }
+.browser-input-event code { color:#ff9aac; }
+@media (max-width:380px) {
+  .game-grid { grid-template-columns:minmax(0,1fr); gap:9px; }
+  .game-tile { min-height:80px; flex-direction:row; align-items:center; gap:11px; padding:10px 50px 10px 11px; }
+  .game-tile img { width:50px; height:50px; flex:0 0 50px; margin:0; }
+  .tile-info { width:auto; min-width:0; flex:1 1 0; padding:0; }
+  .tile-menu { top:50%; right:6px; transform:translateY(-50%); }
+  .service-action { min-width:96px; padding-inline:14px; }
+  .dialog-content { padding-inline:14px; }
+  .shortcut-setting-row { grid-template-columns:minmax(0,1fr) minmax(56px,66px) minmax(64px,74px); gap:5px; }
+  .modifier-select { width:100%; max-width:66px; }
+  .shortcut-key-input { width:100%; }
+}
+@media (max-width:320px) {
+  main { padding-inline:10px; }
+  .app-bar { padding-inline:10px; }
+  .service-row { gap:7px; padding-inline:8px; }
+  .service-action { min-width:88px; padding-inline:11px; }
+  .service-state { font-size:13px; }
+  .setting-tabs { gap:3px; }
+  .setting-tab { font-size:11px; }
+  .dialog-actions { gap:7px; }
+  .dialog-actions button { flex:1 1 100%; }
+  .browser-capability-actions button { flex-basis:100%; }
+  .app-picker-row { gap:9px; }
+  .app-picker-package { overflow-wrap:anywhere; }
+}
+@media (max-height:620px) {
+  .phone { min-height:100dvh; }
+  dialog { max-height:calc(100dvh - 12px); }
+  .dialog-content { min-height:0; }
+}
 </style>
 </head>
 <body>
@@ -1692,6 +1756,25 @@ byId("dialog").addEventListener("cancel", event => {
   closeDialog(false);
 });
 
+function appIconFallbackDataUri() {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#8e263f"/><stop offset="1" stop-color="#24232e"/></linearGradient></defs><rect width="96" height="96" rx="22" fill="url(#g)"/><path d="M27 34h42a13 13 0 0 1 12.2 17l-4.4 14a7 7 0 0 1-11 3.4L55 60H41l-10.8 8.4A7 7 0 0 1 19.2 65l-4.4-14A13 13 0 0 1 27 34Z" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M31 43v15M23.5 50.5h15" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="62" cy="47" r="3" fill="#fff"/><circle cx="70" cy="55" r="3" fill="#fff"/></svg>';
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+const APP_ICON_FALLBACK = appIconFallbackDataUri();
+function setAppIconSource(image, source) {
+  image.style.visibility = "visible";
+  image.style.backgroundImage = `url("${APP_ICON_FALLBACK}")`;
+  image.style.backgroundSize = "cover";
+  image.style.backgroundPosition = "center";
+  image.onerror = () => {
+    image.onerror = null;
+    image.dataset.fallbackApplied = "true";
+    image.src = APP_ICON_FALLBACK;
+    image.style.visibility = "visible";
+  };
+  image.src = source || APP_ICON_FALLBACK;
+}
+
 function renderGames() {
   const grid = byId("gameGrid");
   grid.replaceChildren();
@@ -1705,10 +1788,8 @@ function renderGames() {
   grid.style.display = games().length > 1 ? "grid" : "none";
   byId("featuredTitle").textContent = current.name;
   const featuredImage = byId("featuredImage");
-  featuredImage.src = current.image || "";
   featuredImage.alt = `${current.name} app icon`;
-  featuredImage.style.visibility = current.image ? "visible" : "hidden";
-  featuredImage.onerror = () => { featuredImage.style.visibility = "hidden"; };
+  setAppIconSource(featuredImage, current.image);
 
   games().filter(game => game.id !== current.id).forEach(game => {
     const wrap = document.createElement("article");
@@ -1721,8 +1802,7 @@ function renderGames() {
     const image = document.createElement("img");
     image.alt = "";
     image.loading = "lazy";
-    image.src = game.image || "";
-    image.onerror = () => { image.style.visibility = "hidden"; };
+    setAppIconSource(image, game.image);
     const info = document.createElement("span");
     info.className = "tile-info";
     const title = document.createElement("span");
@@ -1800,12 +1880,24 @@ function openEnvironmentDialog() {
       ${simToggle("shizukuRunning", "Shizuku service running", "Represents Shizuku.pingBinder() returning true.")}
       ${simToggle("shizukuAuthorized", "XtMapper authorised in Shizuku", "Represents Shizuku.checkSelfPermission() returning GRANTED.")}
     </div>
-    <div class="sim-section-title">Android permissions</div>
+    <div class="sim-section-title">Android permissions · simulated</div>
     <div class="sim-list">
       ${simToggle("overlay", "Display over other apps", "Represents Settings.canDrawOverlays(activity).")}
-      ${simToggle("notifications", "Post notifications", "Android 13+ runtime permission. Older versions do not request it.", true)}
+      ${simToggle("notifications", "Post notifications", "Android 13+ POST_NOTIFICATIONS runtime permission. This is separate from browser notifications.", true)}
       ${simToggle("allFiles", "All files access", "Represents Environment.isExternalStorageManager() on Android 11+.")}
       ${simToggle("logSinkAvailable", "Persistent log writer available", "Represents XtLogger.isFileSinkAvailable after the file sink is initialised.")}
+    </div>
+    <div class="sim-section-title">Browser permissions · real</div>
+    <div class="sim-notice">These next controls use browser APIs on this page. They do not grant Android application permissions.</div>
+    <div class="browser-capability" aria-live="polite">
+      <div class="browser-capability-head"><span class="browser-capability-title">Browser notifications</span><span class="browser-capability-state" id="browserNotificationState">Checking…</span></div>
+      <div class="browser-capability-desc">Requests the browser notification permission after your click. Browser support and mobile restrictions vary.</div>
+      <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestBrowserNotifications">Request permission</button><button class="tonal-button" type="button" id="testBrowserNotification" disabled>Send test notification</button></div>
+    </div>
+    <div class="browser-capability" aria-live="polite">
+      <div class="browser-capability-head"><span class="browser-capability-title">Persistent browser storage</span><span class="browser-capability-state" id="browserStorageState">Checking…</span></div>
+      <div class="browser-capability-desc" id="browserStorageDetail">Ask the browser to preserve this origin's local data. The browser can grant or deny the request.</div>
+      <div class="browser-capability-actions"><button class="outlined-button" type="button" id="requestPersistentStorage">Request persistence</button></div>
     </div>`;
   openCustomDialog("Prototype environment", "Configure the device state used by this browser prototype.", host, { confirm: false, cancelText: "Done" });
   const api = byId("simApi");
@@ -1830,6 +1922,10 @@ function openEnvironmentDialog() {
     updateAll();
   });
   syncVersionGates();
+  refreshBrowserCapabilities(host);
+  host.querySelector("#requestBrowserNotifications")?.addEventListener("click", requestBrowserNotificationPermission);
+  host.querySelector("#testBrowserNotification")?.addEventListener("click", sendBrowserTestNotification);
+  host.querySelector("#requestPersistentStorage")?.addEventListener("click", requestBrowserPersistentStorage);
   host.querySelectorAll("[data-sim-permission]").forEach(input => {
     input.checked = !!permission(input.dataset.simPermission);
     input.addEventListener("change", () => {
@@ -1861,6 +1957,71 @@ function openEnvironmentDialog() {
     });
   });
 }
+async function refreshBrowserCapabilities(host = document) {
+  const notificationState = host.querySelector("#browserNotificationState");
+  const notificationButton = host.querySelector("#requestBrowserNotifications");
+  const notificationTest = host.querySelector("#testBrowserNotification");
+  if (notificationState) {
+    if (!('Notification' in window)) notificationState.textContent = "Unsupported";
+    else notificationState.textContent = `Permission: ${Notification.permission}`;
+  }
+  if (notificationButton) notificationButton.disabled = !('Notification' in window) || Notification.permission === "granted";
+  if (notificationTest) notificationTest.disabled = !('Notification' in window) || Notification.permission !== "granted";
+  const storageState = host.querySelector("#browserStorageState");
+  const storageDetail = host.querySelector("#browserStorageDetail");
+  const storageButton = host.querySelector("#requestPersistentStorage");
+  if (!navigator.storage?.persisted) {
+    if (storageState) storageState.textContent = "Unsupported";
+    if (storageDetail) storageDetail.textContent = "This browser does not expose persistent storage status.";
+    if (storageButton) storageButton.disabled = true;
+    return;
+  }
+  try {
+    const persisted = await navigator.storage.persisted();
+    if (storageState) storageState.textContent = persisted ? "Persistent" : "Not persistent";
+    if (storageButton) storageButton.disabled = persisted || !navigator.storage.persist;
+    if (storageDetail && navigator.storage.estimate) {
+      const estimate = await navigator.storage.estimate();
+      const used = Number.isFinite(estimate.usage) ? `${(estimate.usage / 1048576).toFixed(1)} MB used` : "Usage unavailable";
+      const quota = Number.isFinite(estimate.quota) ? `${(estimate.quota / 1048576).toFixed(0)} MB quota` : "quota unavailable";
+      storageDetail.textContent = `${persisted ? "Browser persistence is already granted." : "Ask the browser to preserve this origin's local data."} ${used} · ${quota}.`;
+    }
+  } catch (_) {
+    if (storageState) storageState.textContent = "Unavailable";
+    if (storageDetail) storageDetail.textContent = "The browser did not return storage permission information.";
+  }
+}
+async function requestBrowserNotificationPermission() {
+  if (!('Notification' in window)) return showToast("Browser notifications are not supported here");
+  if (!window.isSecureContext) return showToast("Browser notifications require HTTPS or localhost");
+  try {
+    const result = await Notification.requestPermission();
+    await refreshBrowserCapabilities(byId("dialogCustom"));    showToast(`Browser notification permission: ${result}`);
+  } catch (error) {
+    openDialog("Browser notification request failed", error?.message || "The browser did not accept the permission request.");
+  }
+}
+function sendBrowserTestNotification() {
+  if (!('Notification' in window) || Notification.permission !== "granted") return showToast("Grant browser notification permission first");
+  try {
+    const notification = new Notification("XtMapper prototype", { body: "Browser notifications are working. This is not Android POST_NOTIFICATIONS." });
+    notification.onclick = () => window.focus();
+    showToast("Browser notification sent");
+  } catch (error) {
+    openDialog("Notification could not be displayed", error?.message || "This browser may require a service worker for notifications on this device.");
+  }
+}
+async function requestBrowserPersistentStorage() {
+  if (!navigator.storage?.persist) return showToast("Persistent storage is unavailable in this browser");
+  try {
+    const granted = await navigator.storage.persist();
+    await refreshBrowserCapabilities(byId("dialogCustom"));
+    showToast(granted ? "Persistent browser storage granted" : "Browser declined persistent storage");
+  } catch (error) {
+    openDialog("Storage request failed", error?.message || "The browser did not grant persistent storage.");
+  }
+}
+
 function simToggle(key, title, desc, tristate = false) {
   const checked = permission(key) === true;
   const api = Number(permission("androidApi") || 35);
@@ -1938,11 +2099,13 @@ function showShizukuHelp(problem) {
       cancelText: "Deny",
       onConfirm: () => {
         state.permissions.shizukuAuthorized = true;
+        persistState();
         updateAll();
         showToast("Shizuku authorisation granted in simulation");
       },
       onCancel: () => {
         state.permissions.shizukuAuthorized = false;
+        persistState();
         updateAll();
         showToast("Shizuku authorisation denied in simulation");
       }
@@ -1996,7 +2159,8 @@ function requestServiceStart(successMessage) {
 function toggleService() {
   if (serviceRunning) {
     serviceRunning = false;
-    activeProfileId = null;    updateService();
+    activeProfileId = null;
+    updateService();
     showToast("Input service stopped in prototype");
   } else {
     requestServiceStart("Input service started in prototype");
@@ -2037,9 +2201,55 @@ function testInput() {
     showToast("Start the input service before testing");
     return;
   }
-  const mode = state.inputMode === "root" ? "Root" : "Shizuku (ADB)";
-  lastTestMessage = `${mode} mode is active. Connect a keyboard or mouse to test input.`;
-  showToast(lastTestMessage);
+  openBrowserInputTester(state.inputMode === "root" ? "Root" : "Shizuku (ADB)");
+}
+function openBrowserInputTester(mode) {
+  const host = document.createElement("div");
+  host.className = "browser-input-panel";
+  host.innerHTML = `
+    <div class="sim-notice">Android's Test Input action checks the Root/Shizuku and service state, then displays a Toast. The panel below is an additional live browser test; it cannot validate Android input injection or TouchPointer events.</div>
+    <div class="browser-input-reading"><strong>Keyboard event</strong><span id="browserKeyReading">Press any key while this dialog is open.</span></div>
+    <div class="browser-input-reading"><strong>Gamepad status</strong><span id="browserGamepadReading">Checking browser Gamepad API…</span></div>
+    <div class="browser-input-history" id="browserInputHistory"></div>
+    <div class="sim-desc">Validated simulated input mode: ${mode}. Browser keyboard events and Gamepad API data are observed by this page only.</div>`;
+  let active = true;
+  const keyReading = () => host.querySelector("#browserKeyReading");
+  const gamepadReading = () => host.querySelector("#browserGamepadReading");
+  const history = () => host.querySelector("#browserInputHistory");
+  const onKey = event => {
+    if (!active || !host.isConnected) return;
+    if (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,[contenteditable=true]")) return;
+    const value = `key=${event.key} · code=${event.code || "unavailable"} · repeat=${event.repeat}`;
+    keyReading().textContent = value;
+    const row = document.createElement("div"); row.className = "browser-input-event";
+    const label = document.createElement("span"); label.textContent = event.type === "keydown" ? "Key down" : "Key up";
+    const code = document.createElement("code"); code.textContent = event.code || event.key;
+    row.append(label, code); history().prepend(row);
+    while (history().children.length > 8) history().lastElementChild.remove();
+  };
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("keyup", onKey, true);
+  const poll = () => {
+    if (!active || !host.isConnected) return;
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    if (!pads.length) { gamepadReading().textContent = "No browser-visible gamepad detected. Press a gamepad button to wake it, then refresh devices."; return; }
+    gamepadReading().textContent = pads.map(pad => {
+      const pressed = pad.buttons.map((button, index) => button.pressed ? index : -1).filter(index => index >= 0);
+      const axes = pad.axes.map((axis, index) => `${index}:${axis.toFixed(2)}`).join(" · ");
+      return `${pad.id || `Gamepad ${pad.index + 1}`} · buttons ${pressed.join(", ") || "none"} · axes ${axes || "none"}`;
+    }).join("\n");
+  };
+  poll();
+  const timer = window.setInterval(poll, 180);
+  const cleanup = () => {
+    active = false;
+    document.removeEventListener("keydown", onKey, true);
+    document.removeEventListener("keyup", onKey, true);
+    window.clearInterval(timer);
+  };
+  openCustomDialog("Test input", "Live browser input preview", host, { confirm: false, cancelText: "Done", onCancel: cleanup });
+  // Also stop polling if the dialog is replaced by another UI action.
+  byId("dialog").addEventListener("close", cleanup, { once: true });
 }
 
 function profileRawLines(game) {
@@ -2088,7 +2298,7 @@ function openAppPicker(flow, profileId = null) {
       button.className = "app-picker-row";
       const img = document.createElement("img");
       img.alt = "";
-      img.src = app.image;
+      setAppIconSource(img, app.image);
       const copy = document.createElement("span");
       copy.className = "app-picker-copy";
       const name = document.createElement("span");
@@ -2485,6 +2695,7 @@ function showSettings(tab = currentSettingsTab) {
 function formatSettingValue(key, value) {
   if (key === "swipeDelayMs" || key === "shiftTransitionMs") return `${Math.round(value)} ms`;
   if (key === "touchJitterSpread") return `${Math.round(value)} px`;
+  if (key === "showControlsOpacity") return `${Math.round(value * 100)}%`;
   if (key === "floatingKeysSize") return `${value.toFixed(2)}×`;
   return `${value.toFixed(1)}×`;
 }
@@ -2524,12 +2735,14 @@ function showAdvancedSettings() {
       const key = input.dataset.setting;
       state.settings[key] = input.checked;
       if (key === "useShizuku") {
-        state.inputMode = input.checked ? "shizuku" : "root";
+        const nextMode = input.checked ? "shizuku" : "root";
         if (input.checked) state.settings.blockKeyboardInput = false;
         const rootOnly = host.querySelector("[data-root-only]");
         const shizukuOnly = host.querySelector("[data-shizuku-only]");
         if (rootOnly) rootOnly.hidden = input.checked;
         if (shizukuOnly) shizukuOnly.hidden = !input.checked;
+        changeInputMode(nextMode);
+        return;
       }
       if (key === "touchJitter") state.settings.touchJitterSpread = input.checked ? (state.settings.touchJitterSpread || 15) : 0;
       if (key === "blockKeyboardInput" && state.inputMode !== "root") state.settings.blockKeyboardInput = false;
@@ -2674,35 +2887,84 @@ document.addEventListener("keydown", event => {
 });
 
 
-const ICON_GLYPHS = {
-  more_vert: "⋮", signal_cellular_alt: "▂", wifi: "⌁", battery_full: "▰",
-  settings: "⚙", help: "?", description: "▤", sync_alt: "⇄", add: "+",
-  play_arrow: "▶", tune: "☷", warning: "⚠", info: "ⓘ", layers: "▱",
-  folder_open: "▱", arrow_forward: "→", usb: "⌁", delete: "×",
-  drive_file_rename_outline: "✎", swap_horiz: "⇄", chevron_right: "›",
-  sports_esports: "◇"
+const ICON_SVG = {
+  more_vert: '<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>',
+  signal_cellular_alt: '<path d="M4 20v-4h4v4M10 20v-8h4v8M16 20V4h4v16"/>',
+  wifi: '<path d="M5 9.5a11 11 0 0 1 14 0M8 13a6.5 6.5 0 0 1 8 0M11 16.5a2 2 0 0 1 2 0"/><circle cx="12" cy="19" r=".8" fill="currentColor" stroke="none"/>',
+  battery_full: '<rect x="3" y="7" width="17" height="10" rx="2"/><path d="M22 10v4M6 10h11v4H6z" fill="currentColor" stroke="none"/>',
+  settings: '<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 13.5 1.1.9-1.2 2.1-1.4-.5a7.8 7.8 0 0 1-1.4.8l-.2 1.5h-2.5l-.4-1.4a7.8 7.8 0 0 1-1.6 0l-.8 1.2-2.2-1.2.5-1.4a7.8 7.8 0 0 1-.8-1.4l-1.5-.2v-2.5l1.4-.4a7.8 7.8 0 0 1 0-1.6l-1.2-.8 1.2-2.2 1.4.5a7.8 7.8 0 0 1 1.4-.8l.2-1.5h2.5l.4 1.4a7.8 7.8 0 0 1 1.6 0l.8-1.2 2.2 1.2-.5 1.4a7.8 7.8 0 0 1 .8 1.4l1.5.2v2.5l-1.4.4a7.8 7.8 0 0 1 0 1.6Z"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 1 1 3.9 1.6c-1 .9-1.7 1.2-1.7 2.7M12 17h.01"/>',
+  description: '<path d="M7 3.5h7l4 4V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5Z"/><path d="M14 3.5V8h4M9 12h6M9 16h6"/>',
+  sync_alt: '<path d="M4 8h14l-3-3M20 16H6l3 3"/><path d="M18 8l-3 3M6 16l3-3"/>',
+  add: '<path d="M12 5v14M5 12h14"/>',
+  play_arrow: '<path d="M8 5.8a1 1 0 0 1 1.5-.9l9.2 6.2a1 1 0 0 1 0 1.7l-9.2 6.2a1 1 0 0 1-1.5-.9Z" fill="currentColor" stroke="none"/>',
+  tune: '<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  warning: '<path d="m10.3 4.8-7.1 12.4A1.8 1.8 0 0 0 4.8 20h14.4a1.8 1.8 0 0 0 1.6-2.8L13.7 4.8a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 16.5h.01"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>',
+  folder_open: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v1H7a2 2 0 0 0-1.9 1.4L3 18V7Z"/><path d="M5 12.5A2 2 0 0 1 7 11h14l-2.1 7.2a2 2 0 0 1-1.9 1.4H4a2 2 0 0 1-1.9-2.6L5 12.5Z"/>',
+  arrow_forward: '<path d="M4 12h15M13 6l6 6-6 6"/>',
+  usb: '<path d="M12 3v14M9 6l3-3 3 3M12 11l-4-4M8 7H6v3M12 14l4-4M16 10h2v-2M12 17a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/>',
+  delete: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  drive_file_rename_outline: '<path d="M12 20h9"/><path d="m16.5 3.5 4 4L9 19l-5 1 1-5 11.5-11.5Z"/>',
+  swap_horiz: '<path d="M4 8h15l-3-3M20 16H5l3 3"/>',
+  chevron_right: '<path d="m9 18 6-6-6-6"/>',
+  sports_esports: '<path d="M7 8h10a4 4 0 0 1 3.8 5l-1.2 4a2 2 0 0 1-3.2 1l-3-2h-2.8l-3 2a2 2 0 0 1-3.2-1l-1.2-4A4 4 0 0 1 7 8Z"/><path d="M8 11v4M6 13h4M16 12h.01M18 14h.01"/>',
+  keyboard: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M6 9h.01M9 9h.01M12 9h.01M15 9h.01M18 9h.01M6 12h.01M9 12h.01M12 12h.01M15 12h.01M18 12h.01M8 15h8"/>',
+  close: '<path d="m6 6 12 12M18 6 6 18"/>',
+  check: '<path d="m5 12 4 4L19 6"/>',
+  refresh: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9A7 7 0 0 1 18 6l2 1M4 17l2 1a7 7 0 0 0 12.5-3"/>',
+  search: '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/>',
+  upload: '<path d="M12 16V4M7 9l5-5 5 5M4 19h16"/>',
+  download: '<path d="M12 4v12M7 11l5 5 5-5M4 20h16"/>',
+  open_in_new: '<path d="M13 5h6v6M19 5l-9 9"/><path d="M17 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h5"/>',
+  lock: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/>',
+  notifications: '<path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/>',
+  mouse: '<rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v6"/>',
+  apps: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>'
 };
-function applyLocalIconFallback(root) {
-  const candidates = [];
-  if (root instanceof Element && root.matches(".material-symbols-rounded")) candidates.push(root);
-  if (root.querySelectorAll) candidates.push(...root.querySelectorAll(".material-symbols-rounded"));
-  candidates.forEach(icon => {
-    if (icon.classList.contains("unicode-icon")) return;
-    const name = icon.textContent.trim();
-    icon.dataset.iconName = name;
-    icon.dataset.glyph = ICON_GLYPHS[name] || "•";
-    icon.textContent = "";
-    icon.classList.add("unicode-icon");
-    icon.setAttribute("aria-hidden", "true");
-  });
+function iconFallbackMarkup(name) {
+  const paths = ICON_SVG[name] || '<circle cx="12" cy="12" r="8"/><path d="M8 12h8"/>';
+  return `<svg class="fallback-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths}</svg>`;
 }
-const iconObserver = new MutationObserver(records => {
-  records.forEach(record => record.addedNodes.forEach(node => {
-    if (node.nodeType === Node.ELEMENT_NODE) applyLocalIconFallback(node);
-  }));
-});
-iconObserver.observe(document.body, { childList: true, subtree: true });
-applyLocalIconFallback(document.body);
+function installSvgIconFallback() {
+  const replace = root => {
+    const nodes = [];
+    if (root instanceof Element && root.matches('.material-symbols-rounded')) nodes.push(root);
+    if (root.querySelectorAll) nodes.push(...root.querySelectorAll('.material-symbols-rounded'));
+    nodes.forEach(icon => {
+      if (icon.dataset.svgFallback === 'true') return;
+      const name = icon.textContent.trim();
+      icon.dataset.iconName = name;
+      icon.textContent = '';
+      icon.classList.add('svg-icon');
+      icon.setAttribute('aria-hidden', 'true');
+      icon.innerHTML = iconFallbackMarkup(name);
+    });
+  };
+  replace(document.body);
+  const observer = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
+    if (node.nodeType === Node.ELEMENT_NODE) replace(node);
+  })));
+  observer.observe(document.body, { childList: true, subtree: true });
+  return observer;
+}
+async function initialiseIconSystem() {
+  document.body.classList.add('icons-pending');
+  try {
+    if (document.fonts?.load) await Promise.race([
+      document.fonts.load('22px "Material Symbols Rounded"'),
+      new Promise(resolve => setTimeout(resolve, 1800))
+    ]);
+  } catch (_) {}
+  const fontReady = [...(document.fonts || [])].some(face => face.family.replaceAll('"', '') === 'Material Symbols Rounded' && face.status === 'loaded');
+  document.body.classList.remove('icons-pending');
+  if (!fontReady) {
+    document.body.classList.add('svg-icon-mode');
+    installSvgIconFallback();
+  }
+}
+initialiseIconSystem();
 
 updateAll();
 refreshBrowserDevices();
