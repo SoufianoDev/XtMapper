@@ -1548,6 +1548,116 @@ body > dialog { max-width: min(340px, calc(100vw - 28px)); }
 @media (prefers-reduced-motion: reduce) {
   #app.phone { scroll-behavior: auto; }
 }
+
+
+/* Device workspace contract: the Activity owns the complete logical iframe viewport. */
+html, body {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+}
+#app.phone {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+#app.phone > .status-bar,
+#app.phone > .app-bar {
+  width: 100% !important;
+  max-width: none !important;
+  flex: 0 0 auto !important;
+}
+#app.phone > main {
+  display: flex !important;
+  flex: 1 1 0 !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+#app.phone > main > .service-row,
+#app.phone > main > section,
+#app.phone > main > .data-row {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+/* Tablet layout: distribute the existing Activity sections across both columns. */
+@media (min-width: 700px) and (min-height: 600px) {
+  #app.phone > main {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr);
+    grid-template-areas:
+      "service service"
+      "library input-mode"
+      "library permission"
+      "library devices"
+      "library backups";
+    align-content: start;
+    align-items: start;
+    column-gap: 20px;
+    row-gap: 16px;
+    padding: 18px 24px calc(28px + env(safe-area-inset-bottom));
+  }
+  #app.phone > main > .service-row {
+    grid-area: service;
+    margin: 0;
+  }
+  #app.phone > main > section[aria-labelledby="gamesHeading"] {
+    grid-area: library;
+    align-self: stretch;
+  }
+  #app.phone > main > .divider {
+    display: none !important;
+  }
+  #app.phone > main > section[aria-labelledby="modeHeading"] {
+    grid-area: input-mode;
+    margin-top: 0;
+  }
+  #app.phone > main > #overlayPermission {
+    grid-area: permission;
+    align-self: start;
+    margin: 0;
+  }
+  #app.phone > main > section[aria-labelledby="devicesHeading"] {
+    grid-area: devices;
+    margin-top: 0;
+  }
+  #app.phone > main > .data-row {
+    grid-area: backups;
+    margin-top: 0;
+  }
+  #app.phone .game-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1100px) and (min-height: 600px) {
+  #app.phone > main {
+    grid-template-columns: minmax(0, 1.25fr) minmax(340px, .75fr);
+    column-gap: 28px;
+    row-gap: 18px;
+    padding-inline: 32px;
+  }
+  #app.phone .game-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
 </style>
 </head>
 <body>
