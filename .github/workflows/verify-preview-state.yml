@@ -362,6 +362,44 @@ jobs:
             }, null, { timeout: 15000 });
 
             const flipLibrary = page.frameLocator('#activityFrame');
+            const sampleCatalog = await flipLibrary.locator('#featuredSlot').evaluate(slot => {
+              const doc = slot.ownerDocument;
+              const cards = [
+                ...doc.querySelectorAll('#featuredSlot .game-profile-card, #gameGrid .game-profile-card')
+              ];
+              return {
+                cardCount: cards.length,
+                gridCount: doc.querySelectorAll('#gameGrid .game-profile-card').length,
+                profiles: cards.map(card => ({
+                  id: card.dataset.profileId,
+                  name: card.querySelector('.game-profile-card__title')?.textContent?.trim(),
+                  packageName: card.querySelector('.game-profile-card__package')?.textContent?.trim()
+                }))
+              };
+            });
+            const expectedSamplePackages = [
+              ['Free Fire', 'com.dts.freefireth'],
+              ['Mobile Legends: Bang Bang', 'com.mobile.legends'],
+              ['League of Legends: Wild Rift', 'com.riotgames.league.wildrift'],
+              ['Garena Delta Force', 'com.garena.game.df']
+            ];
+            for (const [name, packageName] of expectedSamplePackages) {
+              if (!sampleCatalog.profiles.some(profile =>
+                profile.name === name && profile.packageName === packageName
+              )) {
+                throw new Error(
+                  'The sample library is missing a verified game or has the wrong package ID: ' +
+                  JSON.stringify({ name, packageName, sampleCatalog })
+                );
+              }
+            }
+            if (sampleCatalog.cardCount !== 7 || sampleCatalog.gridCount !== 6) {
+              throw new Error(
+                'The sample library should show one selected game and six other games: ' +
+                JSON.stringify(sampleCatalog)
+              );
+            }
+
             const flipRuntimeReady = await flipLibrary.locator('#featuredSlot').evaluate(slot => {
               const win = slot.ownerDocument.defaultView;
               return Boolean(win?.gsap && win?.Flip);
@@ -601,6 +639,7 @@ jobs:
             console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
             console.log('PROFILE_LIBRARY_ADD_BUTTON_VISIBILITY_PASSED');
             console.log('PROFILE_CARD_FLIP_SWAP_PASSED');
+            console.log('PROFILE_SAMPLE_GAME_CATALOG_PASSED');
             console.log('PROFILE_PACKAGE_TEXT_FIT_PASSED');
             console.log('PROFILE_FLIP_RAPID_RETARGET_PASSED');
             console.log(JSON.stringify({
