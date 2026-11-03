@@ -72,6 +72,10 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   gap: clamp(28px, 4vw, 64px);
   align-items: center;
 }
+/* Keep the controls at the top while portrait previews grow beyond the fold. */
+.showcase:not(.showcase--landscape-preview) {
+  align-items: start;
+}
 .intro { align-self: start; padding-top: 18px; }
 .eyebrow {
   display: inline-flex;
