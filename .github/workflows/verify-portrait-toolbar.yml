@@ -1,0 +1,127 @@
+name: Temporary portrait toolbar responsive check
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - ".github/workflows/verify-portrait-toolbar.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/prototype-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/prototype-server.log
+          exit 1
+      - name: Verify responsive toolbar placement
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            page.on('pageerror', error => { throw error; });
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+
+            const waitForRenderedDevice = async () => {
+              await page.waitForFunction(() => {
+                const image = document.querySelector('.device-mockup__frame');
+                const frame = document.querySelector('#deviceFrame');
+                return image?.complete && image.naturalWidth > 0 &&
+                  frame?.style.getPropertyValue('--device-scale') !== '';
+              }, { timeout: 60000 });
+            };
+            await page.locator('#devicePreset').selectOption('google-pixel-10-pro');
+            await waitForRenderedDevice();
+
+            const widths = [1280, 1440, 1920, 1200, 1024];
+            const measurements = [];
+            for (const width of widths) {
+              await page.setViewportSize({ width, height: 900 });
+              await page.waitForTimeout(200);
+              const result = await page.evaluate(() => {
+                const preview = document.querySelector('.preview');
+                const toolbar = document.querySelector('.preview-toolbar');
+                const select = document.querySelector('#devicePreset');
+                const stage = document.querySelector('#previewStage');
+                const frame = document.querySelector('#deviceFrame');
+                const panel = document.querySelector('.panel');
+                const p = preview.getBoundingClientRect();
+                const t = toolbar.getBoundingClientRect();
+                const s = stage.getBoundingClientRect();
+                const f = frame.getBoundingClientRect();
+                const panelRect = panel.getBoundingClientRect();
+                return {
+                  viewportWidth: window.innerWidth,
+                  previewWidth: p.width,
+                  toolbarPosition: getComputedStyle(toolbar).position,
+                  toolbarWidth: t.width,
+                  selectWidth: select.getBoundingClientRect().width,
+                  stageTopOffset: s.top - p.top,
+                  toolbarToFrameGap: f.left - t.right,
+                  panelToPreviewGap: panelRect.left - p.right,
+                  frameScale: frame.style.getPropertyValue('--device-scale'),
+                  isPortraitPhone: preview.classList.contains('preview--portrait-phone')
+                };
+              });
+              if (!result.isPortraitPhone) throw new Error('Portrait phone state missing: ' + JSON.stringify(result));
+              if (result.previewWidth >= 810) {
+                if (result.toolbarPosition !== 'absolute') throw new Error('Toolbar should float at this width: ' + JSON.stringify(result));
+                if (result.stageTopOffset > 2) throw new Error('Portrait device did not move upward: ' + JSON.stringify(result));
+                if (result.toolbarToFrameGap < 8) throw new Error('Toolbar overlaps device at this width: ' + JSON.stringify(result));
+              } else {
+                if (result.toolbarPosition === 'absolute') throw new Error('Toolbar floated with insufficient horizontal gutter: ' + JSON.stringify(result));
+                if (result.stageTopOffset < 40) throw new Error('Normal toolbar flow was not retained at narrow width: ' + JSON.stringify(result));
+              }
+              if (result.panelToPreviewGap < 0) throw new Error('Settings panel left its right column: ' + JSON.stringify(result));
+              measurements.push(result);
+            }
+
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await page.locator('#devicePreset').selectOption('galaxy-tab-s7');
+            await waitForRenderedDevice();
+            const tablet = await page.evaluate(() => ({
+              portraitPhoneClass:document.querySelector('.preview').classList.contains('preview--portrait-phone'),
+              toolbarPosition:getComputedStyle(document.querySelector('.preview-toolbar')).position,
+              stageTop:document.querySelector('#previewStage').getBoundingClientRect().top,
+              toolbarBottom:document.querySelector('.preview-toolbar').getBoundingClientRect().bottom
+            }));
+            if (tablet.portraitPhoneClass || tablet.toolbarPosition === 'absolute' || tablet.stageTop <= tablet.toolbarBottom) {
+              throw new Error('Tablet layout changed unexpectedly: ' + JSON.stringify(tablet));
+            }
+
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            await waitForRenderedDevice();
+            const landscape = await page.evaluate(() => ({
+              portraitPhoneClass:document.querySelector('.preview').classList.contains('preview--portrait-phone'),
+              toolbarPosition:getComputedStyle(document.querySelector('.preview-toolbar')).position
+            }));
+            if (landscape.portraitPhoneClass || landscape.toolbarPosition === 'absolute') {
+              throw new Error('Landscape layout changed unexpectedly: ' + JSON.stringify(landscape));
+            }
+
+            console.log('PORTRAIT_TOOLBAR_RESPONSIVE_CHECK_PASSED');
+            console.log(JSON.stringify({measurements,tablet,landscape},null,2));
+          } finally {
+            await browser.close();
+          }
+          NODE
