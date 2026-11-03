@@ -5,6 +5,25 @@ import {
   getViewportForOrientation
 } from "./device-scaling.mjs";
 
+function snapshotRect(element) {
+  if (!element) return null;
+  const rect = element.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    centerX: rect.left + rect.width / 2,
+    centerY: rect.top + rect.height / 2
+  };
+}
+
+function getRectDelta(before, after) {
+  if (!before || !after) return { x: 0, y: 0 };
+  return {
+    x: before.left - after.left,
+    y: before.top - after.top
+  };
+}
+
 function orientationAngle(orientation) {
   return orientation === "landscape" ? 90 : 0;
 }
@@ -380,9 +399,17 @@ export function installDeviceRotation(DevicePreview) {
       portrait ? portraitScaleLimit : 1
     );
 
+    const stageCenterY = stageRect.top + stageRect.height / 2;
+    const topCenteredSpace = Math.max(1, stageCenterY - 28);
+    const bottomCenteredSpace = Math.max(1, viewportHeight - stageCenterY - bottomSafetySpace);
+    const centeredRotationHeight = Math.max(
+      1,
+      Math.min(baseAvailableHeight, topCenteredSpace * 2, bottomCenteredSpace * 2)
+    );
+
     this.previewFitBounds = {
       width: availableWidth,
-      height: baseAvailableHeight
+      height: centeredRotationHeight
     };
     this.previewScale = scale;
     this.stage.style.width = this.frameSize.width * scale + "px";
@@ -451,7 +478,6 @@ export function installDeviceRotation(DevicePreview) {
     let shell = null;
     let viewportLayer = null;
     let targetScale = previousScale;
-    let targetStage = null;
 
     try {
       updateOrientation();
@@ -460,10 +486,6 @@ export function installDeviceRotation(DevicePreview) {
       shell = this.rotationShell;
       viewportLayer = this.rotationViewportLayer;
       targetScale = this.previewScale || previousScale;
-      targetStage = {
-        width: this.stage.style.width,
-        height: this.stage.style.height
-      };
 
       // Keep the pre-rotation layout stable while the device itself turns.
       if (this.preview) {
@@ -554,15 +576,6 @@ export function installDeviceRotation(DevicePreview) {
           ease: "power2.out"
         }, 0.45);
 
-        if (targetStage?.width && targetStage?.height) {
-          timeline.to(this.stage, {
-            width: targetStage.width,
-            height: targetStage.height,
-            duration: 0.9,
-            ease: "power3.inOut"
-          }, 0);
-        }
-
       });
     } catch (error) {
       console.warn("The device rotation animation failed; restoring the target orientation.", error);
@@ -602,6 +615,13 @@ export function installDeviceRotation(DevicePreview) {
       this.rotationTransitionActive = false;
       this.rotationTransitionReady = false;
 
+      const beforeLayout = {
+        frame: snapshotRect(this.frame),
+        stage: snapshotRect(this.stage),
+        toolbar: snapshotRect(this.preview?.querySelector(".preview-toolbar")),
+        caption: snapshotRect(this.caption)
+      };
+
       if (this.preview) {
         this.preview.classList.toggle(
           "preview--landscape",
@@ -617,6 +637,88 @@ export function installDeviceRotation(DevicePreview) {
           "showcase--landscape-preview",
           nextOrientation === "landscape"
         );
+      }
+
+      // Recalculate the final layout, then animate its positional change rather
+      // than allowing the stage, controls, and caption to jump after rotation.
+      this.fitCurrentFrame();
+      const settledScale = this.previewScale || targetScale;
+      this.frame.style.setProperty("--device-scale", String(targetScale));
+
+      const afterLayout = {
+        frame: snapshotRect(this.frame),
+        stage: snapshotRect(this.stage),
+        toolbar: snapshotRect(this.preview?.querySelector(".preview-toolbar")),
+        caption: snapshotRect(this.caption)
+      };
+
+      if (this.gsap) {
+        const frameDelta = {
+          x: beforeLayout.frame.centerX - afterLayout.frame.centerX,
+          y: beforeLayout.frame.centerY - afterLayout.frame.centerY
+        };
+        const gsap = this.gsap;
+        const flipElements = [
+          { element: this.stage, before: beforeLayout.stage, after: afterLayout.stage, center: true },
+          {
+            element: this.preview?.querySelector(".preview-toolbar"),
+            before: beforeLayout.toolbar,
+            after: afterLayout.toolbar
+          },
+          { element: this.caption, before: beforeLayout.caption, after: afterLayout.caption }
+        ];
+
+        try {
+          await new Promise((resolve) => {
+            const timeline = gsap.timeline({
+              onComplete: resolve,
+              onInterrupt: resolve
+            });
+
+            flipElements.forEach((item) => {
+              if (!item.element || !item.before || !item.after) return;
+
+              const delta = item.center
+                ? frameDelta
+                : getRectDelta(item.before, item.after);
+              const baseX = Number(gsap.getProperty(item.element, "x")) || 0;
+              const baseY = Number(gsap.getProperty(item.element, "y")) || 0;
+
+              if (Math.abs(delta.x) < 0.5 && Math.abs(delta.y) < 0.5) return;
+
+              timeline.fromTo(item.element, {
+                x: baseX + delta.x,
+                y: baseY + delta.y
+              }, {
+                x: baseX,
+                y: baseY,
+                duration: 0.28,
+                ease: "power2.out",
+                clearProps: "transform"
+              }, 0);
+            });
+
+            if (Math.abs(settledScale - targetScale) > 0.001) {
+              timeline.to(this.frame, {
+                "--device-scale": settledScale,
+                duration: 0.28,
+                ease: "power2.out"
+              }, 0);
+            }
+
+            if (timeline.duration() === 0) resolve();
+          });
+        } catch (error) {
+          console.warn("The final preview layout could not be animated.", error);
+        }
+      }
+
+      if (this.gsap) {
+        this.gsap.set([
+          this.stage,
+          this.preview?.querySelector(".preview-toolbar"),
+          this.caption
+        ].filter(Boolean), { clearProps: "transform" });
       }
 
       this.setMotionBusy(false);
