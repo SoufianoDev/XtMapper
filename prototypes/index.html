@@ -121,8 +121,10 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   font-size: 10px;
 }
 .preview {
+  position: relative;
   min-width: 0;
   width: 100%;
+  container-type: inline-size;
   display: grid;
   justify-items: center;
   align-content: center;
@@ -158,6 +160,39 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 .preview-toolbar button { cursor: pointer; }
 .preview-toolbar button:hover, .preview-toolbar select:hover { border-color: var(--accent-border); background: #22232b; }
+
+/* On roomy desktop previews, float phone controls in the upper-left gutter.
+   They leave the layout flow, allowing the portrait device to start higher. */
+@container (min-width: 760px) {
+  .preview.preview--portrait-phone .preview-toolbar {
+    position: absolute;
+    z-index: 8;
+    top: 0;
+    left: 0;
+    width: min(260px, 29%);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-content: start;
+    gap: 8px;
+    padding: 0;
+  }
+  .preview.preview--portrait-phone .preview-toolbar label {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: #c9c3cc;
+    font-size: 10px;
+    letter-spacing: .04em;
+  }
+  .preview.preview--portrait-phone .preview-toolbar select {
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+  }
+  .preview.preview--portrait-phone .preview-toolbar button {
+    flex: 0 0 auto;
+  }
+}
 .preview-stage {
   position: relative;
   width: var(--stage-width, 378px);
