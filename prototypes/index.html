@@ -72,9 +72,13 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   gap: clamp(28px, 4vw, 64px);
   align-items: center;
 }
-/* Keep the controls at the top while portrait previews grow beyond the fold. */
+/* Keep the controls accessible while portrait previews extend below the fold. */
 .showcase:not(.showcase--landscape-preview) {
   align-items: start;
+}
+.showcase:not(.showcase--landscape-preview) .panel {
+  position: sticky;
+  top: 24px;
 }
 .intro { align-self: start; padding-top: 18px; }
 .eyebrow {
@@ -396,7 +400,7 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   body { overflow: auto; }
   .showcase { width: min(100% - 28px, 620px); min-height: 0; padding: 18px 0 30px; grid-template-columns: minmax(0,1fr); gap: 24px; }
   .preview-toolbar { max-width: 100%; }
-  .panel { min-height: 0; max-height: none; }
+  .panel { position: static; min-height: 0; max-height: none; }
   .panel-content { max-height: 70vh; }
 }
 @media (max-width: 390px) {
