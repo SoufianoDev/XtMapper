@@ -1088,8 +1088,6 @@ dialog[open] { overscroll-behavior: contain; }
 .dialog-input { min-width: 0; }
 .toast { left: 50%; width: max-content; max-width: calc(100vw - 24px); overflow-wrap: anywhere; }
 .device-footnote { margin-top: 7px; color: var(--md-sys-color-on-surface-variant); font-size: 10px; line-height: 15px; }
-.device-browser-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
-.device-browser-actions .outlined-button { min-height: 38px; font-size: 12px; padding-inline: 11px; }
 .mode-ready { display: none; margin-top: 9px; color: #9edbb0; font-size: 11px; line-height: 16px; }
 .prototype-note { max-width: 430px; margin: 12px auto 0; padding: 0 8px; color: #92949d; font-size: 10px; line-height: 15px; text-align: center; }
 .sim-notice { padding: 10px 11px; border: 1px solid rgba(239,106,132,.2); border-radius: 12px; background: linear-gradient(120deg,rgba(125,30,55,.22),rgba(38,37,49,.35)); color: #e8cbd1; font-size: 11px; line-height: 16px; }
@@ -1597,15 +1595,15 @@ html, body {
 }
 
 /* Tablet layout: distribute the existing Activity sections across both columns. */
-@media (min-width: 700px) and (min-height: 600px) {
+@media (min-width: 700px) and (min-height: 600px) and (orientation: landscape) {
   #app.phone > main {
     display: grid !important;
     grid-template-columns: minmax(0, 1.12fr) minmax(280px, .88fr);
     grid-template-areas:
       "service service"
       "library input-mode"
-      "library permission"
       "library devices"
+      "library permission"
       "library backups";
     align-content: start;
     align-items: start;
@@ -1647,7 +1645,7 @@ html, body {
   }
 }
 
-@media (min-width: 1100px) and (min-height: 600px) {
+@media (min-width: 1100px) and (min-height: 600px) and (orientation: landscape) {
   #app.phone > main {
     grid-template-columns: minmax(0, 1.25fr) minmax(340px, .75fr);
     column-gap: 28px;
@@ -2177,12 +2175,8 @@ html, body {
           <button class="text-button" id="testInputButton">Test input</button>
         </div>
         <div class="device-list" id="deviceList"></div>
-        <div class="no-devices" id="noDevices">No gamepad or browser-authorised HID device detected.</div>
-        <div class="device-footnote" id="deviceFootnote">Browser security does not expose the system keyboard as a connected-device record. Android detects keyboard, gamepad and joystick input devices natively.</div>
-        <div class="device-browser-actions">
-          <button class="outlined-button" id="pairDeviceButton"><span class="material-symbols-rounded">usb</span>Pair HID device</button>
-          <button class="text-button" id="refreshDevicesButton">Refresh</button>
-        </div>
+        <div class="no-devices" id="noDevices">No browser-visible gamepad or authorised HID device detected.</div>
+        <div class="device-footnote" id="deviceFootnote">Browser-only preview: Gamepad API and authorised WebHID entries. This cannot enumerate all Android input devices or reliably identify USB versus Bluetooth. Matching HID records are grouped visually with their count retained; the browser does not expose a reliable physical-device identifier.</div>
       </section>
 
       <div class="data-row">
@@ -2386,7 +2380,6 @@ let toastTimer = null;
 let selectedAppForPicker = null;
 let selectedProfileForPicker = null;
 let backupInputMode = "import";
-let connectedBrowserDevices = [];
 let lastTestMessage = "";
 let prototypeReady = false;
 let storageWarningShown = false;
@@ -3668,62 +3661,63 @@ function settingToggle(key, title, desc) {
   return `<label class="setting-row"><span class="setting-copy"><span class="setting-title">${title}</span><span class="setting-desc">${desc}</span></span><input type="checkbox" data-setting="${key}" ${state.settings[key] ? "checked" : ""}></label>`;
 }
 
-async function refreshBrowserDevices() {
-  const devices = [];
-  if (navigator.getGamepads) {
-    try {
-      [...navigator.getGamepads()].filter(Boolean).forEach(pad => devices.push({ name: pad.id || `Gamepad ${pad.index+1}`, kind: "Gamepad", key: `gamepad-${pad.index}` }));
-    } catch (_) {}
-  }
-  if (navigator.hid?.getDevices) {
-    try {
-      const hidDevices = await navigator.hid.getDevices();
-      hidDevices.forEach((device, index) => devices.push({ name: device.productName || `HID device ${index+1}`, kind: "Browser-authorised HID", key: `hid-${device.vendorId}-${device.productId}-${index}` }));
-    } catch (_) {}
-  }
-  connectedBrowserDevices = devices;
+
+function renderPrototypeDevices(input) {
   const list = byId("deviceList");
+  if (!list) return;
+
+  const iconNames = {
+    mouse: "mouse",
+    keyboard: "keyboard",
+    gamepad: "sports_esports",
+    joystick: "sports_esports",
+    unknown: "devices_other"
+  };
+  const devices = Array.isArray(input)
+    ? input.filter(device =>
+        device &&
+        typeof device.name === "string" &&
+        typeof device.kind === "string" &&
+        typeof device.category === "string"
+      ).slice(0, 128)
+    : [];
+
   list.replaceChildren();
-  devices.forEach(device => {
-    const row = document.createElement("div"); row.className = "device-row";
-    const icon = document.createElement("span"); icon.className = "device-icon";
-    icon.innerHTML = `<span class="material-symbols-rounded">${device.kind === "Gamepad" ? "sports_esports" : "usb"}</span>`;
-    const name = document.createElement("span"); name.className = "device-name";
-    const strong = document.createElement("span"); strong.textContent = device.name;
-    const kind = document.createElement("span"); kind.className = "device-kind"; kind.textContent = device.kind;
+  for (const device of devices) {
+    const row = document.createElement("div");
+    row.className = "device-row";
+    const icon = document.createElement("span");
+    icon.className = "device-icon";
+    const symbol = document.createElement("span");
+    symbol.className = "material-symbols-rounded";
+    symbol.textContent = iconNames[device.category] || iconNames.unknown;
+    icon.append(symbol);
+
+    const name = document.createElement("span");
+    name.className = "device-name";
+    const strong = document.createElement("span");
+    strong.textContent = device.name.slice(0, 180);
+    const kind = document.createElement("span");
+    kind.className = "device-kind";
+    kind.textContent = device.kind.slice(0, 120);
     name.append(strong, kind);
-    const dot = document.createElement("span"); dot.className = "connected-dot"; dot.setAttribute("aria-label", "Connected");
-    row.append(icon, name, dot); list.append(row);
-  });
+
+    const dot = document.createElement("span");
+    dot.className = "connected-dot";
+    dot.setAttribute("aria-label", "Visible to browser");
+    row.append(icon, name, dot);
+    list.append(row);
+  }
+
   byId("noDevices").style.display = devices.length ? "none" : "block";
-  byId("deviceFootnote").textContent = "This list uses browser Gamepad and previously authorised WebHID devices. Unlike Android InputDevice, a browser cannot enumerate the system keyboard or every joystick device.";
 }
-async function pairHidDevice() {
-  if (!window.isSecureContext) {
-    openDialog("Secure context required", "WebHID is only available in secure contexts. Open this prototype from HTTPS or localhost, and use a Chromium-based browser that supports WebHID.");
-    return;
-  }
-  if (!navigator.hid?.requestDevice) {
-    openDialog("WebHID unavailable", "This browser does not expose WebHID. You can still use the prototype; Android XtMapper detects supported hardware natively through InputDevice.");
-    return;
-  }
-  try {
-    await navigator.hid.requestDevice({ filters: [] });
-    await refreshBrowserDevices();
-    showToast("Browser HID device permission updated");
-  } catch (error) {
-    if (error?.name === "NotFoundError") showToast("No HID device selected");
-    else if (error?.name === "NotAllowedError") showToast("HID access was cancelled");
-    else openDialog("HID access failed", error?.message || "The browser could not access this HID device.");
-  }
-}
-if (navigator.getGamepads) {
-  window.addEventListener("gamepadconnected", refreshBrowserDevices);
-  window.addEventListener("gamepaddisconnected", refreshBrowserDevices);
-}
-if (navigator.hid?.addEventListener) {
-  navigator.hid.addEventListener("connect", refreshBrowserDevices);
-  navigator.hid.addEventListener("disconnect", refreshBrowserDevices);
+
+function requestParentDeviceRefresh() {
+  if (window.parent === window) return;
+  window.parent.postMessage(
+    { type: "xtmapper-prototype-refresh-devices" },
+    window.location.origin
+  );
 }
 
 byId("moreButton").addEventListener("click", () => {
@@ -3757,8 +3751,6 @@ byId("fixShizuku").addEventListener("click", () => showShizukuHelp(shizukuProble
 byId("grantOverlay").addEventListener("click", () => showAndroidSettingsSimulation("overlay"));
 byId("testInputButton").addEventListener("click", testInput);
 byId("importExportButton").addEventListener("click", showImportExport);
-byId("pairDeviceButton").addEventListener("click", pairHidDevice);
-byId("refreshDevicesButton").addEventListener("click", refreshBrowserDevices);
 
 document.addEventListener("keydown", event => {
   if (pendingShortcutCapture) {
@@ -3790,7 +3782,7 @@ document.addEventListener("keydown", event => {
 });
 
 
-const GOOGLE_MATERIAL_SYMBOLS = ["add","apps","arrow_forward","battery_full","check","chevron_right","close","delete","description","download","drive_file_rename_outline","folder_open","help","info","keyboard","layers","lock","more_vert","mouse","notifications","open_in_new","play_arrow","refresh","search","settings","signal_cellular_alt","sports_esports","swap_horiz","sync_alt","tune","upload","usb","warning","wifi"];
+const GOOGLE_MATERIAL_SYMBOLS = ["add","apps","arrow_forward","battery_full","check","chevron_right","close","delete","description","devices_other","download","drive_file_rename_outline","folder_open","help","info","keyboard","layers","lock","more_vert","mouse","notifications","open_in_new","play_arrow","refresh","search","settings","signal_cellular_alt","sports_esports","swap_horiz","sync_alt","tune","upload","usb","warning","wifi"];
 
 async function initialiseGoogleMaterialSymbols() {
   const root = document.documentElement;
@@ -3888,6 +3880,10 @@ window.addEventListener("message", event => {
   if (event.source !== window.parent || event.origin !== window.location.origin) return;
   const message = event.data;
   if (!message || typeof message !== "object") return;
+  if (message.type === "xtmapper-prototype-devices") {
+    renderPrototypeDevices(message.devices);
+    return;
+  }
   if (message.type === "xtmapper-prototype-sync") {
     notifyPrototypeParent();
     return;
@@ -3901,10 +3897,19 @@ window.addEventListener("message", event => {
     setSimulatedPermission(message.id, message.value);
   }
 });
-window.addEventListener("load", notifyPrototypeParent, { once: true });
+window.addEventListener("load", () => {
+  notifyPrototypeParent();
+  if (window.parent !== window) {
+    window.parent.postMessage(
+      { type: "xtmapper-prototype-request-devices" },
+      window.location.origin
+    );
+  }
+}, { once: true });
+window.addEventListener("gamepadconnected", requestParentDeviceRefresh);
+window.addEventListener("gamepaddisconnected", requestParentDeviceRefresh);
 
 updateAll();
-refreshBrowserDevices();
 prototypeReady = true;
 notifyPrototypeParent();
 </script>
