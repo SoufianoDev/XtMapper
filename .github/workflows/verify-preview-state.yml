@@ -141,6 +141,11 @@ jobs:
               'portrait'
             );
 
+            await page.evaluate(() => {
+              const iframe = document.querySelector('#activityFrame');
+              window.__xtmapperInitialActivityDocument = iframe?.contentDocument;
+            });
+
             await page.screenshot({ path: visualEvidenceDir + '/phone-portrait-start.png' });
 
             const initialState = await page.evaluate(key => ({
@@ -341,6 +346,22 @@ jobs:
               throw new Error(
                 'The reverse rotation did not settle into portrait: ' +
                 JSON.stringify(completedReverseRotation)
+              );
+            }
+
+            await page.screenshot({
+              path: visualEvidenceDir + '/phone-portrait-after-reverse.png'
+            });
+
+            const iframeDocumentPreserved = await page.evaluate(() => {
+              const iframe = document.querySelector('#activityFrame');
+              return iframe?.contentDocument === window.__xtmapperInitialActivityDocument &&
+                iframe?.contentDocument?.readyState === 'complete';
+            });
+
+            if (!iframeDocumentPreserved) {
+              throw new Error(
+                'The activity iframe navigated or was detached during device rotation.'
               );
             }
 
