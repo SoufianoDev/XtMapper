@@ -3,37 +3,8 @@ import {
   calculatePreviewScale,
   calculateViewportPlacement,
   getCssFrameMetrics,
-  getTelephoneFrameMetrics,
   getViewportForOrientation
 } from "./device-scaling.mjs";
-
-const telephoneLoads = new Map();
-
-function loadTelephoneElement(frame) {
-  if (customElements.get(frame.tag)) return Promise.resolve();
-
-  if (!telephoneLoads.has(frame.tag)) {
-    const load = new Promise(function (resolve, reject) {
-      const script = document.createElement("script");
-      script.src = frame.scriptUrl;
-      script.async = true;
-      script.onload = resolve;
-      script.onerror = function () {
-        reject(new Error("Unable to load Telephone component: " + frame.tag));
-      };
-      document.head.appendChild(script);
-    }).then(function () {
-      return customElements.whenDefined(frame.tag);
-    }).catch(function (error) {
-      telephoneLoads.delete(frame.tag);
-      throw error;
-    });
-
-    telephoneLoads.set(frame.tag, load);
-  }
-
-  return telephoneLoads.get(frame.tag);
-}
 
 function setIframeViewport(iframe, viewport) {
   iframe.style.display = "block";
@@ -60,10 +31,10 @@ export class DevicePreview {
     this.select = document.getElementById("devicePreset");
     this.rotateButton = document.getElementById("rotateDevice");
     this.caption = document.getElementById("previewCaption");
-    this.currentDevice = getDeviceById("android");
-    this.currentViewport = { width: 393, height: 852 };
+    this.currentDevice = getDeviceById("google-pixel-10-pro");
+    this.currentViewport = { width: 410, height: 912 };
     this.orientation = "portrait";
-    this.lastDeviceId = "android";
+    this.lastDeviceId = "google-pixel-10-pro";
     this.frameSize = null;
     this.renderGeneration = 0;
     this.resizeObserver = null;
@@ -77,7 +48,7 @@ export class DevicePreview {
     }
 
     this.populateDeviceOptions();
-    this.select.value = "android";
+    this.select.value = this.currentDevice.id;
 
     this.select.addEventListener("change", () => {
       if (this.select.value === "custom") {
@@ -190,120 +161,17 @@ export class DevicePreview {
     const device = this.currentDevice;
     const viewport = getViewportForOrientation(this.currentViewport, this.orientation);
 
-    if (device.mockup &&
-        device.mockup.licenseStatus === "approved" &&
-        device.mockup.asset &&
-        device.mockup.screenRect) {
+    if (device.mockup && device.mockup.asset && device.mockup.screenRect) {
       try {
         await this.renderMockup(device, viewport, generation);
         return;
       } catch (error) {
         if (generation !== this.renderGeneration) return;
-        console.warn("Device mockup unavailable; using the built-in Android frame.", error);
-      }
-    }
-
-    if (device.frame.renderer === "telephone") {
-      try {
-        await this.renderTelephone(device, viewport, generation);
-        return;
-      } catch (error) {
-        if (generation !== this.renderGeneration) return;
-        console.warn("Telephone frame unavailable; using the built-in Android frame.", error);
+        console.warn("External device mockup unavailable; using the built-in Android frame.", error);
       }
     }
 
     this.renderCss(device, viewport, generation);
-  }
-
-  async renderTelephone(device, viewport, generation) {
-    const frame = device.frame;
-    const landscape = this.orientation === "landscape";
-    const frameViewport = landscape
-      ? { width: viewport.height, height: viewport.width }
-      : viewport;
-
-    await loadTelephoneElement(frame);
-    if (generation !== this.renderGeneration) return;
-
-    const metrics = getTelephoneFrameMetrics(frame, frameViewport);
-    const frameWidth = metrics.frameWidth;
-    const frameHeight = metrics.frameHeight;
-    const outerWidth = landscape ? frameHeight : frameWidth;
-    const outerHeight = landscape ? frameWidth : frameHeight;
-
-    // Keep the Telephone component in its native portrait coordinate space.
-    // Rotation changes its visual bounding box from frameWidth x frameHeight
-    // to frameHeight x frameWidth. Position the unrotated box with the inverse
-    // half-difference so its rotated visual bounds match the landscape stage.
-    const frameStage = document.createElement("div");
-    frameStage.className = "device-frame__telephone-stage";
-    frameStage.style.position = "absolute";
-    frameStage.style.inset = "0";
-    frameStage.style.width = "100%";
-    frameStage.style.height = "100%";
-
-    const telephone = document.createElement(frame.tag);
-    telephone.setAttribute("mode", frame.mode || "dark");
-    telephone.style.display = "block";
-    telephone.style.position = "absolute";
-    telephone.style.left = (outerWidth - frameWidth) / 2 + "px";
-    telephone.style.top = (outerHeight - frameHeight) / 2 + "px";
-    telephone.style.width = frameWidth + "px";
-    telephone.style.maxWidth = "none";
-    telephone.style.height = "auto";
-    telephone.style.transformOrigin = "center center";
-    telephone.style.transform = landscape ? "rotate(90deg)" : "none";
-
-    const placement = calculateViewportPlacement(
-      metrics.screenWidth,
-      metrics.screenHeight,
-      viewport.width,
-      viewport.height,
-      this.orientation
-    );
-
-    // Telephone's .screenshot lives inside its shadow tree. A slotted
-    // absolute-positioned child does not reliably use that internal surface
-    // as its containing block. Add a slotted anchor that fills the slot's
-    // screenshot area, then position the rotated viewport relative to it.
-    const viewportAnchor = document.createElement("div");
-    viewportAnchor.className = "xtmapper-device-screen-anchor";
-    viewportAnchor.style.position = "absolute";
-    viewportAnchor.style.inset = "0";
-    viewportAnchor.style.overflow = "hidden";
-    viewportAnchor.style.pointerEvents = "auto";
-
-    const viewportLayer = document.createElement("div");
-    viewportLayer.className = "xtmapper-device-viewport";
-    viewportLayer.style.position = "absolute";
-    viewportLayer.style.left = placement.left + "px";
-    viewportLayer.style.top = placement.top + "px";
-    viewportLayer.style.width = viewport.width + "px";
-    viewportLayer.style.height = viewport.height + "px";
-    viewportLayer.style.transformOrigin = "center center";
-    viewportLayer.style.transform = placement.transform;
-    viewportLayer.style.overflow = "hidden";
-    viewportLayer.style.pointerEvents = "auto";
-
-    setIframeViewport(this.iframe, viewport);
-    viewportLayer.appendChild(this.iframe);
-    viewportAnchor.appendChild(viewportLayer);
-    telephone.appendChild(viewportAnchor);
-    frameStage.appendChild(telephone);
-
-    this.frame.className = "device-frame device-frame--telephone" +
-      (landscape ? " device-frame--landscape" : "");
-    this.frame.replaceChildren(frameStage);
-    this.frame.style.width = outerWidth + "px";
-    this.frame.style.height = outerHeight + "px";
-
-    this.frameSize = {
-      width: outerWidth,
-      height: outerHeight,
-      engine: "Telephone"
-    };
-    this.fitCurrentFrame();
   }
 
   async renderMockup(device, viewport, generation) {
@@ -315,7 +183,11 @@ export class DevicePreview {
       : viewport;
     const image = new Image();
 
+    image.decoding = "async";
+    image.alt = "";
+    image.draggable = false;
     image.src = mockup.asset;
+
     if (typeof image.decode === "function") {
       await image.decode();
     } else {
@@ -335,10 +207,15 @@ export class DevicePreview {
       rectangle.y + rectangle.height <= image.naturalHeight;
 
     if (!validRectangle) {
-      throw new Error("Mockup screen rectangle is missing or outside the source image.");
+      throw new Error("Mockup screen rectangle is missing or outside the image.");
     }
 
-    const assetScale = frameViewport.width / rectangle.width;
+    // Fit the original portrait mockup around its measured transparent screen
+    // opening. Keep the iframe's logical viewport independent of preview scale.
+    const assetScale = Math.min(
+      frameViewport.width / rectangle.width,
+      frameViewport.height / rectangle.height
+    );
     const frameWidth = image.naturalWidth * assetScale;
     const frameHeight = image.naturalHeight * assetScale;
     const outerWidth = landscape ? frameHeight : frameWidth;
@@ -371,6 +248,8 @@ export class DevicePreview {
     screenSurface.style.top = rectangle.y * assetScale + "px";
     screenSurface.style.width = screenWidth + "px";
     screenSurface.style.height = screenHeight + "px";
+    screenSurface.style.borderRadius =
+      screenWidth * (mockup.screenRadiusRatio || 0.04) + "px";
 
     const viewportLayer = document.createElement("div");
     viewportLayer.className = "device-mockup__viewport";
@@ -382,18 +261,15 @@ export class DevicePreview {
     viewportLayer.style.transformOrigin = "center center";
     viewportLayer.style.transform = placement.transform;
     viewportLayer.style.overflow = "hidden";
+    viewportLayer.style.background = "#101114";
 
     setIframeViewport(this.iframe, viewport);
     viewportLayer.appendChild(this.iframe);
     screenSurface.appendChild(viewportLayer);
 
-    const overlay = document.createElement("img");
-    overlay.className = "device-mockup__frame";
-    overlay.src = image.src;
-    overlay.alt = "";
-    overlay.draggable = false;
+    image.className = "device-mockup__frame";
+    mockupFrame.append(screenSurface, image);
 
-    mockupFrame.append(screenSurface, overlay);
     this.frame.className = "device-frame device-frame--mockup" +
       (landscape ? " device-frame--landscape" : "");
     this.frame.replaceChildren(mockupFrame);
