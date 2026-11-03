@@ -447,7 +447,9 @@ export class DevicePreview {
     const viewportHeight = window.visualViewport
       ? Math.min(window.innerHeight, window.visualViewport.height)
       : window.innerHeight;
-    const stageTop = Math.max(0, this.stage.getBoundingClientRect().top);
+    const scrollTop = window.scrollY || window.pageYOffset || 0;
+    const stageRect = this.stage.getBoundingClientRect();
+    const stageDocumentTop = stageRect.top + scrollTop;
     const previewStyles = getComputedStyle(preview);
     const showcaseStyles = getComputedStyle(showcase);
     const rowGap = Number.parseFloat(previewStyles.rowGap) || 0;
@@ -455,14 +457,18 @@ export class DevicePreview {
       ? this.caption.getBoundingClientRect().height
       : 0;
     const bottomPadding = Number.parseFloat(showcaseStyles.paddingBottom) || 0;
-    const bottomSafetySpace = 20;
+    const bottomSafetySpace = 28;
+    const previewGaps = rowGap * 2;
 
-    // Measure the real space remaining below the stage instead of assuming
-    // that every browser window has the same toolbar/header height.
+    // Use the stage's document position, not its current viewport-relative
+    // top. That keeps the scale stable when the page has been scrolled and
+    // resized, instead of treating a negative top as zero and oversizing it.
+    // The preview has two grid gaps: toolbar -> stage and stage -> caption.
     const availableWidth = Math.max(1, preview.clientWidth - 12);
     const availableHeight = Math.max(
       1,
-      viewportHeight - stageTop - rowGap - captionHeight - bottomPadding - bottomSafetySpace
+      viewportHeight - stageDocumentTop - previewGaps -
+        captionHeight - bottomPadding - bottomSafetySpace
     );
     const scale = calculatePreviewScale(
       this.frameSize.width,
