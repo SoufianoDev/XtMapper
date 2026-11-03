@@ -1,4 +1,5 @@
 import { deviceGroups, getDeviceById } from "../devices/index.mjs";
+import { installDeviceRotation } from "./device-rotation.mjs";
 import {
   calculatePreviewScale,
   calculateViewportPlacement,
@@ -665,3 +666,5 @@ export class DevicePreview {
     }
   }
 }
+
+installDeviceRotation(DevicePreview);
