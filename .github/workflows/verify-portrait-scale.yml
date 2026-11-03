@@ -1,0 +1,77 @@
+name: Temporary portrait scale check
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - "prototypes/**"
+      - ".github/workflows/verify-portrait-scale.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/prototype-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/prototype-server.log
+          exit 1
+      - name: Verify portrait size and preserve landscape
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            page.on('pageerror', error => { throw error; });
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+            await page.waitForFunction(() => {
+              const image = document.querySelector('.device-mockup__frame');
+              return image?.complete && image.naturalWidth > 0 &&
+                document.querySelector('#previewCaption')?.textContent.includes('portrait');
+            }, { timeout: 60000 });
+            const portrait = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const stage = document.querySelector('#previewStage').getBoundingClientRect();
+              const preview = document.querySelector('.preview').getBoundingClientRect();
+              return {
+                scale: Number(frame.style.getPropertyValue('--device-scale')),
+                width: frame.getBoundingClientRect().width,
+                height: frame.getBoundingClientRect().height,
+                offset: stage.left - (preview.left + (preview.width - stage.width) / 2)
+              };
+            });
+            if (Math.abs(portrait.scale - 1.1) > 0.001) throw new Error('Portrait scale mismatch: ' + JSON.stringify(portrait));
+            if (Math.abs(portrait.offset - 24) > 1) throw new Error('Portrait right offset mismatch: ' + JSON.stringify(portrait));
+
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            const landscape = await page.evaluate(() => ({
+              scale: Number(document.querySelector('#deviceFrame').style.getPropertyValue('--device-scale')),
+              panelLeft: document.querySelector('.panel').getBoundingClientRect().left,
+              previewRight: document.querySelector('.preview').getBoundingClientRect().right
+            }));
+            if (landscape.scale > 1.001) throw new Error('Landscape scale changed: ' + JSON.stringify(landscape));
+            if (landscape.panelLeft <= landscape.previewRight) throw new Error('Landscape settings panel moved: ' + JSON.stringify(landscape));
+            console.log('PORTRAIT_1_1_AND_LANDSCAPE_VERIFIED');
+            console.log(JSON.stringify({ portrait, landscape }, null, 2));
+          } finally {
+            await browser.close();
+          }
+          NODE
