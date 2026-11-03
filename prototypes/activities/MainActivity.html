@@ -157,6 +157,7 @@ main { padding: 0 16px 26px; }
   white-space: nowrap;
 }
 .add-button .material-symbols-rounded { font-size: 19px; }
+.add-button[hidden] { display: none; }
 .add-button:hover { background: rgba(255,255,255,.06); }
 .service-row {
   min-height: 66px;
@@ -1698,7 +1699,7 @@ html, body {
       <section aria-labelledby="gamesHeading">
         <div class="section-heading library-heading">
           <h1 class="section-title" id="gamesHeading">Your games</h1>
-          <button class="add-button" id="addGameButton">
+          <button class="add-button" id="addGameButton" hidden>
             <span class="material-symbols-rounded">add</span>
             Add games
           </button>
@@ -2084,7 +2085,9 @@ function setAppIconSource(image, source) {
 function renderGames() {
   const grid = byId("gameGrid");
   grid.replaceChildren();
+  const visibleGames = games();
   const current = selectedGame();
+  byId("addGameButton").hidden = visibleGames.length === 0;
   byId("featuredCard").hidden = !current;
   byId("emptyLibrary").style.display = current ? "none" : "block";
   if (!current) {
