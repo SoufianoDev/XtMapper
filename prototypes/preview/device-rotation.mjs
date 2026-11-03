@@ -552,6 +552,8 @@ export function installDeviceRotation(DevicePreview) {
     } catch (error) {
       console.warn("The device rotation animation failed; restoring the target orientation.", error);
       this.rotationRenderAngle = targetAngle;
+      this.rotationRenderOrientation = nextOrientation;
+      this.rotationRenderViewport = nextViewport;
       await this.render();
       targetScale = this.previewScale || targetScale;
       shell = this.rotationShell;
