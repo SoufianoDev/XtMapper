@@ -420,11 +420,15 @@ export class DevicePreview {
     const generation = ++this.renderGeneration;
     const device = this.currentDevice;
     const portraitPhone = !landscape && device.type !== "tablet";
-    if (this.preview) {
-      this.preview.classList.toggle("preview--landscape", landscape);
-      this.preview.classList.toggle("preview--portrait-phone", portraitPhone);
+    if (!this.rotationTransitionActive) {
+      if (this.preview) {
+        this.preview.classList.toggle("preview--landscape", landscape);
+        this.preview.classList.toggle("preview--portrait-phone", portraitPhone);
+      }
+      if (this.showcase) {
+        this.showcase.classList.toggle("showcase--landscape-preview", landscape);
+      }
     }
-    if (this.showcase) this.showcase.classList.toggle("showcase--landscape-preview", landscape);
 
     const viewport = getViewportForOrientation(this.currentViewport, this.orientation);
 
