@@ -156,11 +156,13 @@ jobs:
             await page.locator('#rotateDevice').click();
             await page.waitForTimeout(120);
             const rotationMotion = await page.evaluate(() => ({
-              rotation: window.gsap.getProperty(document.querySelector('#deviceFrame'), 'rotation'),
+              rotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
+              contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
               busy: document.querySelector('.preview').getAttribute('aria-busy')
             }));
 
             if (!(rotationMotion.rotation > 0.1 && rotationMotion.rotation < 90) ||
+                Math.abs(rotationMotion.rotation + rotationMotion.contentRotation) > 1 ||
                 rotationMotion.busy !== 'true') {
               throw new Error(
                 'The device did not enter the GSAP rotation transition: ' +
@@ -400,13 +402,15 @@ jobs:
             );
 
             const reducedRotation = await page.evaluate(() => ({
-              rotation: window.gsap.getProperty(document.querySelector('#deviceFrame'), 'rotation'),
+              rotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
+              contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
               opacity: Number(getComputedStyle(document.querySelector('#deviceFrame')).opacity),
               busy: document.querySelector('.preview').getAttribute('aria-busy'),
               inlineTransform: document.querySelector('#deviceFrame').style.transform
             }));
 
-            if (Math.abs(reducedRotation.rotation) > 0.1 ||
+            if (Math.abs(reducedRotation.rotation - 90) > 0.1 ||
+                Math.abs(reducedRotation.contentRotation + 90) > 0.1 ||
                 reducedRotation.opacity !== 1 ||
                 reducedRotation.busy !== null ||
                 reducedRotation.inlineTransform !== '') {
