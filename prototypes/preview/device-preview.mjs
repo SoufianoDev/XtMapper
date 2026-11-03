@@ -355,6 +355,15 @@ export class DevicePreview {
           updateOrientation();
           await this.render();
 
+          // Drop the temporary outer rotation before revealing the rebuilt frame.
+          // Landscape mockups apply their own counter-rotated screen placement.
+          gsap.set(this.frame, {
+            clearProps: "transform,transformOrigin,willChange"
+          });
+          gsap.set(this.stage, {
+            clearProps: "transform,willChange"
+          });
+
           await new Promise((resolve) => {
             gsap.fromTo(
               this.frame,
