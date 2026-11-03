@@ -154,7 +154,11 @@ export class DevicePreview {
 
   async render() {
     const landscape = this.orientation === "landscape";
-    if (this.preview) this.preview.classList.toggle("preview--landscape", landscape);
+    const portraitPhone = !landscape && device.type !== "tablet";
+    if (this.preview) {
+      this.preview.classList.toggle("preview--landscape", landscape);
+      this.preview.classList.toggle("preview--portrait-phone", portraitPhone);
+    }
     if (this.showcase) this.showcase.classList.toggle("showcase--landscape-preview", landscape);
 
     const generation = ++this.renderGeneration;
@@ -358,18 +362,19 @@ export class DevicePreview {
       viewportHeight - stageDocumentTop - previewGaps -
         captionHeight - bottomPadding - bottomSafetySpace
     );
-    // Portrait previews are intentionally allowed to extend below the fold.
-    // This keeps the device large instead of shrinking it to fit the viewport.
-    const portraitScaleLimit = 0.74;
-    const availableHeight = landscape
-      ? baseAvailableHeight
-      : Math.max(baseAvailableHeight, this.frameSize.height * portraitScaleLimit);
+    // Only portrait phones use the manually tuned preview scale. Tablets
+    // keep the original fit-to-available-space behavior in both orientations.
+    const portraitPhone = !landscape && this.currentDevice.type !== "tablet";
+    const portraitPhoneScaleLimit = 0.74;
+    const availableHeight = portraitPhone
+      ? Math.max(baseAvailableHeight, this.frameSize.height * portraitPhoneScaleLimit)
+      : baseAvailableHeight;
     const scale = calculatePreviewScale(
       this.frameSize.width,
       this.frameSize.height,
       availableWidth,
       availableHeight,
-      landscape ? 1 : portraitScaleLimit
+      portraitPhone ? portraitPhoneScaleLimit : 1
     );
 
     this.stage.style.width = this.frameSize.width * scale + "px";
