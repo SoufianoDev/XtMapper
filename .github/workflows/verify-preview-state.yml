@@ -1,0 +1,300 @@
+name: Prototype Preview State Verification
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - "prototypes/**"
+      - ".github/workflows/verify-preview-state.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prototype-preview-state-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify device selection and rotation persistence
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/prototype-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/prototype-server.log
+          exit 1
+
+      - name: Verify device and orientation persistence
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+
+          const STORAGE_KEY = 'xtmapper.device-preview.state.v1';
+          const browser = await chromium.launch({
+            headless: true,
+            args: ['--no-sandbox']
+          });
+          const context = await browser.newContext({
+            viewport: { width: 1440, height: 900 }
+          });
+
+          try {
+            let page = await context.newPage();
+            page.on('pageerror', error => {
+              throw error;
+            });
+
+            await page.goto('http://127.0.0.1:4173/', {
+              waitUntil: 'domcontentloaded'
+            });
+
+            const waitForRenderedFrame = async () => {
+              await page.waitForFunction(() => {
+                const frame = document.querySelector('#deviceFrame');
+                if (!frame) return false;
+
+                // Device mockups use a remote image asset.
+                const image = frame.querySelector('.device-mockup__frame');
+                const mockupReady = !!image && image.complete && image.naturalWidth > 0;
+
+                // Custom viewports use the built-in CSS frame instead.
+                const cssFrame = frame.classList.contains('device-frame--css')
+                  ? frame.querySelector('.device-screen iframe')
+                  : null;
+                const cssFrameReady = !!cssFrame &&
+                  Number(cssFrame.getAttribute('width')) > 0 &&
+                  Number(cssFrame.getAttribute('height')) > 0 &&
+                  Number.parseFloat(frame.style.width) > 0 &&
+                  Number.parseFloat(frame.style.height) > 0;
+
+                return mockupReady || cssFrameReady;
+              }, null, { timeout: 60000 });
+            };
+
+            const waitForDevice = async (id, captionText, orientation) => {
+              await page.waitForFunction(
+                ({ id, captionText, orientation }) => {
+                  const select = document.querySelector('#devicePreset');
+                  const caption = document.querySelector('#previewCaption')?.textContent || '';
+                  return select?.value === id &&
+                    caption.includes(captionText) &&
+                    caption.includes(orientation);
+                },
+                { id, captionText, orientation },
+                { timeout: 60000 }
+              );
+              await waitForRenderedFrame();
+            };
+
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'portrait'
+            );
+
+            const initialState = await page.evaluate(key => ({
+              selected: document.querySelector('#devicePreset').value,
+              caption: document.querySelector('#previewCaption').textContent,
+              saved: localStorage.getItem(key)
+            }), STORAGE_KEY);
+
+            if (initialState.selected !== 'google-pixel-10-pro' ||
+                initialState.saved !== null) {
+              throw new Error(
+                'Fresh browser did not start with the default state: ' +
+                JSON.stringify(initialState)
+              );
+            }
+
+            // Rotate, then change devices. The new device must keep landscape.
+            await page.locator('#rotateDevice').click();
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'landscape'
+            );
+
+            await page.locator('#devicePreset').selectOption('samsung-s24');
+            await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'landscape');
+
+            const switchedWhileLandscape = await page.evaluate(key => ({
+              selected: document.querySelector('#devicePreset').value,
+              caption: document.querySelector('#previewCaption').textContent,
+              state: JSON.parse(localStorage.getItem(key))
+            }), STORAGE_KEY);
+
+            if (switchedWhileLandscape.state?.deviceId !== 'samsung-s24' ||
+                switchedWhileLandscape.state?.orientation !== 'landscape') {
+              throw new Error(
+                'Changing device did not preserve landscape: ' +
+                JSON.stringify(switchedWhileLandscape)
+              );
+            }
+
+            if (!switchedWhileLandscape.caption.includes('780 × 360 CSS px')) {
+              throw new Error(
+                'The selected phone did not use landscape viewport dimensions: ' +
+                JSON.stringify(switchedWhileLandscape)
+              );
+            }
+
+            // A reload and a newly opened page must restore the same state.
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'landscape');
+
+            await page.close();
+            page = await context.newPage();
+            page.on('pageerror', error => {
+              throw error;
+            });
+            await page.goto('http://127.0.0.1:4173/', {
+              waitUntil: 'domcontentloaded'
+            });
+            await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'landscape');
+
+            // Switching in portrait must also preserve portrait.
+            await page.locator('#rotateDevice').click();
+            await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'portrait');
+
+            await page.locator('#devicePreset').selectOption('galaxy-tab-s7');
+            await waitForDevice(
+              'galaxy-tab-s7',
+              'Samsung Galaxy Tab S7',
+              'portrait'
+            );
+
+            const switchedWhilePortrait = await page.evaluate(
+              key => JSON.parse(localStorage.getItem(key)),
+              STORAGE_KEY
+            );
+
+            if (switchedWhilePortrait?.deviceId !== 'galaxy-tab-s7' ||
+                switchedWhilePortrait?.orientation !== 'portrait') {
+              throw new Error(
+                'Changing device did not preserve portrait: ' +
+                JSON.stringify(switchedWhilePortrait)
+              );
+            }
+
+            // Tablet selection and rotation must survive a reload.
+            await page.locator('#rotateDevice').click();
+            await waitForDevice(
+              'galaxy-tab-s7',
+              'Samsung Galaxy Tab S7',
+              'landscape'
+            );
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await waitForDevice(
+              'galaxy-tab-s7',
+              'Samsung Galaxy Tab S7',
+              'landscape'
+            );
+
+            // Custom viewport uses CSS, not a remote mockup image.
+            let promptIndex = 0;
+            page.on('dialog', async dialog => {
+              await dialog.accept(promptIndex++ === 0 ? '1200' : '800');
+            });
+
+            await page.locator('#devicePreset').selectOption('custom');
+            await waitForDevice(
+              'custom',
+              'Custom Android viewport',
+              'landscape'
+            );
+
+            const customFrame = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const iframe = frame?.querySelector('.device-screen iframe');
+              return {
+                renderer: frame?.className,
+                frameWidth: frame?.style.width,
+                frameHeight: frame?.style.height,
+                iframeWidth: iframe?.getAttribute('width'),
+                iframeHeight: iframe?.getAttribute('height')
+              };
+            });
+
+            if (!customFrame.renderer?.includes('device-frame--css') ||
+                customFrame.iframeWidth !== '1200' ||
+                customFrame.iframeHeight !== '800') {
+              throw new Error(
+                'Custom CSS frame was not rendered correctly: ' +
+                JSON.stringify(customFrame)
+              );
+            }
+
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await waitForDevice(
+              'custom',
+              'Custom Android viewport',
+              'landscape'
+            );
+
+            const customState = await page.evaluate(
+              key => JSON.parse(localStorage.getItem(key)),
+              STORAGE_KEY
+            );
+
+            if (customState?.customViewport?.width !== 1200 ||
+                customState?.customViewport?.height !== 800) {
+              throw new Error(
+                'Custom viewport was not restored: ' +
+                JSON.stringify(customState)
+              );
+            }
+
+            // Invalid saved data must fall back to the default device.
+            await page.evaluate(key => {
+              localStorage.setItem(key, JSON.stringify({
+                version: 1,
+                deviceId: 'unknown-device',
+                orientation: 'sideways'
+              }));
+            }, STORAGE_KEY);
+
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'portrait'
+            );
+
+            console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
+            console.log(JSON.stringify({
+              initialState,
+              switchedWhileLandscape,
+              switchedWhilePortrait,
+              customFrame,
+              customState,
+              invalidStateFallback: 'Google Pixel 10 Pro · portrait'
+            }, null, 2));
+          } finally {
+            await context.close();
+            await browser.close();
+          }
+          NODE
