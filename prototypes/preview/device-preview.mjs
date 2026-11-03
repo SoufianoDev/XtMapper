@@ -368,7 +368,15 @@ export class DevicePreview {
     const portrait = !landscape;
     const isTablet = this.currentDevice.type === "tablet";
     const isFoldable = this.currentDevice.type === "foldable";
-    const portraitScaleLimit = isTablet ? 0.58 : (isFoldable ? 0.56 : 0.74);
+    // Tablets grow by 8% over their normal fit, capped at 0.58 so they
+    // remain balanced on tall displays and do not become oversized on short ones.
+    const tabletPortraitScaleLimit = Math.min(
+      0.58,
+      (baseAvailableHeight / this.frameSize.height) * 1.08
+    );
+    const portraitScaleLimit = isTablet
+      ? tabletPortraitScaleLimit
+      : (isFoldable ? 0.56 : 0.74);
     const availableHeight = portrait
       ? Math.max(baseAvailableHeight, this.frameSize.height * portraitScaleLimit)
       : baseAvailableHeight;
