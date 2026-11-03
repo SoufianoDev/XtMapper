@@ -192,6 +192,7 @@ jobs:
                 contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
                 viewportWidth: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'width'),
                 viewportHeight: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'height'),
+                deviceScale: Number.parseFloat(getComputedStyle(frame).getPropertyValue('--device-scale')),
                 busy: document.querySelector('.preview').getAttribute('aria-busy'),
                 opacity: Number(getComputedStyle(frame).opacity),
                 deviceCenter: (() => {
@@ -294,6 +295,7 @@ jobs:
                 screenRotation: window.gsap.getProperty(viewport, 'rotation'),
                 viewportWidth: window.gsap.getProperty(viewport, 'width'),
                 viewportHeight: window.gsap.getProperty(viewport, 'height'),
+                deviceScale: Number.parseFloat(getComputedStyle(frame).getPropertyValue('--device-scale')),
                 opacity: Number(getComputedStyle(frame).opacity),
                 busy: document.querySelector('.preview').getAttribute('aria-busy'),
                 deviceCenter: {
@@ -318,7 +320,10 @@ jobs:
                 reverseRotationMotion.opacity !== 1 ||
                 reverseRotationMotion.busy !== 'true' ||
                 Math.abs(reverseRotationMotion.deviceCenter.x - landscapeLayout.deviceCenter.x) > 1 ||
-                Math.abs(reverseRotationMotion.deviceCenter.y - landscapeLayout.deviceCenter.y) > 1) {
+                Math.abs(reverseRotationMotion.deviceCenter.y - landscapeLayout.deviceCenter.y) > 1 ||
+                !Number.isFinite(rotationMotion.deviceScale) ||
+                !Number.isFinite(reverseRotationMotion.deviceScale) ||
+                Math.abs(rotationMotion.deviceScale - reverseRotationMotion.deviceScale) > 0.02) {
               throw new Error(
                 'The reverse rotation did not preserve the symmetric midpoint: ' +
                 JSON.stringify(reverseRotationMotion)
