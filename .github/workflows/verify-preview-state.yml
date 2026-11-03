@@ -232,6 +232,7 @@ jobs:
             // Switching in portrait must also preserve portrait.
             await page.locator('#rotateDevice').click();
             await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'portrait');
+            await waitForSettledMotion();
 
             await page.locator('#devicePreset').selectOption('galaxy-tab-s7');
             await waitForDevice(
@@ -239,6 +240,7 @@ jobs:
               'Samsung Galaxy Tab S7',
               'portrait'
             );
+            await waitForSettledMotion();
 
             const switchedWhilePortrait = await page.evaluate(
               key => JSON.parse(localStorage.getItem(key)),
@@ -260,6 +262,7 @@ jobs:
               'Samsung Galaxy Tab S7',
               'landscape'
             );
+            await waitForSettledMotion();
             await page.reload({ waitUntil: 'domcontentloaded' });
             await waitForDevice(
               'galaxy-tab-s7',
@@ -279,6 +282,7 @@ jobs:
               'Custom Android viewport',
               'landscape'
             );
+            await waitForSettledMotion();
 
             const customFrame = await page.evaluate(() => {
               const frame = document.querySelector('#deviceFrame');
@@ -301,12 +305,46 @@ jobs:
               );
             }
 
+            // Rotate the built-in CSS frame both ways; it has no mockup image.
+            await page.locator('#rotateDevice').click();
+            await waitForDevice(
+              'custom',
+              'Custom Android viewport',
+              'portrait'
+            );
+            await waitForSettledMotion();
+
+            const customPortraitViewport = await page.evaluate(() => {
+              const iframe = document.querySelector('#deviceFrame .device-screen iframe');
+              return {
+                width: iframe?.getAttribute('width'),
+                height: iframe?.getAttribute('height')
+              };
+            });
+
+            if (customPortraitViewport.width !== '800' ||
+                customPortraitViewport.height !== '1200') {
+              throw new Error(
+                'Custom CSS frame did not rotate to portrait: ' +
+                JSON.stringify(customPortraitViewport)
+              );
+            }
+
+            await page.locator('#rotateDevice').click();
+            await waitForDevice(
+              'custom',
+              'Custom Android viewport',
+              'landscape'
+            );
+            await waitForSettledMotion();
+
             await page.reload({ waitUntil: 'domcontentloaded' });
             await waitForDevice(
               'custom',
               'Custom Android viewport',
               'landscape'
             );
+            await waitForSettledMotion();
 
             const customState = await page.evaluate(
               key => JSON.parse(localStorage.getItem(key)),
