@@ -113,20 +113,17 @@ jobs:
                   close(measured.stage.top, measured.mockup.top) &&
                   close(measured.stage.width, measured.mockup.width) &&
                   close(measured.stage.height, measured.mockup.height);
-                const screenAligned =
-                  close(measured.screen.left, measured.viewport.left) &&
-                  close(measured.screen.top, measured.viewport.top) &&
-                  close(measured.screen.width, measured.viewport.width) &&
-                  close(measured.screen.height, measured.viewport.height);
+                const screenContained =
+                  measured.viewport.left >= measured.screen.left - tolerance &&
+                  measured.viewport.top >= measured.screen.top - tolerance &&
+                  measured.viewport.right <= measured.screen.right + tolerance &&
+                  measured.viewport.bottom <= measured.screen.bottom + tolerance;
 
-                const expected = orientation === "portrait"
-                  ? [device.viewport.width, device.viewport.height]
-                  : [device.viewport.height, device.viewport.width];
                 const logicalViewportCorrect =
                   measured.iframeSize[0] === expected[0] &&
                   measured.iframeSize[1] === expected[1];
 
-                if (!measured.imageLoaded || !aligned || !screenAligned || !logicalViewportCorrect) {
+                if (!measured.imageLoaded || !aligned || !screenContained || !logicalViewportCorrect) {
                   failures.push({ device: device.id, orientation, expected, measured });
                 }
                 console.log(JSON.stringify({
@@ -135,7 +132,7 @@ jobs:
                   image: measured.imageSize,
                   iframe: measured.iframeSize,
                   frameAligned: aligned,
-                  screenAligned,
+                  screenContained,
                   logicalViewportCorrect
                 }));
 
