@@ -112,11 +112,46 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   background: rgba(255,255,255,.025);
   font-size: 10px;
 }
-.preview { min-width: 0; display: grid; justify-items: center; align-content: center; gap: 14px; }
-.showcase--landscape-preview { align-items: start; }
+.preview {
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 14px;
+}
+.preview-toolbar,
+.preview-stage,
+.preview-caption {
+  justify-self: center;
+}
+.showcase--landscape-preview {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+}
 .showcase--landscape-preview .preview {
+  width: 100%;
   align-self: start;
+  justify-self: center;
+  justify-items: center;
   align-content: start;
+}
+.showcase--landscape-preview .preview-toolbar {
+  width: min(100%, 900px);
+  margin-inline: auto;
+}
+.showcase--landscape-preview .preview-stage {
+  justify-self: center;
+  margin-inline: auto;
+}
+.showcase--landscape-preview .preview-caption {
+  justify-self: center;
+  width: 100%;
+}
+.showcase--landscape-preview .panel {
+  width: min(100%, 1100px);
+  justify-self: center;
 }
 .preview-toolbar {
   width: min(100%, 620px);
