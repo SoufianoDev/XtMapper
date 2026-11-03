@@ -380,6 +380,10 @@ export function installDeviceRotation(DevicePreview) {
       portrait ? portraitScaleLimit : 1
     );
 
+    this.previewFitBounds = {
+      width: availableWidth,
+      height: baseAvailableHeight
+    };
     this.previewScale = scale;
     this.stage.style.width = this.frameSize.width * scale + "px";
     this.stage.style.height = this.frameSize.height * scale + "px";
@@ -507,6 +511,22 @@ export function installDeviceRotation(DevicePreview) {
           onComplete: resolve,
           onInterrupt: resolve
         });
+        this.frame.__xtmapperRotationTimeline = timeline;
+
+        const diagonal = Math.hypot(this.frameSize.width, this.frameSize.height);
+        const fitBounds = this.previewFitBounds || {
+          width: this.preview.clientWidth,
+          height: window.innerHeight
+        };
+        const rotationFitScale = Math.max(
+          0.1,
+          Math.min(
+            previousScale,
+            targetScale,
+            fitBounds.width / diagonal,
+            fitBounds.height / diagonal
+          )
+        );
 
         timeline.to(shell, {
           rotation: targetAngle,
@@ -523,10 +543,16 @@ export function installDeviceRotation(DevicePreview) {
         }, 0);
 
         timeline.to(this.frame, {
-          "--device-scale": targetScale,
-          duration: 0.9,
-          ease: "power3.inOut"
+          "--device-scale": rotationFitScale,
+          duration: 0.45,
+          ease: "power2.in"
         }, 0);
+
+        timeline.to(this.frame, {
+          "--device-scale": targetScale,
+          duration: 0.45,
+          ease: "power2.out"
+        }, 0.45);
 
         if (targetStage?.width && targetStage?.height) {
           timeline.to(this.stage, {
@@ -537,17 +563,6 @@ export function installDeviceRotation(DevicePreview) {
           }, 0);
         }
 
-        timeline.to(shell, {
-          scale: 0.92,
-          duration: 0.45,
-          ease: "power2.in"
-        }, 0);
-
-        timeline.to(shell, {
-          scale: 1,
-          duration: 0.45,
-          ease: "power2.out"
-        }, 0.45);
       });
     } catch (error) {
       console.warn("The device rotation animation failed; restoring the target orientation.", error);
@@ -579,6 +594,7 @@ export function installDeviceRotation(DevicePreview) {
       setIframeViewport(this.iframe, nextViewport);
       this.frame.style.setProperty("--device-scale", String(targetScale));
       if (this.gsap) this.gsap.set(this.frame, { clearProps: "willChange" });
+      delete this.frame.__xtmapperRotationTimeline;
 
       this.rotationRenderAngle = null;
       this.rotationRenderOrientation = null;
