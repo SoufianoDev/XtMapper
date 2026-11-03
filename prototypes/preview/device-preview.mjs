@@ -363,7 +363,7 @@ export class DevicePreview {
       this.frameSize.height,
       availableWidth,
       availableHeight,
-      landscape ? 1.15 : 1
+      landscape ? 1 : 1.15
     );
 
     this.stage.style.width = this.frameSize.width * scale + "px";
