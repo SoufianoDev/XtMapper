@@ -60,16 +60,39 @@ jobs:
               const preview = document.querySelector('.preview');
               const stage = document.querySelector('#previewStage');
               const frame = document.querySelector('#deviceFrame');
+              const caption = document.querySelector('#previewCaption');
+              const showcase = preview.parentElement;
               const stageRect = stage.getBoundingClientRect();
               const frameRect = frame.getBoundingClientRect();
+              const previewStyles = getComputedStyle(preview);
+              const showcaseStyles = getComputedStyle(showcase);
+              const rowGap = Number.parseFloat(previewStyles.rowGap) || 0;
+              const bottomPadding = Number.parseFloat(showcaseStyles.paddingBottom) || 0;
+              const captionHeight = caption.getBoundingClientRect().height;
+              const viewportHeight = window.visualViewport
+                ? Math.min(window.innerHeight, window.visualViewport.height)
+                : window.innerHeight;
+              const stageDocumentTop = stageRect.top + (window.scrollY || window.pageYOffset || 0);
+              const baseAvailableHeight = Math.max(
+                1,
+                viewportHeight - stageDocumentTop - rowGap * 2 -
+                  captionHeight - bottomPadding - 28
+              );
+              const frameBaseWidth = Number.parseFloat(frame.style.width);
+              const frameBaseHeight = Number.parseFloat(frame.style.height);
+              const availableWidth = Math.max(1, preview.clientWidth - 12);
               return {
-                device:document.querySelector('#previewCaption').textContent,
+                device:caption.textContent,
                 type:document.querySelector('#devicePreset').selectedOptions[0].parentElement.label,
                 scale:Number(frame.style.getPropertyValue('--device-scale')),
                 renderedWidth:frameRect.width,
                 renderedHeight:frameRect.height,
                 stageWidth:stageRect.width,
                 stageHeight:stageRect.height,
+                frameBaseWidth,
+                frameBaseHeight,
+                availableWidth,
+                baseAvailableHeight,
                 portraitPhoneClass:preview.classList.contains('preview--portrait-phone')
               };
             });
@@ -95,10 +118,38 @@ jobs:
 
             await waitForDevice('galaxy-tab-s7');
             const tablet = await measure();
-            if (Math.abs(tablet.scale - 0.58) > 0.002) {
-              throw new Error('Tablet portrait scale is not 0.58: ' + JSON.stringify(tablet));
+            const tabletFitScale = Math.min(
+              tablet.availableWidth / tablet.frameBaseWidth,
+              tablet.baseAvailableHeight / tablet.frameBaseHeight,
+              1
+            );
+            const tabletExpectedScale = Math.min(
+              0.58,
+              (tablet.baseAvailableHeight / tablet.frameBaseHeight) * 1.08,
+              tablet.availableWidth / tablet.frameBaseWidth
+            );
+            if (Math.abs(tablet.scale - tabletExpectedScale) > 0.002 ||
+                tablet.scale < tabletFitScale * 1.05) {
+              throw new Error('Tablet portrait should be about 8% larger than fit-to-space: ' + JSON.stringify({tablet,tabletFitScale,tabletExpectedScale}));
             }
             if (tablet.portraitPhoneClass) throw new Error('Tablet incorrectly received phone-specific toolbar class.');
+
+            await page.setViewportSize({ width: 1024, height: 768 });
+            await waitForDevice('galaxy-tab-s7');
+            const tabletSmallViewport = await measure();
+            const tabletSmallExpectedScale = Math.min(
+              0.58,
+              (tabletSmallViewport.baseAvailableHeight / tabletSmallViewport.frameBaseHeight) * 1.08,
+              tabletSmallViewport.availableWidth / tabletSmallViewport.frameBaseWidth
+            );
+            if (Math.abs(tabletSmallViewport.scale - tabletSmallExpectedScale) > 0.002) {
+              throw new Error('Tablet portrait did not adapt to a short viewport: ' + JSON.stringify({tabletSmallViewport,tabletSmallExpectedScale}));
+            }
+            if (tabletSmallViewport.scale >= 0.58) {
+              throw new Error('Tablet should not force the maximum scale on a short viewport: ' + JSON.stringify(tabletSmallViewport));
+            }
+            await page.setViewportSize({ width: 1440, height: 900 });
+            await waitForDevice('galaxy-tab-s7');
 
             await page.locator('#rotateDevice').click();
             await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
