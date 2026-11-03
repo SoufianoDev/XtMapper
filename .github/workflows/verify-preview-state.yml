@@ -159,16 +159,20 @@ jobs:
 
             // Rotation must animate the existing frame before committing landscape.
             await page.locator('#rotateDevice').click();
-            await page.waitForTimeout(120);
+            await page.waitForTimeout(430);
             await page.screenshot({ path: visualEvidenceDir + '/phone-rotation-midpoint.png' });
             const rotationMotion = await page.evaluate(() => ({
               rotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
               contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
+              viewportWidth: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'width'),
+              viewportHeight: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'height'),
               busy: document.querySelector('.preview').getAttribute('aria-busy')
             }));
 
-            if (!(rotationMotion.rotation > 0.1 && rotationMotion.rotation < 90) ||
+            if (!(rotationMotion.rotation > 25 && rotationMotion.rotation < 65) ||
                 Math.abs(rotationMotion.rotation + rotationMotion.contentRotation) > 1 ||
+                !(rotationMotion.viewportWidth > 410 && rotationMotion.viewportWidth < 912) ||
+                !(rotationMotion.viewportHeight < 912 && rotationMotion.viewportHeight > 410) ||
                 rotationMotion.busy !== 'true') {
               throw new Error(
                 'The device did not enter the GSAP rotation transition: ' +
