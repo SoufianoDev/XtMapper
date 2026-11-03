@@ -288,7 +288,7 @@ jobs:
             const activity = page.frameLocator('#activityFrame');
             await page.locator('#parentScenario').selectOption('empty');
             await page.waitForFunction(() => {
-              const document = window.frames.activityFrame?.document;
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
               const addButton = document?.querySelector('#addGameButton');
               const emptyLibrary = document?.querySelector('#emptyLibrary');
               return addButton?.hidden === true &&
