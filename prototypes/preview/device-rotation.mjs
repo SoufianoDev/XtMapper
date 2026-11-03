@@ -487,15 +487,10 @@ export function installDeviceRotation(DevicePreview) {
       width: Math.min(previousViewport.width, previousViewport.height),
       height: Math.max(previousViewport.width, previousViewport.height)
     };
-    const availableWidth = nextOrientation === "landscape"
-      ? screenSize.height
-      : screenSize.width;
-    const availableHeight = nextOrientation === "landscape"
-      ? screenSize.width
-      : screenSize.height;
-    const nextLayerScale = Math.min(
-      availableWidth / nextViewport.width,
-      availableHeight / nextViewport.height
+    const nextLayerScale = calculateRotationLayerScale(
+      screenSize,
+      nextViewport,
+      nextOrientation
     );
 
     const previousClasses = {
