@@ -362,19 +362,22 @@ export class DevicePreview {
       viewportHeight - stageDocumentTop - previewGaps -
         captionHeight - bottomPadding - bottomSafetySpace
     );
-    // Only portrait phones use the manually tuned preview scale. Tablets
-    // keep the original fit-to-available-space behavior in both orientations.
-    const portraitPhone = !landscape && this.currentDevice.type !== "tablet";
-    const portraitPhoneScaleLimit = 0.74;
-    const availableHeight = portraitPhone
-      ? Math.max(baseAvailableHeight, this.frameSize.height * portraitPhoneScaleLimit)
+    // Tune portrait sizing by device class: standard phones keep their
+    // established size, unfolded foldables are reduced, and tablets gain a
+    // small amount of preview size. Landscape sizing remains fit-to-space.
+    const portrait = !landscape;
+    const isTablet = this.currentDevice.type === "tablet";
+    const isFoldable = this.currentDevice.type === "foldable";
+    const portraitScaleLimit = isTablet ? 0.58 : (isFoldable ? 0.56 : 0.74);
+    const availableHeight = portrait
+      ? Math.max(baseAvailableHeight, this.frameSize.height * portraitScaleLimit)
       : baseAvailableHeight;
     const scale = calculatePreviewScale(
       this.frameSize.width,
       this.frameSize.height,
       availableWidth,
       availableHeight,
-      portraitPhone ? portraitPhoneScaleLimit : 1
+      portrait ? portraitScaleLimit : 1
     );
 
     this.stage.style.width = this.frameSize.width * scale + "px";
