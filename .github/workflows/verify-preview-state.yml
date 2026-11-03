@@ -57,16 +57,17 @@ jobs:
                 { id, captionText, orientation },
                 { timeout: 60000 }
               );
-              await page.waitForFunction(() => {
-                const image = document.querySelector('.device-mockup__frame');
-                return image?.complete && image.naturalWidth > 0;
-              }, { timeout: 60000 }).catch(() => {
-                // Custom CSS frames do not use an external mockup image.
-                const frame = document.querySelector('#deviceFrame');
-                if (!frame || !frame.style.width || !frame.style.height) {
-                  throw new Error('The preview frame was not rendered.');
-                }
-              });
+              if (id === 'custom') {
+                await page.waitForFunction(() => {
+                  const frame = document.querySelector('#deviceFrame');
+                  return !!frame?.style.width && !!frame?.style.height;
+                }, null, { timeout: 60000 });
+              } else {
+                await page.waitForFunction(() => {
+                  const image = document.querySelector('.device-mockup__frame');
+                  return image?.complete && image.naturalWidth > 0;
+                }, null, { timeout: 60000 });
+              }
             };
 
             await waitForDevice('google-pixel-10-pro', 'Google Pixel 10 Pro', 'portrait');
