@@ -157,23 +157,43 @@ jobs:
               );
             }
 
-            // Rotation must animate the existing frame before committing landscape.
+            // Pause the running GSAP timeline at its exact midpoint so the
+            // screenshot is deterministic even on slower CI runners.
             await page.locator('#rotateDevice').click();
-            await page.waitForTimeout(430);
+            await page.waitForFunction(() =>
+              !!document.querySelector('#deviceFrame')?.__xtmapperRotationTimeline,
+              null,
+              { timeout: 10000 }
+            );
+            const rotationMotion = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const timeline = frame.__xtmapperRotationTimeline;
+              timeline.pause();
+              timeline.time(0.45, false);
+
+              return {
+                rotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
+                contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
+                viewportWidth: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'width'),
+                viewportHeight: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'height'),
+                busy: document.querySelector('.preview').getAttribute('aria-busy'),
+                portraitLayoutPreserved: document.querySelector('.preview').classList.contains('preview--portrait-phone'),
+                landscapeLayoutAppliedEarly: document.querySelector('.showcase').classList.contains('showcase--landscape-preview')
+              };
+            });
+
             await page.screenshot({ path: visualEvidenceDir + '/phone-rotation-midpoint.png' });
-            const rotationMotion = await page.evaluate(() => ({
-              rotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
-              contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
-              viewportWidth: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'width'),
-              viewportHeight: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'height'),
-              busy: document.querySelector('.preview').getAttribute('aria-busy')
-            }));
+            await page.evaluate(() => {
+              document.querySelector('#deviceFrame')?.__xtmapperRotationTimeline?.play();
+            });
 
             if (!(rotationMotion.rotation > 25 && rotationMotion.rotation < 65) ||
                 Math.abs(rotationMotion.rotation + rotationMotion.contentRotation) > 1 ||
                 !(rotationMotion.viewportWidth > 410 && rotationMotion.viewportWidth < 912) ||
                 !(rotationMotion.viewportHeight < 912 && rotationMotion.viewportHeight > 410) ||
-                rotationMotion.busy !== 'true') {
+                rotationMotion.busy !== 'true' ||
+                !rotationMotion.portraitLayoutPreserved ||
+                rotationMotion.landscapeLayoutAppliedEarly) {
               throw new Error(
                 'The device did not enter the GSAP rotation transition: ' +
                 JSON.stringify(rotationMotion)
