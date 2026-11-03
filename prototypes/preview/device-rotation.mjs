@@ -204,11 +204,9 @@ export function installDeviceRotation(DevicePreview) {
     const mockup = device.mockup;
     const rectangle = mockup.screenRect;
     const landscape = this.orientation === "landscape";
-    const screenOrientation = this.rotationRenderOrientation || this.orientation;
-    const screenViewport = this.rotationRenderViewport || viewport;
-    const shellAngle = Number.isFinite(this.rotationRenderAngle)
-      ? this.rotationRenderAngle
-      : orientationAngle(this.orientation);
+    const screenOrientation = this.orientation;
+    const screenViewport = viewport;
+    const shellAngle = orientationAngle(this.orientation);
     const baseViewport = getViewportForOrientation(screenViewport, "portrait");
     const image = new Image();
 
@@ -308,11 +306,9 @@ export function installDeviceRotation(DevicePreview) {
     if (generation !== this.renderGeneration) return;
 
     const landscape = this.orientation === "landscape";
-    const screenOrientation = this.rotationRenderOrientation || this.orientation;
-    const screenViewport = this.rotationRenderViewport || viewport;
-    const shellAngle = Number.isFinite(this.rotationRenderAngle)
-      ? this.rotationRenderAngle
-      : orientationAngle(this.orientation);
+    const screenOrientation = this.orientation;
+    const screenViewport = viewport;
+    const shellAngle = orientationAngle(this.orientation);
     const padding = device.frame && Number.isFinite(device.frame.padding)
       ? device.frame.padding
       : (device.type === "tablet" ? 12 : 9);
@@ -384,7 +380,6 @@ export function installDeviceRotation(DevicePreview) {
 
   DevicePreview.prototype.fitCurrentFrame = function () {
     if (!this.frameSize || !this.stage || !this.frame) return;
-    if (this.rotationTransitionActive && this.rotationTransitionReady) return;
 
     const preview = this.preview || this.stage.parentElement;
     const showcase = this.showcase || preview.parentElement;
@@ -493,11 +488,6 @@ export function installDeviceRotation(DevicePreview) {
       nextOrientation
     );
 
-    const previousClasses = {
-      landscape: this.preview?.classList.contains("preview--landscape") || false,
-      portraitPhone: this.preview?.classList.contains("preview--portrait-phone") || false,
-      showcaseLandscape: this.showcase?.classList.contains("showcase--landscape-preview") || false
-    };
     const previousFrameStyle = this.frame.style.cssText;
     const previousStageStyle = this.stage.style.cssText;
     const previousCaption = this.caption?.textContent;
