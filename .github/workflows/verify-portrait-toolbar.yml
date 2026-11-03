@@ -41,6 +41,14 @@ jobs:
             page.on('pageerror', error => { throw error; });
             await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
 
+            const waitForRenderedDevice = async () => {
+              await page.waitForFunction(() => {
+                const image = document.querySelector('.device-mockup__frame');
+                const frame = document.querySelector('#deviceFrame');
+                return image?.complete && image.naturalWidth > 0 &&
+                  frame?.style.getPropertyValue('--device-scale') !== '';
+              }, { timeout: 60000 });
+            };
             const selectDevice = async id => {
               await page.locator('#devicePreset').selectOption(id);
               await page.waitForFunction(id =>
@@ -48,7 +56,7 @@ jobs:
                 document.querySelector('#previewCaption')?.textContent.length > 0,
                 id
               );
-              await page.waitForTimeout(150);
+              await waitForRenderedDevice();
             };
 
             await selectDevice('google-pixel-10-pro');
@@ -93,6 +101,7 @@ jobs:
 
             await page.locator('#rotateDevice').click();
             await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            await waitForRenderedDevice();
             const landscape = await page.evaluate(() => ({
               classPresent:document.querySelector('.preview').classList.contains('preview--portrait-phone'),
               toolbarPosition:getComputedStyle(document.querySelector('.preview-toolbar')).position
