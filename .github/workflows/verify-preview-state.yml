@@ -353,8 +353,122 @@ jobs:
               throw new Error('Add games did not become visible after creating the first profile.');
             }
 
+            // Sample profiles let the test verify an actual two-way card interchange.
+            await page.locator('#parentScenario').selectOption('samples');
+            await page.waitForFunction(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              return !!doc?.querySelector('#featuredSlot .game-profile-card[data-profile-id="sample-1"]') &&
+                !!doc?.querySelector('#gameGrid .game-profile-card[data-profile-id="sample-2"]');
+            }, null, { timeout: 15000 });
+
+            const flipLibrary = page.frameLocator('#activityFrame');
+            const flipRuntimeReady = await flipLibrary.locator('#featuredSlot').evaluate(slot => {
+              const win = slot.ownerDocument.defaultView;
+              return Boolean(win?.gsap && win?.Flip);
+            });
+            if (!flipRuntimeReady) {
+              throw new Error('GSAP or the Flip plugin did not load in MainActivity.');
+            }
+
+            await flipLibrary.locator('#featuredSlot').evaluate(slot => {
+              const doc = slot.ownerDocument;
+              const win = doc.defaultView;
+              win.__xtmapperFlipRegression = {
+                previousFeatured: doc.querySelector('#featuredSlot [data-profile-id="sample-1"]'),
+                incomingFeatured: doc.querySelector('#gameGrid [data-profile-id="sample-2"]')
+              };
+            });
+
+            await flipLibrary.locator(
+              '#gameGrid [data-profile-id="sample-2"] .game-profile-card__select'
+            ).click();
+
+            // Observe the transition itself, not just the final DOM positions.
+            await page.waitForFunction(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              const win = doc?.defaultView;
+              const refs = win?.__xtmapperFlipRegression;
+              const incoming = doc?.querySelector('#featuredSlot [data-profile-id="sample-2"]');
+              const previous = doc?.querySelector('#gameGrid [data-profile-id="sample-1"]');
+              return !!refs &&
+                incoming === refs.incomingFeatured &&
+                previous === refs.previousFeatured &&
+                win.gsap.isTweening(incoming) &&
+                win.gsap.isTweening(previous);
+            }, null, { timeout: 5000 });
+
+            const profileSwapDuringMotion = await flipLibrary.locator('#featuredSlot').evaluate(slot => {
+              const doc = slot.ownerDocument;
+              const win = doc.defaultView;
+              const incoming = doc.querySelector('#featuredSlot [data-profile-id="sample-2"]');
+              const previous = doc.querySelector('#gameGrid [data-profile-id="sample-1"]');
+              return {
+                sameIncomingNode: incoming === win.__xtmapperFlipRegression.incomingFeatured,
+                samePreviousNode: previous === win.__xtmapperFlipRegression.previousFeatured,
+                incomingIsTweening: win.gsap.isTweening(incoming),
+                previousIsTweening: win.gsap.isTweening(previous),
+                featuredId: incoming?.dataset.profileId,
+                gridId: previous?.dataset.profileId
+              };
+            });
+
+            if (!profileSwapDuringMotion.sameIncomingNode ||
+                !profileSwapDuringMotion.samePreviousNode ||
+                !profileSwapDuringMotion.incomingIsTweening ||
+                !profileSwapDuringMotion.previousIsTweening ||
+                profileSwapDuringMotion.featuredId !== 'sample-2' ||
+                profileSwapDuringMotion.gridId !== 'sample-1') {
+              throw new Error(
+                'Profile selection did not physically FLIP the same two card elements: ' +
+                JSON.stringify(profileSwapDuringMotion)
+              );
+            }
+
+            await page.waitForTimeout(1000);
+            const profileSwapSettled = await flipLibrary.locator('#featuredSlot').evaluate(slot => {
+              const doc = slot.ownerDocument;
+              const win = doc.defaultView;
+              const incoming = doc.querySelector('#featuredSlot [data-profile-id="sample-2"]');
+              const previous = doc.querySelector('#gameGrid [data-profile-id="sample-1"]');
+              return {
+                sameIncomingNode: incoming === win.__xtmapperFlipRegression.incomingFeatured,
+                samePreviousNode: previous === win.__xtmapperFlipRegression.previousFeatured,
+                incomingIsTweening: win.gsap.isTweening(incoming),
+                previousIsTweening: win.gsap.isTweening(previous),
+                featuredId: incoming?.dataset.profileId,
+                gridId: previous?.dataset.profileId
+              };
+            });
+
+            if (!profileSwapSettled.sameIncomingNode ||
+                !profileSwapSettled.samePreviousNode ||
+                profileSwapSettled.incomingIsTweening ||
+                profileSwapSettled.previousIsTweening ||
+                profileSwapSettled.featuredId !== 'sample-2' ||
+                profileSwapSettled.gridId !== 'sample-1') {
+              throw new Error(
+                'Profile FLIP did not settle into the expected card positions: ' +
+                JSON.stringify(profileSwapSettled)
+              );
+            }
+
+            // Reduced motion must keep the same final interchange without starting FLIP tweens.
+            await page.emulateMedia({ reducedMotion: 'reduce' });
+            await flipLibrary.locator(
+              '#gameGrid [data-profile-id="sample-1"] .game-profile-card__select'
+            ).click();
+            await page.waitForFunction(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              const win = doc?.defaultView;
+              return !!doc?.querySelector('#featuredSlot [data-profile-id="sample-1"]') &&
+                !!doc?.querySelector('#gameGrid [data-profile-id="sample-2"]') &&
+                !win.gsap.isTweening(doc.querySelector('#featuredSlot [data-profile-id="sample-1"]')) &&
+                !win.gsap.isTweening(doc.querySelector('#gameGrid [data-profile-id="sample-2"]'));
+            }, null, { timeout: 5000 });
+
             console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
             console.log('PROFILE_LIBRARY_ADD_BUTTON_VISIBILITY_PASSED');
+            console.log('PROFILE_CARD_FLIP_SWAP_PASSED');
             console.log(JSON.stringify({
               initialState,
               initialLibraryState,
@@ -363,7 +477,9 @@ jobs:
               customFrame,
               customState,
               invalidStateFallback: 'Google Pixel 10 Pro · portrait',
-              addGameVisibility
+              addGameVisibility,
+              profileSwapDuringMotion,
+              profileSwapSettled
             }, null, 2));
           } finally {
             await context.close();
