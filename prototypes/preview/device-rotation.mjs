@@ -552,23 +552,30 @@ export function installDeviceRotation(DevicePreview) {
       Math.max(previousFrameSize.width, nextFrameSize.width),
       Math.max(previousFrameSize.height, nextFrameSize.height)
     );
-    const fitBounds = {
-      width: Math.min(
-        previousFitBounds?.width || this.preview.clientWidth,
-        targetFitBounds?.width || this.preview.clientWidth
-      ),
-      height: Math.min(
-        previousFitBounds?.height || window.innerHeight,
-        targetFitBounds?.height || window.innerHeight
+    const viewportHeight = window.visualViewport
+      ? Math.min(window.innerHeight, window.visualViewport.height)
+      : window.innerHeight;
+    const stageRect = this.stage.getBoundingClientRect();
+    const stageCenterY = stageRect.top + stageRect.height / 2;
+    const topCenteredSpace = Math.max(1, stageCenterY - 28);
+    const bottomCenteredSpace = Math.max(1, viewportHeight - stageCenterY - 28);
+    const rotationFitBounds = {
+      width: Math.max(1, this.preview.clientWidth - 24),
+      height: Math.max(
+        1,
+        Math.min(topCenteredSpace * 2, bottomCenteredSpace * 2)
       )
     };
+    // Use the same diagonal-fit bounds in both directions. Orientation-specific
+    // layout heights differ substantially, but the physical rotating device
+    // should keep a consistent size while it passes through the diagonal pose.
     const rotationFitScale = Math.max(
       0.1,
       Math.min(
         previousScale,
         targetScale,
-        fitBounds.width / diagonal,
-        fitBounds.height / diagonal
+        rotationFitBounds.width / diagonal,
+        rotationFitBounds.height / diagonal
       )
     );
 
