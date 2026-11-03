@@ -233,21 +233,22 @@ export class DevicePreview {
     const outerHeight = landscape ? frameWidth : frameHeight;
 
     // Keep the Telephone component in its native portrait coordinate space.
-    // The stage handles centering and rotation without changing the component's
-    // own width/height contract.
+    // Rotation changes its visual bounding box from frameWidth x frameHeight
+    // to frameHeight x frameWidth. Position the unrotated box with the inverse
+    // half-difference so its rotated visual bounds match the landscape stage.
     const frameStage = document.createElement("div");
     frameStage.className = "device-frame__telephone-stage";
     frameStage.style.position = "absolute";
     frameStage.style.inset = "0";
-    frameStage.style.display = "grid";
-    frameStage.style.placeItems = "center";
     frameStage.style.width = "100%";
     frameStage.style.height = "100%";
 
     const telephone = document.createElement(frame.tag);
     telephone.setAttribute("mode", frame.mode || "dark");
     telephone.style.display = "block";
-    telephone.style.position = "relative";
+    telephone.style.position = "absolute";
+    telephone.style.left = (outerWidth - frameWidth) / 2 + "px";
+    telephone.style.top = (outerHeight - frameHeight) / 2 + "px";
     telephone.style.width = frameWidth + "px";
     telephone.style.maxWidth = "none";
     telephone.style.height = "auto";
