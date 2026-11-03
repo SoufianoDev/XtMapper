@@ -1,0 +1,151 @@
+name: Verify browser device mockups
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - ".github/workflows/verify-device-mockups.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run browser verification for every device and orientation
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/xtmapper-preview.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node --input-type=module <<'JS'
+          import { chromium } from "playwright";
+          import { devices } from "./prototypes/devices/index.mjs";
+
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1536, height: 730 } });
+          const errors = [];
+          page.on("pageerror", error => errors.push(error.message));
+          page.on("console", message => {
+            if (message.type() === "error") errors.push(message.text());
+          });
+
+          const failures = [];
+          try {
+            await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
+            await page.waitForSelector("#devicePreset option[value='google-pixel-10-pro']");
+
+            for (const device of devices) {
+              await page.locator("#devicePreset").selectOption(device.id);
+              await page.waitForFunction(() => {
+                const image = document.querySelector(".device-mockup__frame");
+                return image && image.complete && image.naturalWidth > 0;
+              }, null, { timeout: 20000 });
+
+              for (const orientation of ["portrait", "landscape"]) {
+                if (orientation === "landscape") {
+                  await page.locator("#rotateDevice").click();
+                }
+
+                await page.waitForFunction(() => {
+                  const image = document.querySelector(".device-mockup__frame");
+                  const iframe = document.querySelector("#activityFrame");
+                  const frame = document.querySelector("#deviceFrame");
+                  return image && image.complete && image.naturalWidth > 0 &&
+                    iframe && Number(iframe.width) > 0 &&
+                    frame?.classList.contains("device-frame--mockup");
+                }, null, { timeout: 20000 });
+
+                const measured = await page.evaluate(() => {
+                  const rect = element => {
+                    const r = element.getBoundingClientRect();
+                    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+                  };
+                  const stage = document.querySelector("#previewStage");
+                  const frame = document.querySelector("#deviceFrame");
+                  const mockup = document.querySelector(".device-mockup");
+                  const screen = document.querySelector(".device-mockup__screen");
+                  const viewport = document.querySelector(".device-mockup__viewport");
+                  const image = document.querySelector(".device-mockup__frame");
+                  const iframe = document.querySelector("#activityFrame");
+                  return {
+                    stage: rect(stage),
+                    frame: rect(frame),
+                    mockup: rect(mockup),
+                    screen: rect(screen),
+                    viewport: rect(viewport),
+                    imageLoaded: image.complete && image.naturalWidth > 0,
+                    imageSize: [image.naturalWidth, image.naturalHeight],
+                    iframeSize: [Number(iframe.width), Number(iframe.height)],
+                    caption: document.querySelector("#previewCaption").textContent
+                  };
+                });
+
+                const tolerance = 2.5;
+                const close = (a, b) => Math.abs(a - b) <= tolerance;
+                const aligned =
+                  close(measured.stage.left, measured.mockup.left) &&
+                  close(measured.stage.top, measured.mockup.top) &&
+                  close(measured.stage.width, measured.mockup.width) &&
+                  close(measured.stage.height, measured.mockup.height);
+                const screenAligned =
+                  close(measured.screen.left, measured.viewport.left) &&
+                  close(measured.screen.top, measured.viewport.top) &&
+                  close(measured.screen.width, measured.viewport.width) &&
+                  close(measured.screen.height, measured.viewport.height);
+
+                const expected = orientation === "portrait"
+                  ? [device.viewport.width, device.viewport.height]
+                  : [device.viewport.height, device.viewport.width];
+                const logicalViewportCorrect =
+                  measured.iframeSize[0] === expected[0] &&
+                  measured.iframeSize[1] === expected[1];
+
+                if (!measured.imageLoaded || !aligned || !screenAligned || !logicalViewportCorrect) {
+                  failures.push({ device: device.id, orientation, expected, measured });
+                }
+                console.log(JSON.stringify({
+                  device: device.id,
+                  orientation,
+                  image: measured.imageSize,
+                  iframe: measured.iframeSize,
+                  frameAligned: aligned,
+                  screenAligned,
+                  logicalViewportCorrect
+                }));
+
+                if (orientation === "landscape") {
+                  await page.locator("#rotateDevice").click();
+                }
+              }
+            }
+
+            if (errors.length) failures.push({ browserErrors: errors });
+            if (failures.length) {
+              console.error("DEVICE_MOCKUP_FAILURES", JSON.stringify(failures, null, 2));
+              process.exitCode = 1;
+            } else {
+              console.log("DEVICE_MOCKUP_VERIFICATION_PASSED", devices.length, "devices x 2 orientations");
+            }
+          } finally {
+            await browser.close();
+          }
+          JS
