@@ -1,0 +1,94 @@
+name: Temporary portrait preview verification
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - "prototypes/**"
+      - ".github/workflows/verify-portrait-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/prototype-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/prototype-server.log
+          exit 1
+      - name: Verify portrait enlargement and landscape sidebar
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+
+          const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            page.on('pageerror', error => { throw error; });
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+            await page.waitForFunction(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const caption = document.querySelector('#previewCaption');
+              const image = frame?.querySelector('.device-mockup__frame');
+              return image?.complete && image.naturalWidth > 0 && caption?.textContent.includes('portrait');
+            }, { timeout: 60000 });
+
+            const portrait = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const stage = document.querySelector('#previewStage');
+              const preview = document.querySelector('.preview');
+              const panel = document.querySelector('.panel');
+              return {
+                scale: Number(frame.style.getPropertyValue('--device-scale')),
+                frameWidth: frame.getBoundingClientRect().width,
+                frameHeight: frame.getBoundingClientRect().height,
+                stageWidth: stage.getBoundingClientRect().width,
+                stageHeight: stage.getBoundingClientRect().height,
+                previewRight: preview.getBoundingClientRect().right,
+                panelLeft: panel.getBoundingClientRect().left,
+                panelTop: panel.getBoundingClientRect().top,
+                panelPosition: getComputedStyle(panel).position,
+                pageHeight: document.documentElement.scrollHeight
+              };
+            });
+            if (portrait.scale < 1.35) throw new Error('Portrait scale was not substantially enlarged: ' + JSON.stringify(portrait));
+            if (portrait.panelLeft <= portrait.previewRight) throw new Error('Portrait settings panel is not on the right: ' + JSON.stringify(portrait));
+            if (portrait.panelPosition !== 'sticky') throw new Error('Portrait settings panel is not sticky: ' + JSON.stringify(portrait));
+
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            const landscape = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const preview = document.querySelector('.preview');
+              const panel = document.querySelector('.panel');
+              return {
+                scale: Number(frame.style.getPropertyValue('--device-scale')),
+                previewRight: preview.getBoundingClientRect().right,
+                panelLeft: panel.getBoundingClientRect().left,
+                panelPosition: getComputedStyle(panel).position
+              };
+            });
+            if (landscape.scale > 1.001) throw new Error('Landscape scale changed above its original 1x cap: ' + JSON.stringify(landscape));
+            if (landscape.panelLeft <= landscape.previewRight) throw new Error('Landscape settings panel is not on the right: ' + JSON.stringify(landscape));
+            console.log('PORTRAIT_LANDSCAPE_VERIFICATION_PASSED');
+            console.log(JSON.stringify({ portrait, landscape }, null, 2));
+          } finally {
+            await browser.close();
+          }
+          NODE
