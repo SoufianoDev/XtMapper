@@ -1,11 +1,7 @@
 name: Inspect external mockup screen openings
 
 on:
-  push:
-    branches:
-      - "ui/main-activity-premium-redesign"
-    paths:
-      - ".github/workflows/inspect-mockup-screen-openings.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
