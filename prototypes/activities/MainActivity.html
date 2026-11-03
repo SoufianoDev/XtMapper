@@ -2370,7 +2370,7 @@ function createGameProfileCard(game) {
   selectedLabel.className = "selected-label";
   selectedLabel.textContent = "Selected profile";
 
-  const title = document.createElement("h2");
+  const title = document.createElement("span");
   title.className = "game-profile-card__title";
 
   const subtitle = document.createElement("span");
@@ -2519,7 +2519,6 @@ function renderGames({ animateSelection = false } = {}) {
 
     try {
       const flip = window.Flip.from(flipState, {
-        targets: flipTargets,
         duration: 0.76,
         ease: "power3.inOut",
         scale: true,
