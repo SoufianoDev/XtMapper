@@ -2233,6 +2233,26 @@ const APP_CATALOG = [
     name: "Block Strike",
     packageName: "com.shootergamesonline.blockstrike",
     image: "https://play-lh.googleusercontent.com/P2wyj2GqMVxXN0SWAMbWke1oNieUL7nKBNcmxX7aSI84MO-DsNh_DUN3ZbJ25ucIfiCHYPVRNB8c8joGMyLyeA=w240-h480"
+  },
+  {
+    name: "Free Fire",
+    packageName: "com.dts.freefireth",
+    image: "https://play-lh.googleusercontent.com/JT88XmsHoGDio7FxONwh382DhuTxuccfMmWFDtRBFjilySzNqWOCxUhqm8IhBKzQSwVrW2HWp_XvSgKFwi3ETA=w240-h480"
+  },
+  {
+    name: "Mobile Legends: Bang Bang",
+    packageName: "com.mobile.legends",
+    image: "https://play-lh.googleusercontent.com/Op7v9XdsyxjrKImMD5RLyiLRCAHs3DMQFANwfsuMTw1hq0lH4j8tOqD3Fd7zyr4ixmC0xoqqRkQDBjAd46NsFQ=w240-h480"
+  },
+  {
+    name: "League of Legends: Wild Rift",
+    packageName: "com.riotgames.league.wildrift",
+    image: "https://play-lh.googleusercontent.com/7-kbcpgrCOE1mleJ9g0d61sJeoqKcQRIj4iFvJ8DjPlRIfocOWfOQsXzKWw2I5oHySVdbjR2fvzfCCz1FYQ-RQ=w240-h480"
+  },
+  {
+    name: "Garena Delta Force",
+    packageName: "com.garena.game.df",
+    image: "https://play-lh.googleusercontent.com/JeXWmt6zPqeb8KtLnULXWpYG9l6syolkbks5N2T4RX2D5vAqSnrnVG0nY4aN0ZqpgJezfruup_naTlXU3osuow=w240-h480"
   }
 ];
 const STORAGE_KEY = "xtmapper-main-prototype-v10";
@@ -2250,6 +2270,7 @@ const defaultGames = APP_CATALOG.map((app, index) => ({
 const DEFAULT_STATE = {
   games: [],
   previewGames: defaultGames,
+  previewCatalogVersion: 2,
   libraryScenario: "empty",
   selectedId: "",
   inputMode: "root",
@@ -2320,6 +2341,28 @@ function loadState() {
       settings: { ...DEFAULT_STATE.settings, ...(saved.settings || {}) },
       designatedProfiles: saved.designatedProfiles || {}
     };
+
+    // Append this catalog's new sample profiles once, while preserving the
+    // user's existing sample edits and deletions on subsequent launches.
+    if (Number(saved.previewCatalogVersion || 0) < 2) {
+      const addedSamplePackages = new Set([
+        "com.dts.freefireth",
+        "com.mobile.legends",
+        "com.riotgames.league.wildrift",
+        "com.garena.game.df"
+      ]);
+      const existingSamplePackages = new Set(
+        loaded.previewGames.map(game => game?.packageName).filter(Boolean)
+      );
+      for (const game of defaultGames) {
+        if (!addedSamplePackages.has(game.packageName) ||
+            existingSamplePackages.has(game.packageName)) continue;
+        loaded.previewGames.push(structuredCloneSafe(game));
+        existingSamplePackages.add(game.packageName);
+      }
+      loaded.previewCatalogVersion = 2;
+    }
+
     loaded.inputMode = loaded.inputMode === "shizuku" ? "shizuku" : "root";
     const visibleGames = loaded.libraryScenario === "empty" ? [] : loaded.libraryScenario === "samples" ? loaded.previewGames : loaded.games;
     if (!visibleGames.some(g => g.id === loaded.selectedId)) loaded.selectedId = visibleGames[0]?.id || "";
