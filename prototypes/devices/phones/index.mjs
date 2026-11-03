@@ -100,6 +100,7 @@ export const samsungPhoneDevices = [
   device({
     id: "samsung-z-fold2-unfolded",
     name: "Samsung Galaxy Z Fold2 · unfolded",
+    type: "foldable",
     viewport: { width: 884, height: 1104 },
     asset: "mockup-samsung-galaxy-fold2-transparent.webp",
     sourcePageUrl: "https://www.webmobilefirst.com/en/mockups/samsung-galaxy-fold2/",
@@ -109,6 +110,7 @@ export const samsungPhoneDevices = [
   device({
     id: "samsung-fold-unfolded",
     name: "Samsung Galaxy Fold · unfolded",
+    type: "foldable",
     viewport: { width: 768, height: 1076 },
     asset: "mockup-samsung-galaxy-fold-transparent.webp",
     sourcePageUrl: "https://www.webmobilefirst.com/en/mockups/samsung-galaxy-fold/",
