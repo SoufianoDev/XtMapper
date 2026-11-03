@@ -157,6 +157,15 @@ jobs:
               );
             }
 
+            const portraitLayout = await page.evaluate(() => {
+              const stage = document.querySelector('.preview-stage').getBoundingClientRect();
+              const toolbar = document.querySelector('.preview-toolbar').getBoundingClientRect();
+              return {
+                stage: { width: stage.width, height: stage.height, centerY: stage.top + stage.height / 2 },
+                toolbar: { left: toolbar.left, top: toolbar.top }
+              };
+            });
+
             // Pause the running GSAP timeline at its exact midpoint so the
             // screenshot is deterministic even on slower CI runners.
             await page.locator('#rotateDevice').click();
@@ -178,7 +187,15 @@ jobs:
                 viewportHeight: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'height'),
                 busy: document.querySelector('.preview').getAttribute('aria-busy'),
                 portraitLayoutPreserved: document.querySelector('.preview').classList.contains('preview--portrait-phone'),
-                landscapeLayoutAppliedEarly: document.querySelector('.showcase').classList.contains('showcase--landscape-preview')
+                landscapeLayoutAppliedEarly: document.querySelector('.showcase').classList.contains('showcase--landscape-preview'),
+                stage: (() => {
+                  const rect = document.querySelector('.preview-stage').getBoundingClientRect();
+                  return { width: rect.width, height: rect.height, centerY: rect.top + rect.height / 2 };
+                })(),
+                toolbar: (() => {
+                  const rect = document.querySelector('.preview-toolbar').getBoundingClientRect();
+                  return { left: rect.left, top: rect.top };
+                })()
               };
             });
 
@@ -193,7 +210,12 @@ jobs:
                 !(rotationMotion.viewportHeight < 912 && rotationMotion.viewportHeight > 410) ||
                 rotationMotion.busy !== 'true' ||
                 !rotationMotion.portraitLayoutPreserved ||
-                rotationMotion.landscapeLayoutAppliedEarly) {
+                rotationMotion.landscapeLayoutAppliedEarly ||
+                Math.abs(rotationMotion.stage.width - portraitLayout.stage.width) > 1 ||
+                Math.abs(rotationMotion.stage.height - portraitLayout.stage.height) > 1 ||
+                Math.abs(rotationMotion.stage.centerY - portraitLayout.stage.centerY) > 1 ||
+                Math.abs(rotationMotion.toolbar.left - portraitLayout.toolbar.left) > 1 ||
+                Math.abs(rotationMotion.toolbar.top - portraitLayout.toolbar.top) > 1) {
               throw new Error(
                 'The device did not enter the GSAP rotation transition: ' +
                 JSON.stringify(rotationMotion)
