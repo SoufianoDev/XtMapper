@@ -351,7 +351,8 @@ export class DevicePreview {
     // top. That keeps the scale stable when the page has been scrolled and
     // resized, instead of treating a negative top as zero and oversizing it.
     // The preview has two grid gaps: toolbar -> stage and stage -> caption.
-    const availableWidth = Math.max(1, preview.clientWidth - 12);
+    const landscape = this.orientation === "landscape";
+    const availableWidth = Math.max(1, preview.clientWidth - (landscape ? 24 : 12));
     const availableHeight = Math.max(
       1,
       viewportHeight - stageDocumentTop - previewGaps -
@@ -361,7 +362,8 @@ export class DevicePreview {
       this.frameSize.width,
       this.frameSize.height,
       availableWidth,
-      availableHeight
+      availableHeight,
+      landscape ? 1.15 : 1
     );
 
     this.stage.style.width = this.frameSize.width * scale + "px";
