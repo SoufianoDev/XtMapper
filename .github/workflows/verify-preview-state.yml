@@ -205,9 +205,9 @@ jobs:
             });
 
             if (!(rotationMotion.rotation > 25 && rotationMotion.rotation < 65) ||
-                Math.abs(rotationMotion.rotation + rotationMotion.contentRotation) > 1 ||
-                !(rotationMotion.viewportWidth > 410 && rotationMotion.viewportWidth < 912) ||
-                !(rotationMotion.viewportHeight < 912 && rotationMotion.viewportHeight > 410) ||
+                Math.abs(rotationMotion.contentRotation) > 1 ||
+                Math.abs(rotationMotion.viewportWidth - 410) > 1 ||
+                Math.abs(rotationMotion.viewportHeight - 912) > 1 ||
                 rotationMotion.busy !== 'true' ||
                 !rotationMotion.portraitLayoutPreserved ||
                 rotationMotion.landscapeLayoutAppliedEarly ||
@@ -229,6 +229,23 @@ jobs:
             );
             await waitForSettledMotion();
             await page.screenshot({ path: visualEvidenceDir + '/phone-landscape-end.png' });
+
+            const completedRotation = await page.evaluate(() => ({
+              shellRotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
+              screenRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
+              viewportWidth: Number(document.querySelector('.device-rotation-viewport').style.width.replace('px', '')),
+              viewportHeight: Number(document.querySelector('.device-rotation-viewport').style.height.replace('px', ''))
+            }));
+
+            if (Math.abs(completedRotation.shellRotation - 90) > 0.1 ||
+                Math.abs(completedRotation.screenRotation + 90) > 0.1 ||
+                completedRotation.viewportWidth !== 912 ||
+                completedRotation.viewportHeight !== 410) {
+              throw new Error(
+                'The completed device rotation did not settle into landscape: ' +
+                JSON.stringify(completedRotation)
+              );
+            }
 
             // Device switching must fade out, replace the frame, then fade in.
             await page.locator('#devicePreset').selectOption('samsung-s24');
