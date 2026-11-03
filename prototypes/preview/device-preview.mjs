@@ -354,11 +354,24 @@ export class DevicePreview {
         try {
           updateOrientation();
           await this.render();
+
+          await new Promise((resolve) => {
+            gsap.fromTo(
+              this.frame,
+              { autoAlpha: 0 },
+              {
+                autoAlpha: 1,
+                duration: 0.16,
+                ease: "power2.out",
+                onComplete: resolve
+              }
+            );
+          });
         } catch (error) {
           console.error("Device rotation could not finish rendering.", error);
         } finally {
           gsap.set(this.frame, {
-            clearProps: "transform,transformOrigin,willChange"
+            clearProps: "transform,transformOrigin,willChange,opacity,visibility"
           });
           gsap.set(this.stage, {
             clearProps: "transform,willChange"
@@ -382,6 +395,14 @@ export class DevicePreview {
       duration: 0.64,
       ease: "power2.inOut"
     }, 0);
+
+    // Fade only at the end so the new landscape mockup can rebuild its
+    // counter-rotated screen layer without showing a double-rotated frame.
+    timeline.to(this.frame, {
+      autoAlpha: 0,
+      duration: 0.14,
+      ease: "power1.in"
+    }, 0.50);
   }
 
   async render() {
