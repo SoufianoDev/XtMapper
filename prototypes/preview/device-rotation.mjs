@@ -234,6 +234,13 @@ export function installDeviceRotation(DevicePreview) {
       screenViewport.height,
       screenOrientation
     );
+    const targetPlacement = calculateViewportPlacement(
+      screenWidth,
+      screenHeight,
+      viewport.width,
+      viewport.height,
+      this.orientation
+    );
 
     const shell = document.createElement("div");
     shell.className = "device-rotation-shell device-mockup";
@@ -273,6 +280,7 @@ export function installDeviceRotation(DevicePreview) {
     this.rotationShell = shell;
     this.rotationViewportLayer = viewportLayer;
     this.rotationLayerScale = placement.scale;
+    this.rotationTargetLayerScale = targetPlacement.scale;
     this.frameSize = {
       width: outerWidth,
       height: outerHeight,
@@ -303,6 +311,13 @@ export function installDeviceRotation(DevicePreview) {
       screenViewport.width,
       screenViewport.height,
       screenOrientation
+    );
+    const targetPlacement = calculateViewportPlacement(
+      baseViewport.width,
+      baseViewport.height,
+      viewport.width,
+      viewport.height,
+      this.orientation
     );
 
     const shell = document.createElement("div");
@@ -556,13 +571,16 @@ export function installDeviceRotation(DevicePreview) {
           ease: "power3.inOut"
         }, 0);
 
+        const viewportTransitionStart = nextOrientation === "landscape" ? 0.45 : 0;
+
         timeline.to(viewportLayer, {
           rotation: -targetAngle,
           width: nextViewport.width,
           height: nextViewport.height,
-          duration: 0.9,
+          scale: this.rotationTargetLayerScale || this.rotationLayerScale || 1,
+          duration: 0.45,
           ease: "power3.inOut"
-        }, 0);
+        }, viewportTransitionStart);
 
         timeline.to(this.frame, {
           "--device-scale": rotationFitScale,
