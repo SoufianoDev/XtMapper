@@ -284,14 +284,53 @@ jobs:
               'portrait'
             );
 
+            // The first-launch empty library uses its inline CTA only.
+            const activity = page.frameLocator('#activityFrame');
+            await page.locator('#parentScenario').selectOption('empty');
+            await page.waitForFunction(() => {
+              const document = window.frames.activityFrame?.document;
+              const addButton = document?.querySelector('#addGameButton');
+              const emptyLibrary = document?.querySelector('#emptyLibrary');
+              return addButton?.hidden === true &&
+                emptyLibrary?.style.display === 'block';
+            }, null, { timeout: 15000 });
+
+            if (await activity.locator('#addGameButton').isVisible()) {
+              throw new Error('Add games must be hidden while the library is empty.');
+            }
+            if (!(await activity.locator('#emptyAddGameButton').isVisible()) ||
+                !(await activity.locator('#emptyImportButton').isVisible())) {
+              throw new Error('The first-launch Add your first game and Import profiles actions must remain visible.');
+            }
+
+            // Creating the first profile must reveal the section-level Add games action.
+            await activity.locator('#emptyAddGameButton').click();
+            await activity.locator('#appPickerList .app-picker-row').first().click();
+            await activity.locator('#dialogInput').fill('Prototype UI regression profile');
+            await activity.locator('#dialogConfirm').click();
+            await activity.locator('#addGameButton').waitFor({
+              state: 'visible',
+              timeout: 10000
+            });
+
+            const addGameVisibility = {
+              hiddenWhileEmpty: true,
+              visibleAfterFirstProfile: await activity.locator('#addGameButton').isVisible()
+            };
+            if (!addGameVisibility.visibleAfterFirstProfile) {
+              throw new Error('Add games did not become visible after creating the first profile.');
+            }
+
             console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
+            console.log('PROFILE_LIBRARY_ADD_BUTTON_VISIBILITY_PASSED');
             console.log(JSON.stringify({
               initialState,
               switchedWhileLandscape,
               switchedWhilePortrait,
               customFrame,
               customState,
-              invalidStateFallback: 'Google Pixel 10 Pro · portrait'
+              invalidStateFallback: 'Google Pixel 10 Pro · portrait',
+              addGameVisibility
             }, null, 2));
           } finally {
             await context.close();
