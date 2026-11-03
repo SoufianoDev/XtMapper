@@ -133,6 +133,11 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 .preview-caption {
   justify-self: center;
 }
+
+/* Give the portrait device a small rightward visual offset without moving controls. */
+.preview:not(.preview--landscape) .preview-stage {
+  transform: translateX(24px);
+}
 .preview-toolbar {
   width: min(100%, 620px);
   display: flex;
