@@ -134,8 +134,8 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   justify-self: center;
 }
 
-/* Give the portrait device a small rightward visual offset without moving controls. */
-.preview:not(.preview--landscape) .preview-stage {
+/* Keep the tuned rightward offset exclusive to portrait phones. */
+.preview.preview--portrait-phone .preview-stage {
   transform: translateX(24px);
 }
 .preview-toolbar {
