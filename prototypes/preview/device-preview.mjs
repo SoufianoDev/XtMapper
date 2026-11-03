@@ -353,17 +353,23 @@ export class DevicePreview {
     // The preview has two grid gaps: toolbar -> stage and stage -> caption.
     const landscape = this.orientation === "landscape";
     const availableWidth = Math.max(1, preview.clientWidth - (landscape ? 24 : 12));
-    const availableHeight = Math.max(
+    const baseAvailableHeight = Math.max(
       1,
       viewportHeight - stageDocumentTop - previewGaps -
         captionHeight - bottomPadding - bottomSafetySpace
     );
+    // Portrait previews are intentionally allowed to extend below the fold.
+    // This keeps the device large instead of shrinking it to fit the viewport.
+    const portraitScaleLimit = 1.4;
+    const availableHeight = landscape
+      ? baseAvailableHeight
+      : Math.max(baseAvailableHeight, this.frameSize.height * portraitScaleLimit);
     const scale = calculatePreviewScale(
       this.frameSize.width,
       this.frameSize.height,
       availableWidth,
       availableHeight,
-      landscape ? 1 : 1.15
+      landscape ? 1 : portraitScaleLimit
     );
 
     this.stage.style.width = this.frameSize.width * scale + "px";
