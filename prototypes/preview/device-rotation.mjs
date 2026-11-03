@@ -58,7 +58,115 @@ function createViewportLayer(className, viewport, angle, scale) {
   return layer;
 }
 
+const ROTATION_STYLES = `
+#deviceFrame.device-frame {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) scale(var(--device-scale, 1)) !important;
+  transform-origin: center center !important;
+}
+#deviceFrame.device-frame--css {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+#deviceFrame.device-frame--css::before {
+  display: none !important;
+}
+.device-rotation-shell {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+}
+.device-css-shell {
+  padding: 9px;
+  border: 1px solid rgba(255,255,255,.13);
+  border-radius: 43px;
+  background: linear-gradient(145deg, #393940, #08090d 35%, #25252d 76%, #090a0e);
+  box-shadow: 0 40px 100px rgba(0,0,0,.66), 0 0 0 1px rgba(255,255,255,.035), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.device-css-shell::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  left: 50%;
+  width: 92px;
+  height: 19px;
+  transform: translateX(-50%);
+  border-radius: 0 0 13px 13px;
+  background: #08090d;
+  pointer-events: none;
+}
+.device-css-shell--tablet {
+  padding: 12px;
+  border-radius: 28px;
+}
+.device-css-shell--tablet::before {
+  display: none;
+}
+.device-screen {
+  position: absolute;
+  overflow: hidden;
+  background: #101114;
+}
+.device-frame--mockup {
+  overflow: visible;
+}
+.device-rotation-shell.device-mockup {
+  inset: auto;
+}
+.device-mockup__screen {
+  position: absolute;
+  z-index: 0;
+  overflow: hidden;
+  background: #101114;
+}
+.device-mockup__frame {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+.device-rotation-viewport {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  overflow: hidden;
+  background: #101114;
+  transform-origin: center center;
+}
+.device-rotation-viewport iframe {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  background: #101114;
+}
+`;
+
+function installRotationStyles() {
+  if (document.getElementById("xtmapper-device-rotation-styles")) return;
+  const style = document.createElement("style");
+  style.id = "xtmapper-device-rotation-styles";
+  style.textContent = ROTATION_STYLES;
+  document.head.appendChild(style);
+}
+
 export function installDeviceRotation(DevicePreview) {
+  installRotationStyles();
   DevicePreview.prototype.renderMockup = async function (device, viewport, generation) {
     const mockup = device.mockup;
     const rectangle = mockup.screenRect;
