@@ -258,6 +258,13 @@ jobs:
             }
 
 
+            const landscapeLayout = await page.evaluate(() => {
+              const device = document.querySelector('.device-rotation-shell').getBoundingClientRect();
+              return {
+                deviceCenter: { x: device.left + device.width / 2, y: device.top + device.height / 2 }
+              };
+            });
+
             // The reverse transition must mirror the forward transition:
             // keep the landscape screen orientation until the shell reaches
             // the halfway point, then reorient the viewport while the shell
@@ -305,8 +312,8 @@ jobs:
                 Math.abs(reverseRotationMotion.viewportHeight - 410) > 1 ||
                 reverseRotationMotion.opacity !== 1 ||
                 reverseRotationMotion.busy !== 'true' ||
-                Math.abs(reverseRotationMotion.deviceCenter.x - portraitLayout.deviceCenter.x) > 1 ||
-                Math.abs(reverseRotationMotion.deviceCenter.y - portraitLayout.deviceCenter.y) > 1) {
+                Math.abs(reverseRotationMotion.deviceCenter.x - landscapeLayout.deviceCenter.x) > 1 ||
+                Math.abs(reverseRotationMotion.deviceCenter.y - landscapeLayout.deviceCenter.y) > 1) {
               throw new Error(
                 'The reverse rotation did not preserve the symmetric midpoint: ' +
                 JSON.stringify(reverseRotationMotion)
