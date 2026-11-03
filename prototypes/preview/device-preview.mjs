@@ -96,6 +96,8 @@ export class DevicePreview {
     this.resizeObserver = null;
     this.fitFrameRequest = 0;
     this.viewportResizeHandler = null;
+    this.gsap = window.gsap || null;
+    this.motionBusy = false;
   }
 
   init() {
@@ -200,17 +202,88 @@ export class DevicePreview {
     }
   }
 
+  shouldAnimate() {
+    const reducedMotion = window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    return !!this.gsap && !reducedMotion;
+  }
+
+  setMotionBusy(busy) {
+    this.motionBusy = busy;
+    this.select.disabled = busy;
+    this.rotateButton.disabled = busy;
+
+    if (this.preview) {
+      if (busy) this.preview.setAttribute("aria-busy", "true");
+      else this.preview.removeAttribute("aria-busy");
+    }
+  }
+
+  async animateFrameSwap(updateState) {
+    if (this.motionBusy) return;
+
+    if (!this.shouldAnimate()) {
+      updateState();
+      await this.render();
+      return;
+    }
+
+    const gsap = this.gsap;
+    let stateUpdated = false;
+    this.setMotionBusy(true);
+    this.frame.style.willChange = "opacity";
+
+    try {
+      await new Promise((resolve) => {
+        gsap.to(this.frame, {
+          autoAlpha: 0,
+          duration: 0.16,
+          ease: "power1.out",
+          onComplete: resolve
+        });
+      });
+
+      updateState();
+      stateUpdated = true;
+      await this.render();
+
+      await new Promise((resolve) => {
+        gsap.fromTo(
+          this.frame,
+          { autoAlpha: 0 },
+          {
+            autoAlpha: 1,
+            duration: 0.24,
+            ease: "power2.out",
+            onComplete: resolve
+          }
+        );
+      });
+    } catch (error) {
+      console.warn("Device switch animation failed; completing the preview update.", error);
+
+      if (!stateUpdated) updateState();
+      await this.render();
+    } finally {
+      gsap.set(this.frame, { clearProps: "opacity,visibility,willChange" });
+      this.setMotionBusy(false);
+      this.fitCurrentFrame();
+    }
+  }
+
   selectDevice(id) {
     const device = getDeviceById(id);
-    if (!device) return;
+    if (!device || this.motionBusy) return;
 
-    this.currentDevice = device;
-    // Device changes keep the current rotation; only the logical viewport
-    // dimensions are adapted to the newly selected device.
-    this.currentViewport = getViewportForOrientation(device.viewport, this.orientation);
-    this.lastDeviceId = device.id;
-    this.saveState();
-    this.render();
+    void this.animateFrameSwap(() => {
+      this.currentDevice = device;
+      // Device changes keep the current rotation; only the logical viewport
+      // dimensions are adapted to the newly selected device.
+      this.currentViewport = getViewportForOrientation(device.viewport, this.orientation);
+      this.lastDeviceId = device.id;
+      this.saveState();
+    });
   }
 
   applyCustomSize() {
@@ -226,22 +299,89 @@ export class DevicePreview {
       return;
     }
 
-    this.currentViewport = { width, height };
-    this.currentDevice = createCustomDevice(this.currentViewport);
-    this.orientation = width > height ? "landscape" : "portrait";
-    this.select.value = "custom";
-    this.saveState();
-    this.render();
+    const viewport = { width, height };
+    const customDevice = createCustomDevice(viewport);
+    const orientation = width > height ? "landscape" : "portrait";
+
+    void this.animateFrameSwap(() => {
+      this.currentViewport = viewport;
+      this.currentDevice = customDevice;
+      this.orientation = orientation;
+      this.select.value = "custom";
+      this.saveState();
+    });
   }
 
   rotate() {
-    this.currentViewport = {
+    if (this.motionBusy) return;
+
+    const nextViewport = {
       width: this.currentViewport.height,
       height: this.currentViewport.width
     };
-    this.orientation = this.currentViewport.width > this.currentViewport.height ? "landscape" : "portrait";
-    this.saveState();
-    this.render();
+    const nextOrientation = nextViewport.width > nextViewport.height
+      ? "landscape"
+      : "portrait";
+
+    const updateOrientation = () => {
+      this.currentViewport = nextViewport;
+      this.orientation = nextOrientation;
+      this.saveState();
+    };
+
+    if (!this.shouldAnimate() || !this.frameSize) {
+      updateOrientation();
+      void this.render();
+      return;
+    }
+
+    const gsap = this.gsap;
+    const frameWidth = this.frameSize.width;
+    const frameHeight = this.frameSize.height;
+    const translateX = (frameHeight - frameWidth) / 2;
+    const translateY = (frameWidth - frameHeight) / 2;
+    const nextPortraitPhone = nextOrientation === "portrait" &&
+      this.currentDevice.type !== "tablet";
+    const nextStageOffset = nextPortraitPhone ? 24 : 0;
+
+    this.setMotionBusy(true);
+    this.frame.style.transformOrigin = "50% 50%";
+    this.frame.style.willChange = "transform";
+    this.stage.style.willChange = "transform";
+
+    const timeline = gsap.timeline({
+      onComplete: async () => {
+        try {
+          updateOrientation();
+          await this.render();
+        } catch (error) {
+          console.error("Device rotation could not finish rendering.", error);
+        } finally {
+          gsap.set(this.frame, {
+            clearProps: "transform,transformOrigin,willChange"
+          });
+          gsap.set(this.stage, {
+            clearProps: "transform,willChange"
+          });
+          this.setMotionBusy(false);
+          this.fitCurrentFrame();
+        }
+      }
+    });
+
+    timeline.to(this.frame, {
+      rotation: nextOrientation === "landscape" ? 90 : -90,
+      x: translateX,
+      y: translateY,
+      duration: 0.64,
+      ease: "power3.inOut"
+    }, 0);
+
+    timeline.to(this.stage, {
+      x: nextStageOffset,
+      duration: 0.64,
+      ease: "power2.inOut"
+    }, 0);
   }
 
   async render() {
