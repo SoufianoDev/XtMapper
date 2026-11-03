@@ -360,7 +360,7 @@ export class DevicePreview {
     );
     // Portrait previews are intentionally allowed to extend below the fold.
     // This keeps the device large instead of shrinking it to fit the viewport.
-    const portraitScaleLimit = 1.25;
+    const portraitScaleLimit = 1.1;
     const availableHeight = landscape
       ? baseAvailableHeight
       : Math.max(baseAvailableHeight, this.frameSize.height * portraitScaleLimit);
