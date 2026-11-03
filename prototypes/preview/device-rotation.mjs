@@ -171,10 +171,12 @@ export function installDeviceRotation(DevicePreview) {
     const mockup = device.mockup;
     const rectangle = mockup.screenRect;
     const landscape = this.orientation === "landscape";
+    const screenOrientation = this.rotationRenderOrientation || this.orientation;
+    const screenViewport = this.rotationRenderViewport || viewport;
     const shellAngle = Number.isFinite(this.rotationRenderAngle)
       ? this.rotationRenderAngle
       : orientationAngle(this.orientation);
-    const baseViewport = getViewportForOrientation(viewport, "portrait");
+    const baseViewport = getViewportForOrientation(screenViewport, "portrait");
     const image = new Image();
 
     image.decoding = "async";
@@ -209,9 +211,9 @@ export function installDeviceRotation(DevicePreview) {
     const placement = calculateViewportPlacement(
       screenWidth,
       screenHeight,
-      viewport.width,
-      viewport.height,
-      this.orientation
+      screenViewport.width,
+      screenViewport.height,
+      screenOrientation
     );
 
     const shell = document.createElement("div");
@@ -231,12 +233,12 @@ export function installDeviceRotation(DevicePreview) {
 
     const viewportLayer = createViewportLayer(
       "device-mockup__viewport",
-      viewport,
+      screenViewport,
       -shellAngle,
       placement.scale
     );
 
-    setIframeViewport(this.iframe, viewport);
+    setIframeViewport(this.iframe, screenViewport);
     viewportLayer.appendChild(this.iframe);
     screen.appendChild(viewportLayer);
 
@@ -264,22 +266,24 @@ export function installDeviceRotation(DevicePreview) {
     if (generation !== this.renderGeneration) return;
 
     const landscape = this.orientation === "landscape";
+    const screenOrientation = this.rotationRenderOrientation || this.orientation;
+    const screenViewport = this.rotationRenderViewport || viewport;
     const shellAngle = Number.isFinite(this.rotationRenderAngle)
       ? this.rotationRenderAngle
       : orientationAngle(this.orientation);
     const padding = device.frame && Number.isFinite(device.frame.padding)
       ? device.frame.padding
       : (device.type === "tablet" ? 12 : 9);
-    const baseViewport = getViewportForOrientation(viewport, "portrait");
+    const baseViewport = getViewportForOrientation(screenViewport, "portrait");
     const metrics = getCssFrameMetrics(baseViewport, padding);
     const outerWidth = landscape ? metrics.frameHeight : metrics.frameWidth;
     const outerHeight = landscape ? metrics.frameWidth : metrics.frameHeight;
     const placement = calculateViewportPlacement(
       baseViewport.width,
       baseViewport.height,
-      viewport.width,
-      viewport.height,
-      this.orientation
+      screenViewport.width,
+      screenViewport.height,
+      screenOrientation
     );
 
     const shell = document.createElement("div");
@@ -299,12 +303,12 @@ export function installDeviceRotation(DevicePreview) {
 
     const viewportLayer = createViewportLayer(
       "device-screen__viewport",
-      viewport,
+      screenViewport,
       -shellAngle,
       placement.scale
     );
 
-    setIframeViewport(this.iframe, viewport);
+    setIframeViewport(this.iframe, screenViewport);
     viewportLayer.appendChild(this.iframe);
     screen.appendChild(viewportLayer);
     shell.appendChild(screen);
@@ -396,6 +400,7 @@ export function installDeviceRotation(DevicePreview) {
     if (this.motionBusy) return;
 
     const previousViewport = { ...this.currentViewport };
+    const previousOrientation = this.orientation;
     const nextViewport = {
       width: previousViewport.height,
       height: previousViewport.width
@@ -403,9 +408,18 @@ export function installDeviceRotation(DevicePreview) {
     const nextOrientation = nextViewport.width > nextViewport.height
       ? "landscape"
       : "portrait";
-    const startAngle = orientationAngle(this.orientation);
+    const startAngle = orientationAngle(previousOrientation);
     const targetAngle = orientationAngle(nextOrientation);
     const previousScale = this.previewScale || 1;
+    const previousStage = {
+      width: this.stage.style.width,
+      height: this.stage.style.height
+    };
+    const previousPreviewClasses = {
+      landscape: this.preview?.classList.contains("preview--landscape") || false,
+      portraitPhone: this.preview?.classList.contains("preview--portrait-phone") || false,
+      showcaseLandscape: this.showcase?.classList.contains("showcase--landscape-preview") || false
+    };
     const updateOrientation = () => {
       this.currentViewport = nextViewport;
       this.orientation = nextOrientation;
@@ -427,10 +441,13 @@ export function installDeviceRotation(DevicePreview) {
     this.rotationTransitionActive = true;
     this.rotationTransitionReady = false;
     this.rotationRenderAngle = startAngle;
+    this.rotationRenderOrientation = previousOrientation;
+    this.rotationRenderViewport = previousViewport;
 
     let shell = null;
     let viewportLayer = null;
     let targetScale = previousScale;
+    let targetStage = null;
 
     try {
       updateOrientation();
@@ -439,6 +456,24 @@ export function installDeviceRotation(DevicePreview) {
       shell = this.rotationShell;
       viewportLayer = this.rotationViewportLayer;
       targetScale = this.previewScale || previousScale;
+      targetStage = {
+        width: this.stage.style.width,
+        height: this.stage.style.height
+      };
+
+      // Keep the pre-rotation layout stable while the device itself turns.
+      if (this.preview) {
+        this.preview.classList.toggle("preview--landscape", previousPreviewClasses.landscape);
+        this.preview.classList.toggle("preview--portrait-phone", previousPreviewClasses.portraitPhone);
+      }
+      if (this.showcase) {
+        this.showcase.classList.toggle(
+          "showcase--landscape-preview",
+          previousPreviewClasses.showcaseLandscape
+        );
+      }
+      this.stage.style.width = previousStage.width;
+      this.stage.style.height = previousStage.height;
 
       if (!shell || !viewportLayer) {
         throw new Error("The device rotation layers were not created.");
@@ -493,6 +528,15 @@ export function installDeviceRotation(DevicePreview) {
           ease: "power3.inOut"
         }, 0);
 
+        if (targetStage?.width && targetStage?.height) {
+          timeline.to(this.stage, {
+            width: targetStage.width,
+            height: targetStage.height,
+            duration: 0.9,
+            ease: "power3.inOut"
+          }, 0);
+        }
+
         timeline.to(shell, {
           scale: 0.92,
           duration: 0.45,
@@ -535,8 +579,28 @@ export function installDeviceRotation(DevicePreview) {
       if (this.gsap) this.gsap.set(this.frame, { clearProps: "willChange" });
 
       this.rotationRenderAngle = null;
+      this.rotationRenderOrientation = null;
+      this.rotationRenderViewport = null;
       this.rotationTransitionActive = false;
       this.rotationTransitionReady = false;
+
+      if (this.preview) {
+        this.preview.classList.toggle(
+          "preview--landscape",
+          nextOrientation === "landscape"
+        );
+        this.preview.classList.toggle(
+          "preview--portrait-phone",
+          nextOrientation === "portrait" && this.currentDevice.type !== "tablet"
+        );
+      }
+      if (this.showcase) {
+        this.showcase.classList.toggle(
+          "showcase--landscape-preview",
+          nextOrientation === "landscape"
+        );
+      }
+
       this.setMotionBusy(false);
       this.fitCurrentFrame();
     }
