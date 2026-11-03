@@ -29,32 +29,6 @@ export function getCssFrameMetrics(viewport, padding) {
   };
 }
 
-export function getTelephoneFrameMetrics(frame, viewport) {
-  const viewBox = frame && frame.viewBox;
-  const insets = frame && frame.screenInsets;
-
-  if (!viewBox || !insets || viewBox.width <= 0 || viewBox.height <= 0) {
-    throw new TypeError("Telephone frame metadata is incomplete.");
-  }
-
-  const screenWidthRatio = 1 - insets.left - insets.right;
-  const screenHeightRatio = 1 - insets.top - insets.bottom;
-
-  if (screenWidthRatio <= 0 || screenHeightRatio <= 0) {
-    throw new RangeError("Telephone screen insets leave no usable screen area.");
-  }
-
-  const frameWidth = viewport.width / screenWidthRatio;
-  const frameHeight = frameWidth * viewBox.height / viewBox.width;
-
-  return {
-    frameWidth: frameWidth,
-    frameHeight: frameHeight,
-    screenWidth: frameWidth * screenWidthRatio,
-    screenHeight: frameHeight * screenHeightRatio
-  };
-}
-
 export function calculatePreviewScale(frameWidth, frameHeight, availableWidth, availableHeight) {
   const values = [frameWidth, frameHeight, availableWidth, availableHeight];
 
