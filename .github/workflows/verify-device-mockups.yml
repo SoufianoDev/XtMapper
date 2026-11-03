@@ -51,7 +51,7 @@ jobs:
           const failures = [];
           try {
             await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
-            await page.waitForSelector("#devicePreset option[value='google-pixel-10-pro']");
+            await page.waitForSelector("#devicePreset option[value='google-pixel-10-pro']", { state: "attached" });
 
             for (const device of devices) {
               await page.locator("#devicePreset").selectOption(device.id);
@@ -65,14 +65,21 @@ jobs:
                   await page.locator("#rotateDevice").click();
                 }
 
-                await page.waitForFunction(() => {
+                const expected = orientation === "portrait"
+                  ? [device.viewport.width, device.viewport.height]
+                  : [device.viewport.height, device.viewport.width];
+
+                await page.waitForFunction(({ width, height, orientation }) => {
                   const image = document.querySelector(".device-mockup__frame");
                   const iframe = document.querySelector("#activityFrame");
                   const frame = document.querySelector("#deviceFrame");
+                  const caption = document.querySelector("#previewCaption")?.textContent || "";
                   return image && image.complete && image.naturalWidth > 0 &&
-                    iframe && Number(iframe.width) > 0 &&
+                    iframe && Number(iframe.width) === width &&
+                    Number(iframe.height) === height &&
+                    caption.includes(" · " + orientation + " · ") &&
                     frame?.classList.contains("device-frame--mockup");
-                }, null, { timeout: 20000 });
+                }, { width: expected[0], height: expected[1], orientation }, { timeout: 20000 });
 
                 const measured = await page.evaluate(() => {
                   const rect = element => {
