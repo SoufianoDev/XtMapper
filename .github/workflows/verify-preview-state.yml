@@ -542,7 +542,6 @@ jobs:
               };
               return {
                 sameNode: doc.querySelector('#featuredSlot [data-profile-id="sample-2"]') === originalCard,
-                activeAfterRetarget: win.Flip.isFlipping(originalCard),
                 delta,
                 maxDelta: Math.max(delta.x, delta.y, delta.width, delta.height),
                 featuredId: doc.querySelector('#featuredSlot .game-profile-card')?.dataset.profileId,
@@ -551,8 +550,9 @@ jobs:
               };
             });
 
+            // The synchronous geometry check above verifies there was no snap.
+            // Wait for the next animation frame before checking that the new FLIP is active.
             if (!rapidRetarget.sameNode ||
-                !rapidRetarget.activeAfterRetarget ||
                 rapidRetarget.maxDelta > 3 ||
                 rapidRetarget.featuredId !== 'sample-2' ||
                 !rapidRetarget.gridIds.includes('sample-3')) {
@@ -561,6 +561,18 @@ jobs:
                 JSON.stringify(rapidRetarget)
               );
             }
+
+            await page.waitForFunction(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              const win = doc?.defaultView;
+              const sample2 = doc?.querySelector('#featuredSlot [data-profile-id="sample-2"]');
+              const sample3 = doc?.querySelector('#gameGrid [data-profile-id="sample-3"]');
+              return !!sample2 && !!sample3 &&
+                (win.Flip.isFlipping(sample2) ||
+                 win.Flip.isFlipping(sample3) ||
+                 win.gsap.isTweening(sample2) ||
+                 win.gsap.isTweening(sample3));
+            }, null, { timeout: 3000 });
 
             await page.waitForFunction(() => {
               const doc = document.querySelector('#activityFrame')?.contentDocument;
