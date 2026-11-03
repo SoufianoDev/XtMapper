@@ -163,13 +163,13 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 
 /* On roomy desktop previews, float phone controls in the upper-left gutter.
    They leave the layout flow, allowing the portrait device to start higher. */
-@container (min-width: 760px) {
+@container (min-width: 810px) {
   .preview.preview--portrait-phone .preview-toolbar {
     position: absolute;
     z-index: 8;
     top: 0;
     left: 0;
-    width: min(260px, 29%);
+    width: min(250px, 28%);
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
