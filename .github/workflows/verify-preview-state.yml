@@ -344,6 +344,16 @@ jobs:
               );
             }
 
+            // Restore landscape as the baseline expected by the following
+            // device-switch persistence checks.
+            await page.locator('#rotateDevice').click();
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'landscape'
+            );
+            await waitForSettledMotion();
+
             // Device switching must fade out, replace the frame, then fade in.
             await page.locator('#devicePreset').selectOption('samsung-s24');
             await page.waitForTimeout(70);
