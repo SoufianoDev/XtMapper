@@ -262,8 +262,17 @@ export class DevicePreview {
       this.orientation
     );
 
-    // Telephone exposes its screen through a default slot. Keep the iframe in
-    // light DOM so the component owns its frame, clipping and screen geometry.
+    // Telephone's .screenshot lives inside its shadow tree. A slotted
+    // absolute-positioned child does not reliably use that internal surface
+    // as its containing block. Add a slotted anchor that fills the slot's
+    // screenshot area, then position the rotated viewport relative to it.
+    const viewportAnchor = document.createElement("div");
+    viewportAnchor.className = "xtmapper-device-screen-anchor";
+    viewportAnchor.style.position = "absolute";
+    viewportAnchor.style.inset = "0";
+    viewportAnchor.style.overflow = "hidden";
+    viewportAnchor.style.pointerEvents = "auto";
+
     const viewportLayer = document.createElement("div");
     viewportLayer.className = "xtmapper-device-viewport";
     viewportLayer.style.position = "absolute";
@@ -278,7 +287,8 @@ export class DevicePreview {
 
     setIframeViewport(this.iframe, viewport);
     viewportLayer.appendChild(this.iframe);
-    telephone.appendChild(viewportLayer);
+    viewportAnchor.appendChild(viewportLayer);
+    telephone.appendChild(viewportAnchor);
     frameStage.appendChild(telephone);
 
     this.frame.className = "device-frame device-frame--telephone" +
