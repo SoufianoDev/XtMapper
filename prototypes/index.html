@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&icon_names=check,close,info,notifications,settings,tune&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&icon_names=check,close,devices_other,info,keyboard,mouse,notifications,refresh,settings,sports_esports,tune,usb&display=block" rel="stylesheet">
 <style>
 :root {
   color-scheme: dark;
@@ -425,6 +425,14 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   cursor: pointer;
 }
 .capability-actions button:disabled { opacity: .36; cursor: not-allowed; }
+.prototype-device-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.prototype-device-actions .material-symbols-rounded { font-size: 17px; }
+.prototype-device-actions button:disabled { opacity: .42; cursor: not-allowed; }
 .panel-footer {
   flex: 0 0 auto;
   padding: 11px 16px 13px;
@@ -442,6 +450,28 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   .preview-toolbar { max-width: 100%; }
   .panel { position: static; min-height: 0; max-height: none; }
   .panel-content { max-height: 70vh; }
+}
+/* Tablet portrait uses a vertical workspace so the preview and controls keep usable width. */
+@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
+  .showcase {
+    width: min(900px, calc(100% - 48px));
+    min-height: 0;
+    padding: 22px 0 32px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .showcase:not(.showcase--landscape-preview) .panel {
+    position: static;
+    top: auto;
+  }
+  .panel {
+    min-height: 0;
+    max-height: none;
+  }
+  .panel-content {
+    max-height: none;
+  }
 }
 @media (max-width: 390px) {
   .showcase { width: calc(100% - 18px); }
@@ -565,6 +595,21 @@ button:focus-visible, select:focus-visible, input:focus-visible {
         </div>
       </section>
 
+      <section class="group" aria-labelledby="prototypeToolsGroupTitle">
+        <h3 class="group-title" id="prototypeToolsGroupTitle">Prototype testing tools</h3>
+        <div class="capability" aria-live="polite">
+          <div class="capability-head">
+            <span class="capability-title">HID device testing</span>
+            <span class="capability-state" id="prototypeDeviceStatus">Checking…</span>
+          </div>
+          <p class="capability-description">Browser only — these controls are outside the app preview and are not part of the Android mobile app. Uses WebHID permissions and the browser Gamepad API.</p>
+          <div class="capability-actions prototype-device-actions">
+            <button type="button" id="pairBrowserHidButton"><span class="material-symbols-rounded">usb</span>Pair HID device</button>
+            <button type="button" id="refreshBrowserDevicesButton"><span class="material-symbols-rounded">refresh</span>Refresh</button>
+          </div>
+        </div>
+      </section>
+
       <section class="group" aria-labelledby="browserGroupTitle">
         <h3 class="group-title" id="browserGroupTitle">Browser capabilities · real</h3>
         <div class="capability" aria-live="polite">
@@ -646,13 +691,206 @@ document.querySelectorAll("[data-bridge-id]").forEach(control => {
 
 window.addEventListener("message", event => {
   if (event.source !== activityFrame.contentWindow || event.origin !== location.origin) return;
-  if (event.data?.type === "xtmapper-prototype-state") applyActivityState(event.data.state);
+  if (event.data?.type === "xtmapper-prototype-state") {
+    applyActivityState(event.data.state);
+  } else if (event.data?.type === "xtmapper-prototype-request-devices") {
+    sendBrowserDeviceSnapshot();
+  } else if (event.data?.type === "xtmapper-prototype-refresh-devices") {
+    refreshBrowserDevices();
+  }
 });
 
 activityFrame.addEventListener("load", () => {
   requestActivityState();
-  window.setTimeout(requestActivityState, 250);
+  sendBrowserDeviceSnapshot();
+  window.setTimeout(() => {
+    requestActivityState();
+    sendBrowserDeviceSnapshot();
+  }, 250);
 });
+
+
+/* Browser hardware access is owned by this top-level prototype page.
+   The Activity iframe receives a validated, display-only snapshot. */
+const pairBrowserHidButton = document.getElementById("pairBrowserHidButton");
+const refreshBrowserDevicesButton = document.getElementById("refreshBrowserDevicesButton");
+const prototypeDeviceStatus = document.getElementById("prototypeDeviceStatus");
+let browserDeviceSnapshot = [];
+let browserDeviceRefreshRunning = false;
+let browserDeviceRefreshQueued = false;
+
+function setPrototypeDeviceStatus(message) {
+  if (prototypeDeviceStatus) prototypeDeviceStatus.textContent = message;
+}
+
+function sendBrowserDeviceSnapshot() {
+  if (!activityFrame.contentWindow) return;
+  activityFrame.contentWindow.postMessage(
+    {
+      type: "xtmapper-prototype-devices",
+      devices: browserDeviceSnapshot,
+      status: "ready"
+    },
+    location.origin
+  );
+}
+
+function describeHidDevice(device) {
+  const categories = new Set();
+  const visit = collection => {
+    if (!collection || typeof collection !== "object") return;
+    if (Number(collection.usagePage) === 0x01) {
+      const usage = Number(collection.usage);
+      if (usage === 0x02) categories.add("mouse");
+      if (usage === 0x06) categories.add("keyboard");
+      if (usage === 0x04) categories.add("joystick");
+      if (usage === 0x05) categories.add("gamepad");
+    }
+    if (Array.isArray(collection.children)) collection.children.forEach(visit);
+  };
+  if (Array.isArray(device.collections)) device.collections.forEach(visit);
+
+  if (categories.size !== 1) return { category: "unknown", label: "HID device" };
+  const category = [...categories][0];
+  const labels = {
+    mouse: "Mouse",
+    keyboard: "Keyboard",
+    joystick: "Joystick",
+    gamepad: "Gamepad"
+  };
+  return { category, label: labels[category] };
+}
+
+async function collectBrowserDevices() {
+  const devices = [];
+  const gamepadSupported = typeof navigator.getGamepads === "function";
+  const hidSupported = Boolean(navigator.hid?.getDevices);
+
+  if (gamepadSupported) {
+    try {
+      [...navigator.getGamepads()].filter(Boolean).forEach(pad => {
+        devices.push({
+          key: `gamepad-${pad.index}`,
+          name: pad.id || `Gamepad ${pad.index + 1}`,
+          category: "gamepad",
+          kind: "Gamepad API"
+        });
+      });
+    } catch (_) {}
+  }
+
+  if (hidSupported) {
+    try {
+      const hidDevices = await navigator.hid.getDevices();
+      const grouped = new Map();
+      hidDevices.forEach((device, index) => {
+        const presentation = describeHidDevice(device);
+        const name = String(device.productName || `HID device ${index + 1}`).trim();
+        const vendorId = Number(device.vendorId) || 0;
+        const productId = Number(device.productId) || 0;
+        const groupKey = [
+          vendorId.toString(16),
+          productId.toString(16),
+          presentation.category,
+          name.toLocaleLowerCase()
+        ].join(":");
+        const current = grouped.get(groupKey);
+        if (current) {
+          current.count += 1;
+        } else {
+          grouped.set(groupKey, {
+            key: `hid-${groupKey}`,
+            name,
+            category: presentation.category,
+            label: presentation.label,
+            count: 1
+          });
+        }
+      });
+
+      for (const device of grouped.values()) {
+        devices.push({
+          key: device.key,
+          name: device.name,
+          category: device.category,
+          kind: device.count > 1
+            ? `${device.label} · WebHID · ${device.count} matching records`
+            : `${device.label} · WebHID`
+        });
+      }
+    } catch (_) {}
+  }
+
+  return { devices, gamepadSupported, hidSupported };
+}
+
+async function refreshBrowserDevices() {
+  browserDeviceRefreshQueued = true;
+  if (browserDeviceRefreshRunning) return;
+
+  browserDeviceRefreshRunning = true;
+  try {
+    while (browserDeviceRefreshQueued) {
+      browserDeviceRefreshQueued = false;
+      const result = await collectBrowserDevices();
+      browserDeviceSnapshot = result.devices;
+      sendBrowserDeviceSnapshot();
+
+      const apiCount = Number(result.gamepadSupported) + Number(result.hidSupported);
+      if (!apiCount) {
+        setPrototypeDeviceStatus("Gamepad and WebHID APIs unavailable");
+      } else if (browserDeviceSnapshot.length) {
+        setPrototypeDeviceStatus(`${browserDeviceSnapshot.length} browser-visible device entries`);
+      } else {
+        setPrototypeDeviceStatus("No browser-visible devices detected");
+      }
+    }
+  } finally {
+    browserDeviceRefreshRunning = false;
+  }
+}
+
+async function pairBrowserHidDevice() {
+  if (!window.isSecureContext) {
+    setPrototypeDeviceStatus("HID pairing requires HTTPS or localhost");
+    return;
+  }
+  if (!navigator.hid?.requestDevice) {
+    setPrototypeDeviceStatus("WebHID is unavailable in this browser");
+    return;
+  }
+
+  if (pairBrowserHidButton) pairBrowserHidButton.disabled = true;
+  setPrototypeDeviceStatus("Choose a HID device in the browser prompt");
+  try {
+    await navigator.hid.requestDevice({ filters: [] });
+    await refreshBrowserDevices();
+    setPrototypeDeviceStatus("Browser HID permissions updated");
+  } catch (error) {
+    if (error?.name === "NotFoundError") {
+      setPrototypeDeviceStatus("No HID device selected");
+    } else if (error?.name === "NotAllowedError") {
+      setPrototypeDeviceStatus("HID access was cancelled");
+    } else {
+      setPrototypeDeviceStatus(error?.message || "HID access failed");
+    }
+  } finally {
+    if (pairBrowserHidButton) {
+      pairBrowserHidButton.disabled = !window.isSecureContext || !navigator.hid?.requestDevice;
+    }
+  }
+}
+
+pairBrowserHidButton?.addEventListener("click", pairBrowserHidDevice);
+refreshBrowserDevicesButton?.addEventListener("click", refreshBrowserDevices);
+if (pairBrowserHidButton) {
+  pairBrowserHidButton.disabled = !window.isSecureContext || !navigator.hid?.requestDevice;
+}
+if (navigator.hid?.addEventListener) {
+  navigator.hid.addEventListener("connect", refreshBrowserDevices);
+  navigator.hid.addEventListener("disconnect", refreshBrowserDevices);
+}
+refreshBrowserDevices();
 
 /* Browser capabilities belong to this top-level web page, not the Activity iframe. */
 const notificationState = document.querySelector('[data-state-label="browserNotificationState"]');
