@@ -29,14 +29,15 @@ export function getCssFrameMetrics(viewport, padding) {
   };
 }
 
-export function calculatePreviewScale(frameWidth, frameHeight, availableWidth, availableHeight) {
+export function calculatePreviewScale(frameWidth, frameHeight, availableWidth, availableHeight, maxScale = 1) {
   const values = [frameWidth, frameHeight, availableWidth, availableHeight];
 
   if (!values.every(Number.isFinite) || values.some(function (value) { return value <= 0; })) {
     return 1;
   }
 
-  return Math.min(1, availableWidth / frameWidth, availableHeight / frameHeight);
+  const scaleLimit = Number.isFinite(maxScale) && maxScale > 0 ? maxScale : 1;
+  return Math.min(scaleLimit, availableWidth / frameWidth, availableHeight / frameHeight);
 }
 
 export function calculateScreenFit(screenWidth, screenHeight, viewportWidth, viewportHeight) {
