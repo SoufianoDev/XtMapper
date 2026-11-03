@@ -357,6 +357,7 @@ export function installDeviceRotation(DevicePreview) {
     this.rotationShell = shell;
     this.rotationViewportLayer = viewportLayer;
     this.rotationLayerScale = placement.scale;
+    this.rotationTargetLayerScale = targetPlacement.scale;
     this.frameSize = {
       width: outerWidth,
       height: outerHeight,
