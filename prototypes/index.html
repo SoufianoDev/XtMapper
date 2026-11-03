@@ -839,8 +839,16 @@ async function refreshBrowserDevices() {
       const apiCount = Number(result.gamepadSupported) + Number(result.hidSupported);
       if (!apiCount) {
         setPrototypeDeviceStatus("Gamepad and WebHID APIs unavailable");
+      } else if (!result.hidSupported) {
+        setPrototypeDeviceStatus(
+          !window.isSecureContext
+            ? "WebHID requires HTTPS or localhost"
+            : browserDeviceSnapshot.length
+              ? `${browserDeviceSnapshot.length} Gamepad API rows · WebHID unavailable`
+              : "WebHID unavailable; no gamepad detected"
+        );
       } else if (browserDeviceSnapshot.length) {
-        setPrototypeDeviceStatus(`${browserDeviceSnapshot.length} browser-visible device entries`);
+        setPrototypeDeviceStatus(`${browserDeviceSnapshot.length} browser-visible device rows`);
       } else {
         setPrototypeDeviceStatus("No browser-visible devices detected");
       }
