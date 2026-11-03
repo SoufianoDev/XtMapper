@@ -1941,6 +1941,138 @@ html, body {
   }
 }
 
+
+/* Full package IDs remain readable in every profile-card size. */
+.game-profile-card {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.game-profile-card__select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.game-profile-card__copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+.game-profile-card__title {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.25;
+}
+.game-profile-card__package {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  color: rgba(231,219,230,.78);
+  background: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  letter-spacing: 0;
+  text-align: left;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  unicode-bidi: isolate;
+}
+.game-profile-card__profile-name {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  color: rgba(255,222,230,.68);
+  font-size: 10px;
+  line-height: 14px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.game-profile-card__profile-name[hidden] {
+  display: none !important;
+}
+.game-profile-card--grid {
+  min-height: 140px;
+  height: auto;
+}
+.game-profile-card--grid .game-profile-card__select {
+  min-height: 140px;
+  height: auto;
+}
+.game-profile-card--featured .game-profile-card__select {
+  min-height: 136px;
+  grid-template-rows: auto auto;
+}
+.game-profile-card--featured .game-profile-card__image {
+  grid-row: 1 / span 2;
+}
+.game-profile-card--featured .game-profile-card__copy {
+  grid-column: 2;
+  grid-row: 2;
+}
+.game-profile-card--featured .game-profile-card__title {
+  grid-column: auto;
+  grid-row: auto;
+}
+.game-profile-card--featured .game-profile-card__package {
+  color: rgba(255,231,237,.78);
+  font-size: 10px;
+}
+.game-profile-card--featured .game-profile-card__profile-name {
+  color: rgba(255,222,230,.7);
+}
+@media (max-width: 380px) {
+  .game-profile-card--grid {
+    min-height: 100px;
+  }
+  .game-profile-card--grid .game-profile-card__select {
+    min-height: 100px;
+  }
+  .game-profile-card--grid .game-profile-card__copy {
+    flex: 1 1 0;
+    width: auto;
+    max-width: 100%;
+  }
+  .game-profile-card--grid .game-profile-card__title {
+    line-height: 17px;
+  }
+  .game-profile-card--grid .game-profile-card__package {
+    font-size: 9px;
+    line-height: 13px;
+  }
+  .game-profile-card--featured .game-profile-card__select {
+    min-height: 122px;
+    grid-template-columns: 58px minmax(0,1fr);
+    grid-template-rows: auto auto;
+  }
+  .game-profile-card--featured .game-profile-card__copy {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-profile-card,
+  .game-profile-card * {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2202,6 +2334,7 @@ function structuredCloneSafe(value) {
 }
 let state = loadState();
 const profileCardElements = new Map();
+let activeProfileFlip = null;
 let serviceRunning = false; // A browser reload must never pretend an Android foreground service is running.
 let activeProfileId = null;
 let dialogAction = null;
@@ -2370,13 +2503,22 @@ function createGameProfileCard(game) {
   selectedLabel.className = "selected-label";
   selectedLabel.textContent = "Selected profile";
 
+  const copy = document.createElement("span");
+  copy.className = "game-profile-card__copy";
+
   const title = document.createElement("span");
   title.className = "game-profile-card__title";
 
-  const subtitle = document.createElement("span");
-  subtitle.className = "game-profile-card__subtitle";
+  const packageName = document.createElement("code");
+  packageName.className = "game-profile-card__package";
+  packageName.dir = "ltr";
+  packageName.lang = "en";
 
-  select.append(image, selectedLabel, title, subtitle);
+  const profileName = document.createElement("span");
+  profileName.className = "game-profile-card__profile-name";
+
+  copy.append(title, packageName, profileName);
+  select.append(image, selectedLabel, copy);
 
   const menu = document.createElement("button");
   menu.type = "button";
@@ -2427,8 +2569,19 @@ function updateGameProfileCard(card, game, isFeatured) {
   card.dataset.flipId = game.id;
   card.setAttribute("aria-label", game.name + " profile");
 
+  const packageName = String(game.packageName || "Unknown package");
+  const profileName = String(game.profileName || "").trim();
+  const hasCustomProfileName = profileName.length > 0 && profileName !== packageName;
+
   const select = card.querySelector(".game-profile-card__select");
-  select.setAttribute("aria-label", isFeatured ? "Selected profile: " + game.name : "Select " + game.name);
+  const accessibleDetails = [
+    "package " + packageName,
+    hasCustomProfileName ? "profile name " + profileName : ""
+  ].filter(Boolean).join(", ");
+  select.setAttribute(
+    "aria-label",
+    (isFeatured ? "Selected profile: " : "Select ") + game.name + ", " + accessibleDetails
+  );
   select.setAttribute("aria-pressed", String(isFeatured));
 
   const image = card.querySelector(".game-profile-card__image");
@@ -2438,11 +2591,175 @@ function updateGameProfileCard(card, game, isFeatured) {
   }
 
   card.querySelector(".game-profile-card__title").textContent = game.name;
-  card.querySelector(".game-profile-card__subtitle").textContent = "Profile · " + game.profileName;
+
+  const packageElement = card.querySelector(".game-profile-card__package");
+  packageElement.textContent = packageName;
+  packageElement.title = packageName;
+
+  const profileElement = card.querySelector(".game-profile-card__profile-name");
+  profileElement.textContent = hasCustomProfileName ? "Profile · " + profileName : "";
+  profileElement.hidden = !hasCustomProfileName;
+  profileElement.title = hasCustomProfileName ? profileName : "";
 
   const menu = card.querySelector(".game-profile-card__menu");
   menu.className = (isFeatured ? "feature-menu" : "tile-menu") + " game-profile-card__menu";
   menu.setAttribute("aria-label", "Actions for " + game.name);
+}
+
+function renderGames({ animateSelection = false, swapTarget = null } = {}) {
+  const grid = byId("gameGrid");
+  const featuredSlot = byId("featuredSlot");
+  const visibleGames = games();
+  const current = selectedGame();
+
+  const existingCards = [...profileCardElements.values()].filter(card => card.isConnected);
+  let flipState = null;
+  let flipTargets = [];
+
+  const canFlip = animateSelection &&
+    existingCards.length > 0 &&
+    window.gsap &&
+    window.Flip &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (canFlip) {
+    const movingIds = new Set(
+      [swapTarget?.incomingId, swapTarget?.previousId].filter(Boolean)
+    );
+    const movingCards = existingCards.filter(card =>
+      movingIds.has(card.dataset.profileId) || window.Flip.isFlipping(card)
+    );
+
+    flipTargets = movingCards.flatMap(card => [
+      card,
+      card.querySelector(".game-profile-card__select"),
+      card.querySelector(".game-profile-card__image"),
+      card.querySelector(".game-profile-card__copy"),
+      card.querySelector(".game-profile-card__title"),
+      card.querySelector(".game-profile-card__package"),
+      card.querySelector(".game-profile-card__profile-name"),
+      card.querySelector(".game-profile-card__menu")
+    ]).filter(Boolean);
+
+    try {
+      // Keep the in-flight visual position. The default getState() behavior
+      // completes an active Flip, which causes a visible snap on rapid taps.
+      flipState = window.Flip.getState(flipTargets, { kill: false });
+      window.Flip.killFlipsOf(flipTargets, false);
+      if (activeProfileFlip) activeProfileFlip.kill();
+      activeProfileFlip = null;
+    } catch (error) {
+      flipState = null;
+      console.warn("XtMapper profile FLIP retarget failed; using an immediate layout update.", error);
+    }
+  }
+
+  const visibleIds = new Set(visibleGames.map(game => game.id));
+  for (const [id, card] of profileCardElements) {
+    if (!visibleIds.has(id)) {
+      card.remove();
+      profileCardElements.delete(id);
+    }
+  }
+
+  grid.replaceChildren();
+  featuredSlot.replaceChildren();
+  featuredSlot.hidden = !current;
+  byId("addGameButton").hidden = visibleGames.length === 0;
+  byId("emptyLibrary").style.display = current ? "none" : "block";
+
+  if (!current) {
+    grid.style.display = "none";
+    return;
+  }
+
+  grid.style.display = visibleGames.length > 1 ? "grid" : "none";
+
+  let gridGames = visibleGames.filter(game => game.id !== current.id);
+  if (swapTarget?.previousId && Number.isInteger(swapTarget.targetIndex) && swapTarget.targetIndex >= 0) {
+    const previousSelected = gridGames.find(game => game.id === swapTarget.previousId);
+    if (previousSelected) {
+      gridGames = gridGames.filter(game => game.id !== previousSelected.id);
+      gridGames.splice(Math.min(swapTarget.targetIndex, gridGames.length), 0, previousSelected);
+    }
+  }
+
+  let featuredCard = null;
+  for (const game of visibleGames) {
+    let card = profileCardElements.get(game.id);
+    if (!card) {
+      card = createGameProfileCard(game);
+      profileCardElements.set(game.id, card);
+    }
+    updateGameProfileCard(card, game, game.id === current.id);
+    if (game.id === current.id) featuredCard = card;
+  }
+
+  if (featuredCard) featuredSlot.append(featuredCard);
+  for (const game of gridGames) {
+    const card = profileCardElements.get(game.id);
+    if (card) grid.append(card);
+  }
+
+  if (flipState && featuredCard) {
+    const liveTargets = flipTargets.filter(element => element.isConnected);
+    const selectedLabel = featuredCard.querySelector(".selected-label");
+    const featuredActions = featuredCard.querySelector(".featured-actions");
+    const revealTargets = [selectedLabel, featuredActions].filter(Boolean);
+
+    try {
+      window.gsap.set(revealTargets, { autoAlpha: 0, y: 5 });
+      const flip = window.Flip.from(flipState, {
+        targets: liveTargets,
+        duration: 0.28,
+        ease: "power2.inOut",
+        scale: true,
+        nested: true
+      });
+
+      // Keep the layout transition and selected-state reveal on one playhead.
+      // This prevents a delayed child tween from outliving an interrupted swap.
+      if (revealTargets.length) {
+        flip.to(revealTargets, {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.12,
+          ease: "power2.out",
+          stagger: 0.02,
+          clearProps: "transform,opacity,visibility"
+        }, Math.max(0, flip.duration() - 0.12));
+      }
+
+      activeProfileFlip = flip;
+      flip.eventCallback("onComplete", () => {
+        if (activeProfileFlip === flip) activeProfileFlip = null;
+      });
+      return flip;
+    } catch (error) {
+      activeProfileFlip = null;
+      window.gsap.set(revealTargets, { clearProps: "all" });
+      console.warn("XtMapper profile FLIP animation failed; keeping the updated profile layout.", error);
+    }
+  }
+}
+
+function selectGame(id) {
+  const game = games().find(item => item.id === id);
+  if (!game || id === state.selectedId) return;
+
+  const previousId = state.selectedId;
+  const targetIndex = [...byId("gameGrid").children].findIndex(
+    card => card.dataset.profileId === id
+  );
+
+  state.selectedId = id;
+  state.designatedProfiles[game.packageName] = game.profileName;
+  persistState();
+  renderGames({
+    animateSelection: true,
+    swapTarget: { incomingId: id, previousId, targetIndex }
+  });
+  showToast(game.name + " profile selected");
 }
 
 function renderGames({ animateSelection = false } = {}) {
