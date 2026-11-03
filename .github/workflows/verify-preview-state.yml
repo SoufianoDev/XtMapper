@@ -160,8 +160,10 @@ jobs:
             const portraitLayout = await page.evaluate(() => {
               const stage = document.querySelector('.preview-stage').getBoundingClientRect();
               const toolbar = document.querySelector('.preview-toolbar').getBoundingClientRect();
+              const device = document.querySelector('.device-rotation-shell').getBoundingClientRect();
               return {
                 stage: { width: stage.width, height: stage.height, centerY: stage.top + stage.height / 2 },
+                deviceCenter: { x: device.left + device.width / 2, y: device.top + device.height / 2 },
                 toolbar: { left: toolbar.left, top: toolbar.top }
               };
             });
@@ -186,6 +188,11 @@ jobs:
                 viewportWidth: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'width'),
                 viewportHeight: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'height'),
                 busy: document.querySelector('.preview').getAttribute('aria-busy'),
+                opacity: Number(getComputedStyle(frame).opacity),
+                deviceCenter: (() => {
+                  const rect = document.querySelector('.device-rotation-shell').getBoundingClientRect();
+                  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+                })(),
                 portraitLayoutPreserved: document.querySelector('.preview').classList.contains('preview--portrait-phone'),
                 landscapeLayoutAppliedEarly: document.querySelector('.showcase').classList.contains('showcase--landscape-preview'),
                 stage: (() => {
@@ -209,6 +216,9 @@ jobs:
                 Math.abs(rotationMotion.viewportWidth - 410) > 1 ||
                 Math.abs(rotationMotion.viewportHeight - 912) > 1 ||
                 rotationMotion.busy !== 'true' ||
+                rotationMotion.opacity !== 1 ||
+                Math.abs(rotationMotion.deviceCenter.x - portraitLayout.deviceCenter.x) > 1 ||
+                Math.abs(rotationMotion.deviceCenter.y - portraitLayout.deviceCenter.y) > 1 ||
                 !rotationMotion.portraitLayoutPreserved ||
                 rotationMotion.landscapeLayoutAppliedEarly ||
                 Math.abs(rotationMotion.stage.width - portraitLayout.stage.width) > 1 ||
@@ -244,6 +254,86 @@ jobs:
               throw new Error(
                 'The completed device rotation did not settle into landscape: ' +
                 JSON.stringify(completedRotation)
+              );
+            }
+
+
+            // The reverse transition must mirror the forward transition:
+            // keep the landscape screen orientation until the shell reaches
+            // the halfway point, then reorient the viewport while the shell
+            // finishes rotating back to portrait.
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() =>
+              !!document.querySelector('#deviceFrame')?.__xtmapperRotationTimeline,
+              null,
+              { timeout: 10000 }
+            );
+            const reverseRotationMotion = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const timeline = frame.__xtmapperRotationTimeline;
+              timeline.pause();
+              timeline.time(0.45, false);
+              const shell = document.querySelector('.device-rotation-shell');
+              const viewport = document.querySelector('.device-rotation-viewport');
+              const shellRect = shell.getBoundingClientRect();
+
+              return {
+                shellRotation: window.gsap.getProperty(shell, 'rotation'),
+                screenRotation: window.gsap.getProperty(viewport, 'rotation'),
+                viewportWidth: window.gsap.getProperty(viewport, 'width'),
+                viewportHeight: window.gsap.getProperty(viewport, 'height'),
+                opacity: Number(getComputedStyle(frame).opacity),
+                busy: document.querySelector('.preview').getAttribute('aria-busy'),
+                deviceCenter: {
+                  x: shellRect.left + shellRect.width / 2,
+                  y: shellRect.top + shellRect.height / 2
+                }
+              };
+            });
+
+            await page.screenshot({
+              path: visualEvidenceDir + '/phone-rotation-back-midpoint.png'
+            });
+            await page.evaluate(() => {
+              document.querySelector('#deviceFrame')?.__xtmapperRotationTimeline?.play();
+            });
+
+            if (!(reverseRotationMotion.shellRotation > 25 &&
+                  reverseRotationMotion.shellRotation < 65) ||
+                Math.abs(reverseRotationMotion.screenRotation + 90) > 1 ||
+                Math.abs(reverseRotationMotion.viewportWidth - 912) > 1 ||
+                Math.abs(reverseRotationMotion.viewportHeight - 410) > 1 ||
+                reverseRotationMotion.opacity !== 1 ||
+                reverseRotationMotion.busy !== 'true' ||
+                Math.abs(reverseRotationMotion.deviceCenter.x - portraitLayout.deviceCenter.x) > 1 ||
+                Math.abs(reverseRotationMotion.deviceCenter.y - portraitLayout.deviceCenter.y) > 1) {
+              throw new Error(
+                'The reverse rotation did not preserve the symmetric midpoint: ' +
+                JSON.stringify(reverseRotationMotion)
+              );
+            }
+
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'portrait'
+            );
+            await waitForSettledMotion();
+
+            const completedReverseRotation = await page.evaluate(() => ({
+              shellRotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
+              screenRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
+              viewportWidth: Number(document.querySelector('.device-rotation-viewport').style.width.replace('px', '')),
+              viewportHeight: Number(document.querySelector('.device-rotation-viewport').style.height.replace('px', ''))
+            }));
+
+            if (Math.abs(completedReverseRotation.shellRotation) > 0.1 ||
+                Math.abs(completedReverseRotation.screenRotation) > 0.1 ||
+                completedReverseRotation.viewportWidth !== 410 ||
+                completedReverseRotation.viewportHeight !== 912) {
+              throw new Error(
+                'The reverse rotation did not settle into portrait: ' +
+                JSON.stringify(completedReverseRotation)
               );
             }
 
