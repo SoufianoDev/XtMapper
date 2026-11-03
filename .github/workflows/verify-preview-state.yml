@@ -370,6 +370,63 @@ jobs:
               throw new Error('GSAP or the Flip plugin did not load in MainActivity.');
             }
 
+            const longPackageName =
+              'com.independentstudio.mobile.multiplayer.tacticalshooter.release2026';
+            const measureLongPackage = async () => flipLibrary.locator(
+              '#gameGrid [data-profile-id="sample-3"] .game-profile-card__package'
+            ).evaluate((element, fullValue) => {
+              element.textContent = fullValue;
+              element.title = fullValue;
+              const range = element.ownerDocument.createRange();
+              range.selectNodeContents(element);
+              const style = getComputedStyle(element);
+              const card = element.closest('.game-profile-card');
+              return {
+                text: element.textContent,
+                lineCount: range.getClientRects().length,
+                whiteSpace: style.whiteSpace,
+                overflowWrap: style.overflowWrap,
+                clientWidth: element.clientWidth,
+                scrollWidth: element.scrollWidth,
+                clientHeight: element.clientHeight,
+                scrollHeight: element.scrollHeight,
+                cardWidth: card.clientWidth,
+                cardScrollWidth: card.scrollWidth
+              };
+            }, longPackageName);
+
+            const packageOverflowChecks = [];
+            const assertPackageFits = (metrics, viewport) => {
+              if (metrics.text !== longPackageName ||
+                  metrics.lineCount < 2 ||
+                  metrics.whiteSpace !== 'normal' ||
+                  metrics.overflowWrap !== 'anywhere' ||
+                  metrics.scrollWidth > metrics.clientWidth + 1 ||
+                  metrics.scrollHeight > metrics.clientHeight + 1 ||
+                  metrics.cardScrollWidth > metrics.cardWidth + 1) {
+                throw new Error(
+                  'The complete Android package ID must wrap without clipping at ' +
+                  viewport + ': ' + JSON.stringify(metrics)
+                );
+              }
+              packageOverflowChecks.push({ viewport, ...metrics });
+            };
+
+            // Pixel 10 Pro uses a narrow two-column library card.
+            assertPackageFits(await measureLongPackage(), '410px Pixel viewport');
+
+            // Galaxy S24 switches to the compact single-column card layout.
+            await page.locator('#devicePreset').selectOption('samsung-s24');
+            await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'portrait');
+            assertPackageFits(await measureLongPackage(), '360px Galaxy S24 viewport');
+
+            await page.locator('#devicePreset').selectOption('google-pixel-10-pro');
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'portrait'
+            );
+
             await flipLibrary.locator('#featuredSlot').evaluate(slot => {
               const doc = slot.ownerDocument;
               const win = doc.defaultView;
@@ -452,6 +509,69 @@ jobs:
               );
             }
 
+            // Interrupt one exchange with another selection while the first is moving.
+            await flipLibrary.locator(
+              '#gameGrid [data-profile-id="sample-3"] .game-profile-card__select'
+            ).click();
+            await page.waitForFunction(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              const win = doc?.defaultView;
+              const outgoing = doc?.querySelector('#gameGrid [data-profile-id="sample-2"]');
+              const incoming = doc?.querySelector('#featuredSlot [data-profile-id="sample-3"]');
+              return !!outgoing && !!incoming &&
+                win.Flip.isFlipping(outgoing) &&
+                win.Flip.isFlipping(incoming);
+            }, null, { timeout: 5000 });
+
+            await page.waitForTimeout(70);
+            const rapidRetarget = await flipLibrary.locator(
+              '#gameGrid [data-profile-id="sample-2"] .game-profile-card__select'
+            ).evaluate(button => {
+              const doc = button.ownerDocument;
+              const win = doc.defaultView;
+              const card = button.closest('.game-profile-card');
+              const originalCard = card;
+              const before = card.getBoundingClientRect();
+              button.click();
+              const after = card.getBoundingClientRect();
+              const delta = {
+                x: Math.abs(after.x - before.x),
+                y: Math.abs(after.y - before.y),
+                width: Math.abs(after.width - before.width),
+                height: Math.abs(after.height - before.height)
+              };
+              return {
+                sameNode: doc.querySelector('#featuredSlot [data-profile-id="sample-2"]') === originalCard,
+                activeAfterRetarget: win.Flip.isFlipping(originalCard),
+                delta,
+                maxDelta: Math.max(delta.x, delta.y, delta.width, delta.height),
+                featuredId: doc.querySelector('#featuredSlot .game-profile-card')?.dataset.profileId,
+                gridIds: [...doc.querySelectorAll('#gameGrid .game-profile-card')]
+                  .map(element => element.dataset.profileId)
+              };
+            });
+
+            if (!rapidRetarget.sameNode ||
+                !rapidRetarget.activeAfterRetarget ||
+                rapidRetarget.maxDelta > 3 ||
+                rapidRetarget.featuredId !== 'sample-2' ||
+                !rapidRetarget.gridIds.includes('sample-3')) {
+              throw new Error(
+                'Rapid profile selection snapped or failed to retarget from its current position: ' +
+                JSON.stringify(rapidRetarget)
+              );
+            }
+
+            await page.waitForFunction(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              const win = doc?.defaultView;
+              const sample2 = doc?.querySelector('#featuredSlot [data-profile-id="sample-2"]');
+              const sample3 = doc?.querySelector('#gameGrid [data-profile-id="sample-3"]');
+              return !!sample2 && !!sample3 &&
+                !win.Flip.isFlipping(sample2) &&
+                !win.Flip.isFlipping(sample3);
+            }, null, { timeout: 5000 });
+
             // Reduced motion must keep the same final interchange without starting FLIP tweens.
             await page.emulateMedia({ reducedMotion: 'reduce' });
             await flipLibrary.locator(
@@ -469,6 +589,8 @@ jobs:
             console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
             console.log('PROFILE_LIBRARY_ADD_BUTTON_VISIBILITY_PASSED');
             console.log('PROFILE_CARD_FLIP_SWAP_PASSED');
+            console.log('PROFILE_PACKAGE_TEXT_FIT_PASSED');
+            console.log('PROFILE_FLIP_RAPID_RETARGET_PASSED');
             console.log(JSON.stringify({
               initialState,
               initialLibraryState,
@@ -479,7 +601,9 @@ jobs:
               invalidStateFallback: 'Google Pixel 10 Pro · portrait',
               addGameVisibility,
               profileSwapDuringMotion,
-              profileSwapSettled
+              profileSwapSettled,
+              packageOverflowChecks,
+              rapidRetarget
             }, null, 2));
           } finally {
             await context.close();
