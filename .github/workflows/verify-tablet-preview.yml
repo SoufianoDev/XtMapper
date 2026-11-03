@@ -1,0 +1,109 @@
+name: Temporary tablet preview regression check
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - ".github/workflows/verify-tablet-preview.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/prototype-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/prototype-server.log
+          exit 1
+      - name: Verify tablet fit and phone tuning independently
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            page.on('pageerror', error => { throw error; });
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+
+            await page.locator('#devicePreset').selectOption('galaxy-tab-s7');
+            await page.waitForFunction(() =>
+              document.querySelector('#previewCaption')?.textContent.includes('Samsung Galaxy Tab S7')
+            );
+            await page.waitForFunction(() => {
+              const image = document.querySelector('.device-mockup__frame');
+              return image?.complete && image.naturalWidth > 0;
+            }, { timeout: 60000 });
+            const tabletPortrait = await page.evaluate(() => {
+              const frame = document.querySelector('#deviceFrame');
+              const stage = document.querySelector('#previewStage');
+              const preview = document.querySelector('.preview');
+              const showcase = document.querySelector('.showcase');
+              const frameHeight = Number.parseFloat(frame.style.height);
+              const stageTop = stage.getBoundingClientRect().top;
+              const vh = window.innerHeight;
+              const rowGap = Number.parseFloat(getComputedStyle(preview).rowGap) || 0;
+              const caption = document.querySelector('#previewCaption').getBoundingClientRect().height;
+              const bottomPadding = Number.parseFloat(getComputedStyle(showcase).paddingBottom) || 0;
+              const baseAvailableHeight = Math.max(1, vh - stageTop - rowGap * 2 - caption - bottomPadding - 28);
+              const stageRect = stage.getBoundingClientRect();
+              const previewRect = preview.getBoundingClientRect();
+              return {
+                scale: Number(frame.style.getPropertyValue('--device-scale')),
+                frameHeight,
+                renderedHeight: frame.getBoundingClientRect().height,
+                baseAvailableHeight,
+                stageOffset: stageRect.left - (previewRect.left + (previewRect.width - stageRect.width) / 2),
+                portraitPhoneClass: preview.classList.contains('preview--portrait-phone'),
+                stageTransform: getComputedStyle(stage).transform
+              };
+            });
+            if (tabletPortrait.portraitPhoneClass) throw new Error('Tablet incorrectly received phone sizing class: ' + JSON.stringify(tabletPortrait));
+            if (tabletPortrait.stageOffset > 1 || tabletPortrait.stageOffset < -1) throw new Error('Tablet is not centered: ' + JSON.stringify(tabletPortrait));
+            if (tabletPortrait.renderedHeight > tabletPortrait.baseAvailableHeight + 2) throw new Error('Tablet exceeds available height: ' + JSON.stringify(tabletPortrait));
+            if (tabletPortrait.scale >= 0.74) throw new Error('Tablet did not return to fit-to-space scaling: ' + JSON.stringify(tabletPortrait));
+
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            const tabletLandscape = await page.evaluate(() => ({
+              scale: Number(document.querySelector('#deviceFrame').style.getPropertyValue('--device-scale')),
+              portraitPhoneClass: document.querySelector('.preview').classList.contains('preview--portrait-phone'),
+              stageTransform: getComputedStyle(document.querySelector('#previewStage')).transform
+            }));
+            if (tabletLandscape.portraitPhoneClass || tabletLandscape.stageTransform !== 'none') {
+              throw new Error('Tablet landscape received phone-specific offset: ' + JSON.stringify(tabletLandscape));
+            }
+
+            await page.locator('#devicePreset').selectOption('google-pixel-10-pro');
+            await page.waitForFunction(() =>
+              document.querySelector('#previewCaption')?.textContent.includes('Google Pixel 10 Pro')
+            );
+            const phonePortrait = await page.evaluate(() => ({
+              scale: Number(document.querySelector('#deviceFrame').style.getPropertyValue('--device-scale')),
+              portraitPhoneClass: document.querySelector('.preview').classList.contains('preview--portrait-phone'),
+              stageTransform: getComputedStyle(document.querySelector('#previewStage')).transform
+            }));
+            if (!phonePortrait.portraitPhoneClass || Math.abs(phonePortrait.scale - 0.74) > 0.001) {
+              throw new Error('Phone-specific portrait scale/offset was not preserved: ' + JSON.stringify(phonePortrait));
+            }
+            console.log('TABLET_PHONE_PREVIEW_REGRESSION_PASSED');
+            console.log(JSON.stringify({tabletPortrait, tabletLandscape, phonePortrait}, null, 2));
+          } finally {
+            await browser.close();
+          }
+          NODE
