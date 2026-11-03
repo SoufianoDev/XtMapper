@@ -1,5 +1,4 @@
 import {
-  phoneDevices,
   samsungPhoneDevices,
   googlePixelDevices,
   xiaomiPhoneDevices,
