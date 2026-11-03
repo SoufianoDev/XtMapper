@@ -6,6 +6,62 @@ import {
   getViewportForOrientation
 } from "./device-scaling.mjs";
 
+const PREVIEW_STATE_STORAGE_KEY = "xtmapper.device-preview.state.v1";
+
+function isValidViewport(viewport) {
+  return viewport &&
+    Number.isInteger(viewport.width) &&
+    Number.isInteger(viewport.height) &&
+    viewport.width >= 280 && viewport.width <= 1600 &&
+    viewport.height >= 400 && viewport.height <= 2400;
+}
+
+function createCustomDevice(viewport) {
+  const type = Math.min(viewport.width, viewport.height) >= 600 ? "tablet" : "phone";
+  return {
+    id: "custom",
+    name: "Custom Android viewport",
+    type,
+    viewport: { width: viewport.width, height: viewport.height },
+    frame: { renderer: "css", padding: type === "tablet" ? 12 : 9 },
+    mockup: null
+  };
+}
+
+function readSavedPreviewState() {
+  try {
+    const raw = window.localStorage.getItem(PREVIEW_STATE_STORAGE_KEY);
+    if (!raw) return null;
+
+    const state = JSON.parse(raw);
+    if (!state || state.version !== 1 ||
+        (state.orientation !== "portrait" && state.orientation !== "landscape")) {
+      return null;
+    }
+
+    if (state.deviceId === "custom") {
+      return isValidViewport(state.customViewport)
+        ? {
+            deviceId: "custom",
+            orientation: state.orientation,
+            customViewport: {
+              width: state.customViewport.width,
+              height: state.customViewport.height
+            }
+          }
+        : null;
+    }
+
+    return getDeviceById(state.deviceId)
+      ? { deviceId: state.deviceId, orientation: state.orientation }
+      : null;
+  } catch (_) {
+    // Storage can be unavailable in private/restricted browser contexts.
+    // The preview remains usable with its default state in that case.
+    return null;
+  }
+}
+
 function setIframeViewport(iframe, viewport) {
   iframe.style.display = "block";
   iframe.width = String(viewport.width);
@@ -48,6 +104,7 @@ export class DevicePreview {
     }
 
     this.populateDeviceOptions();
+    this.restoreSavedState();
     this.select.value = this.currentDevice.id;
 
     this.select.addEventListener("change", () => {
@@ -104,14 +161,55 @@ export class DevicePreview {
     this.select.appendChild(customOption);
   }
 
+  restoreSavedState() {
+    const savedState = readSavedPreviewState();
+    if (!savedState) return false;
+
+    this.orientation = savedState.orientation;
+
+    if (savedState.deviceId === "custom") {
+      this.currentDevice = createCustomDevice(savedState.customViewport);
+      this.currentViewport = { ...savedState.customViewport };
+      return true;
+    }
+
+    const device = getDeviceById(savedState.deviceId);
+    if (!device) return false;
+
+    this.currentDevice = device;
+    this.currentViewport = getViewportForOrientation(device.viewport, this.orientation);
+    this.lastDeviceId = device.id;
+    return true;
+  }
+
+  saveState() {
+    const state = {
+      version: 1,
+      deviceId: this.currentDevice.id,
+      orientation: this.orientation
+    };
+
+    if (this.currentDevice.id === "custom") {
+      state.customViewport = { ...this.currentViewport };
+    }
+
+    try {
+      window.localStorage.setItem(PREVIEW_STATE_STORAGE_KEY, JSON.stringify(state));
+    } catch (_) {
+      // Keep the live preview functional even when browser storage is blocked.
+    }
+  }
+
   selectDevice(id) {
     const device = getDeviceById(id);
     if (!device) return;
 
     this.currentDevice = device;
-    this.currentViewport = { width: device.viewport.width, height: device.viewport.height };
-    this.orientation = this.currentViewport.width > this.currentViewport.height ? "landscape" : "portrait";
+    // Device changes keep the current rotation; only the logical viewport
+    // dimensions are adapted to the newly selected device.
+    this.currentViewport = getViewportForOrientation(device.viewport, this.orientation);
     this.lastDeviceId = device.id;
+    this.saveState();
     this.render();
   }
 
@@ -128,18 +226,11 @@ export class DevicePreview {
       return;
     }
 
-    const type = Math.min(width, height) >= 600 ? "tablet" : "phone";
-    this.currentDevice = {
-      id: "custom",
-      name: "Custom Android viewport",
-      type: type,
-      viewport: { width: width, height: height },
-      frame: { renderer: "css", padding: type === "tablet" ? 12 : 9 },
-      mockup: null
-    };
-    this.currentViewport = { width: width, height: height };
+    this.currentViewport = { width, height };
+    this.currentDevice = createCustomDevice(this.currentViewport);
     this.orientation = width > height ? "landscape" : "portrait";
     this.select.value = "custom";
+    this.saveState();
     this.render();
   }
 
@@ -149,6 +240,7 @@ export class DevicePreview {
       height: this.currentViewport.width
     };
     this.orientation = this.currentViewport.width > this.currentViewport.height ? "landscape" : "portrait";
+    this.saveState();
     this.render();
   }
 
