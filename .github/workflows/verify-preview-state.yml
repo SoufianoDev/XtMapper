@@ -121,6 +121,38 @@ jobs:
               caption: document.querySelector('#previewCaption').textContent,
               saved: localStorage.getItem(key)
             }), STORAGE_KEY);
+            
+            await page.waitForFunction(() => {
+              const frame = document.querySelector('#activityFrame');
+              return frame?.contentDocument?.readyState === 'complete' &&
+                !!frame.contentDocument.querySelector('#addGameButton');
+            }, null, { timeout: 60000 });
+
+            const initialLibraryState = await page.evaluate(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const state = JSON.parse(
+                document?.defaultView.localStorage.getItem('xtmapper-main-prototype-v10') || 'null'
+              );
+              return {
+                scenario: state?.libraryScenario,
+                selectedId: state?.selectedId,
+                addGamesHidden: document?.querySelector('#addGameButton')?.hidden,
+                firstGameVisible: !!document?.querySelector('#emptyAddGameButton') &&
+                  getComputedStyle(document.querySelector('#emptyAddGameButton')).display !== 'none',
+                importVisible: !!document?.querySelector('#emptyImportButton') &&
+                  getComputedStyle(document.querySelector('#emptyImportButton')).display !== 'none'
+              };
+            });
+
+            if (initialLibraryState.scenario !== 'empty' ||
+                initialLibraryState.addGamesHidden !== true ||
+                !initialLibraryState.firstGameVisible ||
+                !initialLibraryState.importVisible) {
+              throw new Error(
+                'A fresh prototype visit must start with an empty library and only the inline first-game actions: ' +
+                JSON.stringify(initialLibraryState)
+              );
+            }
 
             if (initialState.selected !== 'google-pixel-10-pro' ||
                 initialState.saved !== null) {
@@ -325,6 +357,7 @@ jobs:
             console.log('PROFILE_LIBRARY_ADD_BUTTON_VISIBILITY_PASSED');
             console.log(JSON.stringify({
               initialState,
+              initialLibraryState,
               switchedWhileLandscape,
               switchedWhilePortrait,
               customFrame,
