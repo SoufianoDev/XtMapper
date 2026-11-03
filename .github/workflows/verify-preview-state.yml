@@ -53,8 +53,11 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import { chromium } from 'playwright';
+          import { mkdirSync } from 'node:fs';
 
           const STORAGE_KEY = 'xtmapper.device-preview.state.v1';
+          const visualEvidenceDir = '/tmp/xtmapper-preview-visual';
+          mkdirSync(visualEvidenceDir, { recursive: true });
           const browser = await chromium.launch({
             headless: true,
             args: ['--no-sandbox']
@@ -138,6 +141,8 @@ jobs:
               'portrait'
             );
 
+            await page.screenshot({ path: visualEvidenceDir + '/phone-portrait-start.png' });
+
             const initialState = await page.evaluate(key => ({
               selected: document.querySelector('#devicePreset').value,
               caption: document.querySelector('#previewCaption').textContent,
@@ -155,6 +160,7 @@ jobs:
             // Rotation must animate the existing frame before committing landscape.
             await page.locator('#rotateDevice').click();
             await page.waitForTimeout(120);
+            await page.screenshot({ path: visualEvidenceDir + '/phone-rotation-midpoint.png' });
             const rotationMotion = await page.evaluate(() => ({
               rotation: window.gsap.getProperty(document.querySelector('.device-rotation-shell'), 'rotation'),
               contentRotation: window.gsap.getProperty(document.querySelector('.device-rotation-viewport'), 'rotation'),
@@ -176,6 +182,7 @@ jobs:
               'landscape'
             );
             await waitForSettledMotion();
+            await page.screenshot({ path: visualEvidenceDir + '/phone-landscape-end.png' });
 
             // Device switching must fade out, replace the frame, then fade in.
             await page.locator('#devicePreset').selectOption('samsung-s24');
@@ -285,6 +292,7 @@ jobs:
               'landscape'
             );
             await waitForSettledMotion();
+            await page.screenshot({ path: visualEvidenceDir + '/custom-landscape-end.png' });
 
             const customFrame = await page.evaluate(() => {
               const frame = document.querySelector('#deviceFrame');
@@ -449,3 +457,12 @@ jobs:
             await browser.close();
           }
           NODE
+
+      - name: Upload device rotation screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-rotation-visual-evidence
+          path: /tmp/xtmapper-preview-visual/
+          if-no-files-found: ignore
+          retention-days: 7
