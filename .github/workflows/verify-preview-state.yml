@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "ui/main-activity-premium-redesign"
+      - "ui/gsap-device-preview-transitions"
     paths:
       - "prototypes/**"
       - ".github/workflows/verify-preview-state.yml"
@@ -72,6 +73,27 @@ jobs:
               waitUntil: 'domcontentloaded'
             });
 
+            const waitForGsap = async () => {
+              await page.waitForFunction(
+                () => window.gsap?.version === '3.15.0',
+                null,
+                { timeout: 30000 }
+              );
+            };
+
+            await waitForGsap();
+
+            const waitForSettledMotion = async () => {
+              await page.waitForFunction(() => {
+                const preview = document.querySelector('.preview');
+                const frame = document.querySelector('#deviceFrame');
+                return !!frame &&
+                  !preview?.hasAttribute('aria-busy') &&
+                  getComputedStyle(frame).opacity === '1' &&
+                  !frame.style.transform;
+              }, null, { timeout: 10000 });
+            };
+
             const waitForRenderedFrame = async () => {
               await page.waitForFunction(() => {
                 const frame = document.querySelector('#deviceFrame');
@@ -130,16 +152,46 @@ jobs:
               );
             }
 
-            // Rotate, then change devices. The new device must keep landscape.
+            // Rotation must animate the existing frame before committing landscape.
             await page.locator('#rotateDevice').click();
+            await page.waitForTimeout(120);
+            const rotationMotion = await page.evaluate(() => ({
+              rotation: window.gsap.getProperty(document.querySelector('#deviceFrame'), 'rotation'),
+              busy: document.querySelector('.preview').getAttribute('aria-busy')
+            }));
+
+            if (!(rotationMotion.rotation > 0.1 && rotationMotion.rotation < 90) ||
+                rotationMotion.busy !== 'true') {
+              throw new Error(
+                'The device did not enter the GSAP rotation transition: ' +
+                JSON.stringify(rotationMotion)
+              );
+            }
+
             await waitForDevice(
               'google-pixel-10-pro',
               'Google Pixel 10 Pro',
               'landscape'
             );
+            await waitForSettledMotion();
 
+            // Device switching must fade out, replace the frame, then fade in.
             await page.locator('#devicePreset').selectOption('samsung-s24');
+            await page.waitForTimeout(70);
+            const switchMotion = await page.evaluate(() => ({
+              opacity: Number(getComputedStyle(document.querySelector('#deviceFrame')).opacity),
+              busy: document.querySelector('.preview').getAttribute('aria-busy')
+            }));
+
+            if (!(switchMotion.opacity < 1) || switchMotion.busy !== 'true') {
+              throw new Error(
+                'The device switch did not enter its fade transition: ' +
+                JSON.stringify(switchMotion)
+              );
+            }
+
             await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'landscape');
+            await waitForSettledMotion();
 
             const switchedWhileLandscape = await page.evaluate(key => ({
               selected: document.querySelector('#devicePreset').value,
@@ -174,6 +226,7 @@ jobs:
             await page.goto('http://127.0.0.1:4173/', {
               waitUntil: 'domcontentloaded'
             });
+            await waitForGsap();
             await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'landscape');
 
             // Switching in portrait must also preserve portrait.
@@ -284,7 +337,63 @@ jobs:
               'portrait'
             );
 
-            console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
+            // Reduced motion must keep state changes instant and skip large rotation.
+            const reducedPage = await context.newPage();
+            page = reducedPage;
+            page.on('pageerror', error => {
+              throw error;
+            });
+            await page.emulateMedia({ reducedMotion: 'reduce' });
+            await page.goto('http://127.0.0.1:4173/', {
+              waitUntil: 'domcontentloaded'
+            });
+            await waitForGsap();
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'portrait'
+            );
+
+            await page.locator('#rotateDevice').click();
+            await waitForDevice(
+              'google-pixel-10-pro',
+              'Google Pixel 10 Pro',
+              'landscape'
+            );
+
+            const reducedRotation = await page.evaluate(() => ({
+              rotation: window.gsap.getProperty(document.querySelector('#deviceFrame'), 'rotation'),
+              opacity: Number(getComputedStyle(document.querySelector('#deviceFrame')).opacity),
+              busy: document.querySelector('.preview').getAttribute('aria-busy'),
+              inlineTransform: document.querySelector('#deviceFrame').style.transform
+            }));
+
+            if (Math.abs(reducedRotation.rotation) > 0.1 ||
+                reducedRotation.opacity !== 1 ||
+                reducedRotation.busy !== null ||
+                reducedRotation.inlineTransform !== '') {
+              throw new Error(
+                'Reduced-motion preference did not skip large rotation: ' +
+                JSON.stringify(reducedRotation)
+              );
+            }
+
+            await page.locator('#devicePreset').selectOption('samsung-s24');
+            await waitForDevice('samsung-s24', 'Samsung Galaxy S24', 'landscape');
+
+            const reducedSwitch = await page.evaluate(() => ({
+              opacity: Number(getComputedStyle(document.querySelector('#deviceFrame')).opacity),
+              busy: document.querySelector('.preview').getAttribute('aria-busy')
+            }));
+
+            if (reducedSwitch.opacity !== 1 || reducedSwitch.busy !== null) {
+              throw new Error(
+                'Reduced-motion device switching did not complete instantly: ' +
+                JSON.stringify(reducedSwitch)
+              );
+            }
+
+            console.log('DEVICE_PREVIEW_GSAP_MOTION_AND_STATE_PASSED');
             console.log(JSON.stringify({
               initialState,
               switchedWhileLandscape,
