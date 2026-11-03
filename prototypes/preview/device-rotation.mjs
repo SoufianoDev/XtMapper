@@ -572,7 +572,9 @@ export function installDeviceRotation(DevicePreview) {
           ease: "power3.inOut"
         }, 0);
 
-        const viewportTransitionStart = nextOrientation === "landscape" ? 0.45 : 0;
+        // Reorient the screen during the second half in both directions. This keeps
+        // the physical shell rotation and the OS viewport hand-off symmetric.
+        const viewportTransitionStart = 0.45;
 
         timeline.to(viewportLayer, {
           rotation: -targetAngle,
