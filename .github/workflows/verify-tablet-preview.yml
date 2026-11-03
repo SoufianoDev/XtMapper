@@ -5,6 +5,7 @@ on:
     branches:
       - "ui/main-activity-premium-redesign"
     paths:
+      - "prototypes/**"
       - ".github/workflows/verify-tablet-preview.yml"
 
 permissions:
