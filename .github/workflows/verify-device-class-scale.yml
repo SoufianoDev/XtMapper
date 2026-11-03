@@ -1,0 +1,131 @@
+name: Temporary device class preview scale check
+
+on:
+  push:
+    branches:
+      - "ui/main-activity-premium-redesign"
+    paths:
+      - ".github/workflows/verify-device-class-scale.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Install Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Start prototype server
+        run: |
+          python3 -m http.server 4173 --directory prototypes >/tmp/prototype-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/prototype-server.log
+          exit 1
+      - name: Verify normal phone, unfolded foldables, and tablet sizing
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] });
+          try {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            page.on('pageerror', error => { throw error; });
+            await page.goto('http://127.0.0.1:4173/', { waitUntil: 'domcontentloaded' });
+
+            const waitForDevice = async id => {
+              await page.locator('#devicePreset').selectOption(id);
+              await page.waitForFunction(id =>
+                document.querySelector('#devicePreset')?.value === id &&
+                document.querySelector('#previewCaption')?.textContent.includes(
+                  document.querySelector('#devicePreset').selectedOptions[0].textContent.split(' · ')[0]
+                ), id
+              );
+              await page.waitForFunction(() => {
+                const image = document.querySelector('.device-mockup__frame');
+                const scale = document.querySelector('#deviceFrame')?.style.getPropertyValue('--device-scale');
+                return image?.complete && image.naturalWidth > 0 && scale;
+              }, { timeout: 60000 });
+              await page.waitForTimeout(100);
+            };
+            const measure = () => page.evaluate(() => {
+              const preview = document.querySelector('.preview');
+              const stage = document.querySelector('#previewStage');
+              const frame = document.querySelector('#deviceFrame');
+              const stageRect = stage.getBoundingClientRect();
+              const frameRect = frame.getBoundingClientRect();
+              return {
+                device:document.querySelector('#previewCaption').textContent,
+                type:document.querySelector('#devicePreset').selectedOptions[0].parentElement.label,
+                scale:Number(frame.style.getPropertyValue('--device-scale')),
+                renderedWidth:frameRect.width,
+                renderedHeight:frameRect.height,
+                stageWidth:stageRect.width,
+                stageHeight:stageRect.height,
+                portraitPhoneClass:preview.classList.contains('preview--portrait-phone')
+              };
+            });
+
+            await waitForDevice('google-pixel-10-pro');
+            const regularPhone = await measure();
+            if (Math.abs(regularPhone.scale - 0.74) > 0.002) {
+              throw new Error('Regular phone scale changed: ' + JSON.stringify(regularPhone));
+            }
+
+            await waitForDevice('samsung-z-fold2-unfolded');
+            const fold2 = await measure();
+            if (Math.abs(fold2.scale - 0.56) > 0.002) {
+              throw new Error('Galaxy Z Fold2 portrait scale is not 0.56: ' + JSON.stringify(fold2));
+            }
+            if (!fold2.portraitPhoneClass) throw new Error('Foldable lost portrait toolbar behavior.');
+
+            await waitForDevice('samsung-fold-unfolded');
+            const fold = await measure();
+            if (Math.abs(fold.scale - 0.56) > 0.002) {
+              throw new Error('Galaxy Fold portrait scale is not 0.56: ' + JSON.stringify(fold));
+            }
+
+            await waitForDevice('galaxy-tab-s7');
+            const tablet = await measure();
+            if (Math.abs(tablet.scale - 0.58) > 0.002) {
+              throw new Error('Tablet portrait scale is not 0.58: ' + JSON.stringify(tablet));
+            }
+            if (tablet.portraitPhoneClass) throw new Error('Tablet incorrectly received phone-specific toolbar class.');
+
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            await page.waitForFunction(() => {
+              const image = document.querySelector('.device-mockup__frame');
+              return image?.complete && image.naturalWidth > 0;
+            }, { timeout: 60000 });
+            const tabletLandscape = await measure();
+            if (tabletLandscape.scale <= 0.58) {
+              throw new Error('Tablet landscape unexpectedly inherited portrait scale cap: ' + JSON.stringify(tabletLandscape));
+            }
+
+            await waitForDevice('samsung-z-fold2-unfolded');
+            await page.locator('#rotateDevice').click();
+            await page.waitForFunction(() => document.querySelector('#previewCaption')?.textContent.includes('landscape'));
+            await page.waitForFunction(() => {
+              const image = document.querySelector('.device-mockup__frame');
+              return image?.complete && image.naturalWidth > 0;
+            }, { timeout: 60000 });
+            const foldLandscape = await measure();
+            if (foldLandscape.scale <= 0.56) {
+              throw new Error('Foldable landscape unexpectedly inherited portrait scale cap: ' + JSON.stringify(foldLandscape));
+            }
+
+            console.log('DEVICE_CLASS_PREVIEW_SCALE_PASSED');
+            console.log(JSON.stringify({regularPhone,fold2,fold,tablet,tabletLandscape,foldLandscape},null,2));
+          } finally {
+            await browser.close();
+          }
+          NODE
