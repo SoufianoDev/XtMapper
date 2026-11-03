@@ -1659,6 +1659,288 @@ html, body {
     gap: 14px;
   }
 }
+
+/* GSAP FLIP profile interchange: the same profile node moves between Featured and Grid. */
+.profile-featured-slot { min-width: 0; }
+.profile-featured-slot[hidden] { display: none !important; }
+
+.game-profile-card {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: var(--shape-large);
+  color: var(--md-sys-color-on-surface);
+  box-sizing: border-box;
+  transform-origin: center center;
+}
+.game-profile-card__select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.game-profile-card__select:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: -3px;
+  border-radius: inherit;
+}
+.game-profile-card__image {
+  display: block;
+  width: 62px;
+  height: 62px;
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 16px;
+  object-fit: contain;
+  background: #24262d;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25);
+}
+.game-profile-card__title {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  color: var(--md-sys-color-on-surface);
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 650;
+  letter-spacing: -.1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.game-profile-card__subtitle {
+  display: block;
+  min-width: 0;
+  margin-top: 3px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: 11px;
+  line-height: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.game-profile-card__menu { z-index: 3; }
+.game-profile-card--grid {
+  min-height: 132px;
+  border-color: rgba(212,105,128,.20);
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(137,39,66,.20), transparent 78%),
+    linear-gradient(145deg, #29212b 0%, #20212a 55%, #191e28 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 6px 18px rgba(0,0,0,.13);
+}
+.game-profile-card--grid:hover {
+  border-color: rgba(226,77,99,.55);
+  background:
+    radial-gradient(ellipse at 0% 0%, rgba(191,48,81,.30), transparent 80%),
+    linear-gradient(145deg, #35232f 0%, #25232e 55%, #1d232e 100%);
+}
+.game-profile-card--grid .game-profile-card__select {
+  min-height: 132px;
+  padding: 13px 48px 13px 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.game-profile-card--grid .game-profile-card__image {
+  flex: 0 0 62px;
+}
+.game-profile-card--grid .selected-label,
+.game-profile-card--grid .featured-actions {
+  display: none;
+}
+.game-profile-card--grid .game-profile-card__title {
+  font-size: 14px;
+  line-height: 18px;
+}
+.game-profile-card--featured {
+  isolation: isolate;
+  min-height: 166px;
+  border-color: rgba(255,113,139,.43);
+  background:
+    radial-gradient(ellipse at 5% 0%, rgba(255,88,117,.27), transparent 53%),
+    radial-gradient(ellipse at 100% 100%, rgba(126,18,49,.38), transparent 50%),
+    linear-gradient(125deg, #571c2c 0%, #3c1c2c 34%, #29202e 68%, #1b202b 100%);
+  box-shadow:
+    0 16px 36px rgba(0,0,0,.28),
+    0 0 34px rgba(166,26,58,.13),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+.game-profile-card--featured::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(128deg, transparent 0 34%, rgba(255,255,255,.055) 48%, transparent 59%),
+    radial-gradient(ellipse at 78% 0%, rgba(255,104,133,.20), transparent 42%),
+    linear-gradient(0deg, rgba(10,10,16,.12), transparent 55%);
+}
+.game-profile-card--featured::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -42px;
+  right: 42px;
+  width: 118px;
+  height: 118px;
+  border: 1px solid rgba(255,190,199,.075);
+  border-radius: 34px;
+  transform: rotate(28deg);
+  pointer-events: none;
+}
+.game-profile-card--featured .game-profile-card__select {
+  position: relative;
+  z-index: 1;
+  min-height: 124px;
+  padding: 16px 16px 8px;
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-content: center;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 5px;
+}
+.game-profile-card--featured .game-profile-card__image {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 78px;
+  height: 78px;
+  border-color: rgba(255,255,255,.2);
+  border-radius: 20px;
+  background: #17191f;
+  box-shadow: 0 8px 22px rgba(0,0,0,.35), 0 0 0 4px rgba(255,255,255,.025);
+}
+.game-profile-card--featured .selected-label {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+  margin: 0;
+  padding: 5px 9px;
+  border: 1px solid rgba(255,255,255,.105);
+  background: rgba(11,10,14,.45);
+  color: #fff0f2;
+  letter-spacing: .15px;
+}
+.game-profile-card--featured .selected-label::before {
+  background: #ff6178;
+  box-shadow: 0 0 9px rgba(255,84,112,.72);
+}
+.game-profile-card--featured .game-profile-card__title {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: 20px;
+  line-height: 25px;
+  font-weight: 700;
+  letter-spacing: -.35px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-shadow: 0 1px 12px rgba(0,0,0,.18);
+}
+.game-profile-card--featured .game-profile-card__subtitle {
+  grid-column: 2;
+  grid-row: 3;
+  color: rgba(255,233,238,.76);
+}
+.game-profile-card--featured .featured-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 16px 16px;
+}
+.game-profile-card--featured .featured-actions button {
+  min-width: 0;
+  flex: 1 1 120px;
+}
+.game-profile-card--featured .filled-button {
+  background: var(--brand-gradient);
+  box-shadow: 0 5px 16px rgba(192,25,57,.26), inset 0 1px 0 rgba(255,255,255,.18);
+}
+.game-profile-card--featured .tonal-button {
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(13,13,17,.34);
+}
+.game-profile-card--featured .tonal-button:hover { background: rgba(13,13,17,.58); }
+
+@media (max-width: 380px) {
+  .game-profile-card--featured .game-profile-card__select {
+    min-height: 108px;
+    padding: 14px 48px 6px 12px;
+    grid-template-columns: 58px minmax(0,1fr);
+    column-gap: 9px;
+  }
+  .game-profile-card--featured .game-profile-card__image {
+    width: 58px;
+    height: 58px;
+    border-radius: 16px;
+  }
+  .game-profile-card--featured .game-profile-card__title {
+    font-size: 17px;
+    line-height: 22px;
+  }
+  .game-profile-card--featured .selected-label {
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+  .game-profile-card--featured .featured-actions {
+    gap: 7px;
+    padding: 7px 12px 13px;
+  }
+  .game-profile-card--featured .featured-actions button {
+    flex: 1 1 calc(50% - 4px);
+    padding-inline: 8px;
+    font-size: 12px;
+    line-height: 17px;
+  }
+  .game-profile-card--grid .game-profile-card__select {
+    min-height: 80px;
+    padding: 10px 50px 10px 11px;
+    flex-direction: row;
+    align-items: center;
+    gap: 11px;
+  }
+  .game-profile-card--grid .game-profile-card__image {
+    width: 50px;
+    height: 50px;
+    flex: 0 0 50px;
+  }
+  .game-profile-card--grid .game-profile-card__title,
+  .game-profile-card--grid .game-profile-card__subtitle {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+@media (min-width: 600px) {
+  .game-profile-card--featured .game-profile-card__select {
+    grid-template-columns: 86px minmax(0,1fr);
+  }
+  .game-profile-card--featured .game-profile-card__image {
+    width: 86px;
+    height: 86px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-profile-card,
+  .game-profile-card * {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1705,24 +1987,7 @@ html, body {
           </button>
         </div>
 
-        <article class="featured" id="featuredCard" aria-label="Selected game profile">
-          <button class="feature-menu" id="featuredMenu" type="button" aria-label="Selected profile actions"><span class="material-symbols-rounded">more_vert</span></button>
-          <div class="featured-content">
-            <img id="featuredImage" alt="" src="https://play-lh.googleusercontent.com/4KLtYEExeMc9gcYZz1BgAiV87IZ8onX3aGld_lJ8xMydt1MP7m--a6dn0aGNMemq-IiwGrrhqt81TA-Qbve8=w240-h480">
-            <div class="selected-label">Selected profile</div>
-            <h2 id="featuredTitle">Call of Duty: Mobile</h2>
-            <div class="featured-actions">
-              <button class="filled-button" id="activateButton">
-                <span class="material-symbols-rounded">play_arrow</span>
-                Activate profile
-              </button>
-              <button class="tonal-button" id="editFeaturedButton">
-                <span class="material-symbols-rounded">tune</span>
-                Edit controls
-              </button>
-            </div>
-          </div>
-        </article>
+        <div class="profile-featured-slot" id="featuredSlot" aria-label="Selected game profile"></div>
 
         <div class="game-grid" id="gameGrid" aria-label="Other game profiles"></div>
         <div class="empty-library" id="emptyLibrary" role="region" aria-labelledby="emptyLibraryTitle">
@@ -1818,6 +2083,8 @@ html, body {
 </div>
 <input id="backupFile" type="file" accept=".zip,application/zip" hidden>
 
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/Flip.min.js"></script>
 <script>
 const APP_CATALOG = [
   {
@@ -1934,6 +2201,7 @@ function structuredCloneSafe(value) {
   return JSON.parse(JSON.stringify(value));
 }
 let state = loadState();
+const profileCardElements = new Map();
 let serviceRunning = false; // A browser reload must never pretend an Android foreground service is running.
 let activeProfileId = null;
 let dialogAction = null;
@@ -2082,64 +2350,214 @@ function setAppIconSource(image, source) {
   image.src = source || APP_ICON_FALLBACK;
 }
 
-function renderGames() {
+function createGameProfileCard(game) {
+  const card = document.createElement("article");
+  card.className = "game-profile-card game-profile-card--grid";
+  card.dataset.profileId = game.id;
+  card.dataset.flipId = game.id;
+
+  const select = document.createElement("button");
+  select.type = "button";
+  select.className = "game-profile-card__select";
+  select.addEventListener("click", () => selectGame(card.dataset.profileId));
+
+  const image = document.createElement("img");
+  image.className = "game-profile-card__image";
+  image.alt = "";
+  image.loading = "lazy";
+
+  const selectedLabel = document.createElement("span");
+  selectedLabel.className = "selected-label";
+  selectedLabel.textContent = "Selected profile";
+
+  const title = document.createElement("h2");
+  title.className = "game-profile-card__title";
+
+  const subtitle = document.createElement("span");
+  subtitle.className = "game-profile-card__subtitle";
+
+  select.append(image, selectedLabel, title, subtitle);
+
+  const menu = document.createElement("button");
+  menu.type = "button";
+  menu.className = "tile-menu game-profile-card__menu";
+  menu.setAttribute("aria-label", "Profile actions");
+  const menuIcon = document.createElement("span");
+  menuIcon.className = "material-symbols-rounded";
+  menuIcon.textContent = "more_vert";
+  menu.append(menuIcon);
+  menu.addEventListener("click", event => {
+    event.stopPropagation();
+    const profile = games().find(item => item.id === card.dataset.profileId);
+    if (profile) showProfileActions(profile.id);
+  });
+
+  const actions = document.createElement("div");
+  actions.className = "featured-actions";
+
+  const activate = document.createElement("button");
+  activate.type = "button";
+  activate.className = "filled-button";
+  activate.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>Activate profile';
+  activate.addEventListener("click", event => {
+    event.stopPropagation();
+    if (card.dataset.profileId === state.selectedId) activateSelected();
+  });
+
+  const edit = document.createElement("button");
+  edit.type = "button";
+  edit.className = "tonal-button";
+  edit.innerHTML = '<span class="material-symbols-rounded">tune</span>Edit controls';
+  edit.addEventListener("click", event => {
+    event.stopPropagation();
+    const profile = games().find(item => item.id === card.dataset.profileId);
+    if (profile) showEditorBoundary(profile);
+  });
+
+  actions.append(activate, edit);
+  card.append(select, menu, actions);
+  return card;
+}
+
+function updateGameProfileCard(card, game, isFeatured) {
+  card.className = isFeatured
+    ? "game-profile-card game-profile-card--featured featured"
+    : "game-profile-card game-profile-card--grid";
+  card.dataset.profileId = game.id;
+  card.dataset.flipId = game.id;
+  card.setAttribute("aria-label", game.name + " profile");
+
+  const select = card.querySelector(".game-profile-card__select");
+  select.setAttribute("aria-label", isFeatured ? "Selected profile: " + game.name : "Select " + game.name);
+  select.setAttribute("aria-pressed", String(isFeatured));
+
+  const image = card.querySelector(".game-profile-card__image");
+  if (image.dataset.source !== (game.image || "")) {
+    image.dataset.source = game.image || "";
+    setAppIconSource(image, game.image);
+  }
+
+  card.querySelector(".game-profile-card__title").textContent = game.name;
+  card.querySelector(".game-profile-card__subtitle").textContent = "Profile · " + game.profileName;
+
+  const menu = card.querySelector(".game-profile-card__menu");
+  menu.className = (isFeatured ? "feature-menu" : "tile-menu") + " game-profile-card__menu";
+  menu.setAttribute("aria-label", "Actions for " + game.name);
+}
+
+function renderGames({ animateSelection = false } = {}) {
   const grid = byId("gameGrid");
-  grid.replaceChildren();
+  const featuredSlot = byId("featuredSlot");
   const visibleGames = games();
   const current = selectedGame();
+
+  const existingCards = [...profileCardElements.values()].filter(card => card.isConnected);
+  let flipState = null;
+  const canFlip = animateSelection &&
+    existingCards.length > 0 &&
+    window.gsap &&
+    window.Flip &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (canFlip) {
+    const motionTargets = existingCards.flatMap(card => [
+      card.querySelector(".selected-label"),
+      card.querySelector(".featured-actions")
+    ]).filter(Boolean);
+    window.gsap.killTweensOf(motionTargets);
+    try {
+      flipState = window.Flip.getState(existingCards);
+    } catch (error) {
+      console.warn("XtMapper profile FLIP state capture failed; using an immediate layout update.", error);
+    }
+  }
+
+  const visibleIds = new Set(visibleGames.map(game => game.id));
+  for (const [id, card] of profileCardElements) {
+    if (!visibleIds.has(id)) {
+      card.remove();
+      profileCardElements.delete(id);
+    }
+  }
+
+  grid.replaceChildren();
+  featuredSlot.replaceChildren();
+  featuredSlot.hidden = !current;
   byId("addGameButton").hidden = visibleGames.length === 0;
-  byId("featuredCard").hidden = !current;
   byId("emptyLibrary").style.display = current ? "none" : "block";
+
   if (!current) {
     grid.style.display = "none";
     return;
   }
-  grid.style.display = games().length > 1 ? "grid" : "none";
-  byId("featuredTitle").textContent = current.name;
-  const featuredImage = byId("featuredImage");
-  featuredImage.alt = `${current.name} app icon`;
-  setAppIconSource(featuredImage, current.image);
 
-  games().filter(game => game.id !== current.id).forEach(game => {
-    const wrap = document.createElement("article");
-    wrap.className = "game-tile-wrap";
-    const select = document.createElement("button");
-    select.type = "button";
-    select.className = "game-tile";
-    select.setAttribute("aria-label", `Select ${game.name}`);
-    select.addEventListener("click", () => selectGame(game.id));
-    const image = document.createElement("img");
-    image.alt = "";
-    image.loading = "lazy";
-    setAppIconSource(image, game.image);
-    const info = document.createElement("span");
-    info.className = "tile-info";
-    const title = document.createElement("span");
-    title.className = "tile-title";
-    title.textContent = game.name;
-    const subtitle = document.createElement("span");
-    subtitle.className = "tile-subtitle";
-    subtitle.textContent = `Profile · ${game.profileName}`;
-    info.append(title, subtitle);
-    select.append(image, info);
-    const menu = document.createElement("button");
-    menu.type = "button";
-    menu.className = "tile-menu";
-    menu.setAttribute("aria-label", `Actions for ${game.name}`);
-    menu.innerHTML = '<span class="material-symbols-rounded">more_vert</span>';
-    menu.addEventListener("click", event => { event.stopPropagation(); showProfileActions(game.id); });
-    wrap.append(select, menu);
-    grid.append(wrap);
-  });
+  grid.style.display = visibleGames.length > 1 ? "grid" : "none";
+
+  let featuredCard = null;
+  for (const game of visibleGames) {
+    let card = profileCardElements.get(game.id);
+    if (!card) {
+      card = createGameProfileCard(game);
+      profileCardElements.set(game.id, card);
+    }
+
+    const isFeatured = game.id === current.id;
+    updateGameProfileCard(card, game, isFeatured);
+
+    if (isFeatured) {
+      featuredCard = card;
+      featuredSlot.append(card);
+    } else {
+      grid.append(card);
+    }
+  }
+
+  if (flipState && featuredCard) {
+    const flipTargets = existingCards.filter(card => card.isConnected);
+    const selectedLabel = featuredCard.querySelector(".selected-label");
+    const featuredActions = featuredCard.querySelector(".featured-actions");
+
+    try {
+      const flip = window.Flip.from(flipState, {
+        targets: flipTargets,
+        duration: 0.76,
+        ease: "power3.inOut",
+        scale: true,
+        simple: true,
+        onStart: () => window.gsap.set(flipTargets, { willChange: "transform" }),
+        onComplete: () => window.gsap.set(flipTargets, { clearProps: "willChange" }),
+        onInterrupt: () => window.gsap.set(flipTargets, { clearProps: "willChange" })
+      });
+
+      window.gsap.fromTo(
+        [selectedLabel, featuredActions],
+        { autoAlpha: 0, y: 10 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.34,
+          delay: 0.2,
+          stagger: 0.055,
+          ease: "power2.out",
+          overwrite: "auto"
+        }
+      );
+      return flip;
+    } catch (error) {
+      console.warn("XtMapper profile FLIP animation failed; keeping the updated profile layout.", error);
+    }
+  }
 }
+
 function selectGame(id) {
   const game = games().find(item => item.id === id);
-  if (!game) return;
+  if (!game || id === state.selectedId) return;
+
   state.selectedId = id;
   state.designatedProfiles[game.packageName] = game.profileName;
   persistState();
-  renderGames();
-  showToast(`${game.name} profile selected`);
+  renderGames({ animateSelection: true });
+  showToast(game.name + " profile selected");
 }
 
 function updateService() {
@@ -3084,9 +3502,6 @@ byId("mainMenu").querySelectorAll("[data-action]").forEach(item => item.addEvent
   if (action === "import-export") showImportExport();
 }));
 byId("serviceButton").addEventListener("click", toggleService);
-byId("activateButton").addEventListener("click", activateSelected);
-byId("featuredMenu").addEventListener("click", () => { if (selectedGame()) showProfileActions(state.selectedId); });
-byId("editFeaturedButton").addEventListener("click", () => { if (selectedGame()) showEditorBoundary(selectedGame()); });
 byId("addGameButton").addEventListener("click", () => openAppPicker("create"));
 byId("emptyAddGameButton").addEventListener("click", () => openAppPicker("create"));
 byId("emptyImportButton").addEventListener("click", openProfileZipPicker);
