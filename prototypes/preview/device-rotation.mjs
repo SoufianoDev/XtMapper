@@ -524,8 +524,9 @@ export function installDeviceRotation(DevicePreview) {
 
     // Measure the target layout without replacing the live iframe or changing
     // the visible frame. The same iframe node stays mounted throughout motion.
+    const previousStageRect = this.stage.getBoundingClientRect();
+    let targetStageCenterY = previousStageRect.top + previousStageRect.height / 2;
     let targetScale = previousScale;
-    let targetFitBounds = previousFitBounds;
     try {
       this.currentViewport = nextViewport;
       this.orientation = nextOrientation;
@@ -533,7 +534,8 @@ export function installDeviceRotation(DevicePreview) {
       setOrientationClasses(nextOrientation);
       this.fitCurrentFrame();
       targetScale = this.previewScale || previousScale;
-      targetFitBounds = this.previewFitBounds || previousFitBounds;
+      const targetStageRect = this.stage.getBoundingClientRect();
+      targetStageCenterY = targetStageRect.top + targetStageRect.height / 2;
     } finally {
       this.currentViewport = previousViewport;
       this.orientation = previousOrientation;
@@ -555,16 +557,13 @@ export function installDeviceRotation(DevicePreview) {
     const viewportHeight = window.visualViewport
       ? Math.min(window.innerHeight, window.visualViewport.height)
       : window.innerHeight;
-    const stageRect = this.stage.getBoundingClientRect();
-    const stageCenterY = stageRect.top + stageRect.height / 2;
+    const previousStageCenterY = previousStageRect.top + previousStageRect.height / 2;
+    const stageCenterY = (previousStageCenterY + targetStageCenterY) / 2;
     const topCenteredSpace = Math.max(1, stageCenterY - 28);
     const bottomCenteredSpace = Math.max(1, viewportHeight - stageCenterY - 28);
     const rotationFitBounds = {
       width: Math.max(1, this.preview.clientWidth - 24),
-      height: Math.max(
-        1,
-        Math.min(topCenteredSpace * 2, bottomCenteredSpace * 2)
-      )
+      height: Math.max(1, Math.min(topCenteredSpace * 2, bottomCenteredSpace * 2))
     };
     // Use the same diagonal-fit bounds in both directions. Orientation-specific
     // layout heights differ substantially, but the physical rotating device
