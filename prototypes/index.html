@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&icon_names=check,close,devices_other,info,keyboard,mouse,notifications,refresh,settings,sports_esports,tune,usb&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400,0,0&icon_names=check,close,delete,devices_other,info,keyboard,mouse,notifications,refresh,settings,sports_esports,tune,usb&display=block" rel="stylesheet">
 <style>
 :root {
   color-scheme: dark;
@@ -433,6 +433,18 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 }
 .prototype-device-actions .material-symbols-rounded { font-size: 17px; }
 .prototype-device-actions button:disabled { opacity: .42; cursor: not-allowed; }
+.prototype-clear-data-button {
+  flex: 1 1 100% !important;
+  border-color: rgba(239,82,106,.38) !important;
+  color: #ffdbe0 !important;
+  background: rgba(160,30,59,.2) !important;
+}
+.prototype-clear-data-button:hover {
+  border-color: rgba(255,119,142,.7) !important;
+  background: rgba(160,30,59,.32) !important;
+}
+.prototype-clear-data-button .material-symbols-rounded { font-size: 17px; }
+.prototype-clear-data-button:disabled { opacity: .42; cursor: wait; }
 .panel-footer {
   flex: 0 0 auto;
   padding: 11px 16px 13px;
@@ -608,6 +620,20 @@ button:focus-visible, select:focus-visible, input:focus-visible {
             <button type="button" id="refreshBrowserDevicesButton"><span class="material-symbols-rounded">refresh</span>Refresh</button>
           </div>
         </div>
+
+        <div class="capability prototype-app-data" aria-live="polite">
+          <div class="capability-head">
+            <span class="capability-title">App data</span>
+            <span class="capability-state" id="prototypeAppDataStatus">Saved profiles and settings</span>
+          </div>
+          <p class="capability-description">Clear saved profiles, editor settings and simulated Android permissions, then restart the preview with an empty first-launch library. Browser permissions and the selected device frame are kept.</p>
+          <div class="capability-actions">
+            <button type="button" class="prototype-clear-data-button" id="clearPrototypeAppDataButton">
+              <span class="material-symbols-rounded">delete</span>
+              Clear app data
+            </button>
+          </div>
+        </div>
       </section>
 
       <section class="group" aria-labelledby="browserGroupTitle">
@@ -703,6 +729,11 @@ window.addEventListener("message", event => {
 activityFrame.addEventListener("load", () => {
   requestActivityState();
   sendBrowserDeviceSnapshot();
+  if (appDataResetPending) {
+    appDataResetPending = false;
+    if (clearPrototypeAppDataButton) clearPrototypeAppDataButton.disabled = false;
+    if (prototypeAppDataStatus) prototypeAppDataStatus.textContent = "App data reset · empty library";
+  }
   window.setTimeout(() => {
     requestActivityState();
     sendBrowserDeviceSnapshot();
@@ -899,6 +930,41 @@ if (navigator.hid?.addEventListener) {
   navigator.hid.addEventListener("disconnect", refreshBrowserDevices);
 }
 refreshBrowserDevices();
+
+/* Clear only XtMapper app-state keys; keep the preview device and browser permissions. */
+const APP_DATA_STORAGE_KEYS = [
+  "xtmapper-main-prototype-v10",
+  "xtmapper-main-prototype-v9",
+  "xtmapper-main-prototype-v8"
+];
+const clearPrototypeAppDataButton = document.getElementById("clearPrototypeAppDataButton");
+const prototypeAppDataStatus = document.getElementById("prototypeAppDataStatus");
+let appDataResetPending = false;
+
+function clearPrototypeAppData() {
+  const confirmed = window.confirm(
+    "Clear saved XtMapper app data? This removes saved profiles, editor settings and simulated Android permissions, then restarts with an empty app library. Browser permissions and device preview settings will be kept."
+  );
+  if (!confirmed) return;
+
+  try {
+    APP_DATA_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+    const remainingKeys = APP_DATA_STORAGE_KEYS.filter(key => localStorage.getItem(key) !== null);
+    if (remainingKeys.length) throw new Error("Some app data keys could not be removed.");
+
+    appDataResetPending = true;
+    if (clearPrototypeAppDataButton) clearPrototypeAppDataButton.disabled = true;
+    if (prototypeAppDataStatus) prototypeAppDataStatus.textContent = "Cleared · restarting preview";
+    activityFrame.contentWindow.location.reload();
+  } catch (error) {
+    appDataResetPending = false;
+    if (clearPrototypeAppDataButton) clearPrototypeAppDataButton.disabled = false;
+    if (prototypeAppDataStatus) prototypeAppDataStatus.textContent = "Unable to clear app data";
+    console.error("XtMapper prototype app-data reset failed.", error);
+  }
+}
+
+clearPrototypeAppDataButton?.addEventListener("click", clearPrototypeAppData);
 
 /* Browser capabilities belong to this top-level web page, not the Activity iframe. */
 const notificationState = document.querySelector('[data-state-label="browserNotificationState"]');
