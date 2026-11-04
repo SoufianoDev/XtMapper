@@ -501,6 +501,18 @@ button:focus-visible, select:focus-visible, input:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Keep every Workspace scroll area functional without exposing browser-native scrollbars. */
+:where(*) {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+:where(*)::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 </style>
 </head>
 <body>
@@ -1053,8 +1065,11 @@ refreshBrowserCapabilities();
 
 <script type="module">
 import { DevicePreview } from "./preview/device-preview.mjs";
+import { TouchPreviewBridge } from "./preview/touch-preview-bridge.mjs";
 
 const devicePreview = new DevicePreview();
+const touchPreviewBridge = new TouchPreviewBridge();
+touchPreviewBridge.init();
 devicePreview.init().catch(function (error) {
   console.error("Device preview initialization failed.", error);
 });
