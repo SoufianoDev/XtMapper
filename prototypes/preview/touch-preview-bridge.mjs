@@ -1,27 +1,49 @@
-const activityFrame = document.getElementById("activityFrame");
-const previewOrigin = window.location.origin;
+export class TouchPreviewBridge {
+  constructor() {
+    this.frame = document.getElementById("activityFrame");
+    this.origin = window.location.origin;
+    this.activeGesture = null;
+    this.initialized = false;
+    this.handleMessage = this.handleMessage.bind(this);
+    this.handleFrameLeave = this.handleFrameLeave.bind(this);
+    this.handlePointerUp = this.handlePointerUp.bind(this);
+    this.handlePointerCancel = this.handlePointerCancel.bind(this);
+    this.handleBlur = this.handleBlur.bind(this);
+    this.handleVisibilityChange = this.handleVisibilityChange.bind(this);
+    this.handleFrameLoad = this.handleFrameLoad.bind(this);
+  }
 
-if (activityFrame) {
-  let activeGesture = null;
+  init() {
+    if (this.initialized || !this.frame) return;
+    this.initialized = true;
 
-  function cancelActivityGesture(reason) {
-    if (!activeGesture) return;
+    window.addEventListener("message", this.handleMessage);
+    this.frame.addEventListener("pointerleave", this.handleFrameLeave);
+    window.addEventListener("pointerup", this.handlePointerUp, true);
+    window.addEventListener("pointercancel", this.handlePointerCancel, true);
+    window.addEventListener("blur", this.handleBlur);
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
+    this.frame.addEventListener("load", this.handleFrameLoad);
+  }
 
-    const gesture = activeGesture;
-    activeGesture = null;
+  cancel(reason) {
+    if (!this.activeGesture) return;
 
-    activityFrame.contentWindow?.postMessage(
+    const gesture = this.activeGesture;
+    this.activeGesture = null;
+
+    this.frame.contentWindow?.postMessage(
       {
         type: "xtmapper-touch-cancel",
         pointerId: gesture.pointerId,
         reason
       },
-      previewOrigin
+      this.origin
     );
   }
 
-  window.addEventListener("message", event => {
-    if (event.source !== activityFrame.contentWindow || event.origin !== previewOrigin) return;
+  handleMessage(event) {
+    if (event.source !== this.frame.contentWindow || event.origin !== this.origin) return;
 
     const message = event.data;
     if (!message || typeof message !== "object") return;
@@ -29,30 +51,30 @@ if (activityFrame) {
     if (message.type === "xtmapper-touch-gesture-start" &&
         message.pointerType === "mouse" &&
         Number.isInteger(message.pointerId)) {
-      activeGesture = { pointerId: message.pointerId };
+      this.activeGesture = { pointerId: message.pointerId };
       return;
     }
 
     if ((message.type === "xtmapper-touch-gesture-end" ||
          message.type === "xtmapper-touch-gesture-cancelled") &&
-        activeGesture &&
-        message.pointerId === activeGesture.pointerId) {
-      activeGesture = null;
+        this.activeGesture &&
+        message.pointerId === this.activeGesture.pointerId) {
+      this.activeGesture = null;
     }
-  });
+  }
 
-  activityFrame.addEventListener("pointerleave", event => {
-    if (activeGesture &&
+  handleFrameLeave(event) {
+    if (this.activeGesture &&
         (typeof event.pointerId !== "number" ||
-         event.pointerId === activeGesture.pointerId)) {
-      cancelActivityGesture("left-device-screen");
+         event.pointerId === this.activeGesture.pointerId)) {
+      this.cancel("left-device-screen");
     }
-  });
+  }
 
-  window.addEventListener("pointerup", event => {
-    if (!activeGesture || event.pointerId !== activeGesture.pointerId) return;
+  handlePointerUp(event) {
+    if (!this.activeGesture || event.pointerId !== this.activeGesture.pointerId) return;
 
-    const rect = activityFrame.getBoundingClientRect();
+    const rect = this.frame.getBoundingClientRect();
     const releasedInsideFrame =
       event.clientX >= rect.left &&
       event.clientX <= rect.right &&
@@ -60,22 +82,38 @@ if (activityFrame) {
       event.clientY <= rect.bottom;
 
     if (!releasedInsideFrame) {
-      cancelActivityGesture("released-outside-device-screen");
+      this.cancel("released-outside-device-screen");
     }
-  }, true);
+  }
 
-  window.addEventListener("pointercancel", event => {
-    if (activeGesture && event.pointerId === activeGesture.pointerId) {
-      cancelActivityGesture("parent-pointer-cancel");
+  handlePointerCancel(event) {
+    if (this.activeGesture && event.pointerId === this.activeGesture.pointerId) {
+      this.cancel("parent-pointer-cancel");
     }
-  }, true);
+  }
 
-  window.addEventListener("blur", () => cancelActivityGesture("window-blur"));
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) cancelActivityGesture("document-hidden");
-  });
+  handleBlur() {
+    this.cancel("window-blur");
+  }
 
-  activityFrame.addEventListener("load", () => {
-    cancelActivityGesture("activity-frame-reloaded");
-  });
+  handleVisibilityChange() {
+    if (document.hidden) this.cancel("document-hidden");
+  }
+
+  handleFrameLoad() {
+    this.cancel("activity-frame-reloaded");
+  }
+
+  destroy() {
+    if (!this.initialized) return;
+    this.cancel("bridge-destroyed");
+    window.removeEventListener("message", this.handleMessage);
+    this.frame.removeEventListener("pointerleave", this.handleFrameLeave);
+    window.removeEventListener("pointerup", this.handlePointerUp, true);
+    window.removeEventListener("pointercancel", this.handlePointerCancel, true);
+    window.removeEventListener("blur", this.handleBlur);
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+    this.frame.removeEventListener("load", this.handleFrameLoad);
+    this.initialized = false;
+  }
 }
