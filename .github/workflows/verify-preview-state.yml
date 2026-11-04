@@ -643,6 +643,7 @@ jobs:
               localStorage.getItem('xtmapper.device-preview.state.v1')
             );
 
+            page.removeAllListeners('dialog');
             const appDataResetDialogPromise = page.waitForEvent('dialog');
             await page.locator('#clearPrototypeAppDataButton').click();
             const appDataResetDialog = await appDataResetDialogPromise;
