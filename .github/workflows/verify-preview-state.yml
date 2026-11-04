@@ -636,6 +636,81 @@ jobs:
                 !win.gsap.isTweening(doc.querySelector('#gameGrid [data-profile-id="sample-2"]'));
             }, null, { timeout: 5000 });
 
+            // Clearing app data must restore the first-launch empty library without
+            // resetting the independently persisted device-preview configuration.
+            const previewStateBeforeAppReset = await page.evaluate(() =>
+              localStorage.getItem('xtmapper.device-preview.state.v1')
+            );
+
+            const appDataResetDialogPromise = page.waitForEvent('dialog');
+            await page.locator('#clearPrototypeAppDataButton').click();
+            const appDataResetDialog = await appDataResetDialogPromise;
+            if (appDataResetDialog.type() !== 'confirm') {
+              throw new Error('Clear app data must ask for confirmation.');
+            }
+            await appDataResetDialog.accept();
+
+            await page.waitForFunction(() => {
+              const frame = document.querySelector('#activityFrame');
+              const doc = frame?.contentDocument;
+              const addButton = doc?.querySelector('#addGameButton');
+              const emptyLibrary = doc?.querySelector('#emptyLibrary');
+              const resetStatus = document.querySelector('#prototypeAppDataStatus')?.textContent || '';
+              return doc?.readyState === 'complete' &&
+                !!addButton && addButton.hidden === true &&
+                !!emptyLibrary && getComputedStyle(emptyLibrary).display !== 'none' &&
+                document.querySelector('#parentScenario')?.value === 'empty' &&
+                resetStatus.includes('empty library') &&
+                document.querySelector('#clearPrototypeAppDataButton')?.disabled === false;
+            }, null, { timeout: 15000 });
+
+            const appDataResetState = await page.evaluate(() => {
+              const doc = document.querySelector('#activityFrame')?.contentDocument;
+              const saved = JSON.parse(
+                localStorage.getItem('xtmapper-main-prototype-v10') || 'null'
+              );
+              return {
+                currentState: saved && {
+                  scenario: saved.libraryScenario,
+                  gamesCount: Array.isArray(saved.games) ? saved.games.length : null,
+                  selectedId: saved.selectedId
+                },
+                remainingLegacyKeys: [
+                  'xtmapper-main-prototype-v9',
+                  'xtmapper-main-prototype-v8'
+                ].filter(key => localStorage.getItem(key) !== null),
+                previewState: localStorage.getItem('xtmapper.device-preview.state.v1'),
+                selectedDevice: document.querySelector('#devicePreset')?.value,
+                parentScenario: document.querySelector('#parentScenario')?.value,
+                addGamesHidden: doc?.querySelector('#addGameButton')?.hidden,
+                emptyLibraryVisible: !!doc?.querySelector('#emptyLibrary') &&
+                  getComputedStyle(doc.querySelector('#emptyLibrary')).display !== 'none',
+                profileCardCount: doc?.querySelectorAll(
+                  '#gameGrid .game-profile-card, #featuredSlot .game-profile-card'
+                ).length
+              };
+            });
+
+            if (appDataResetState.remainingLegacyKeys.length ||
+                appDataResetState.previewState !== previewStateBeforeAppReset ||
+                appDataResetState.selectedDevice !== 'google-pixel-10-pro' ||
+                appDataResetState.parentScenario !== 'empty' ||
+                appDataResetState.addGamesHidden !== true ||
+                !appDataResetState.emptyLibraryVisible ||
+                appDataResetState.profileCardCount !== 0 ||
+                (appDataResetState.currentState &&
+                  (appDataResetState.currentState.scenario !== 'empty' ||
+                   appDataResetState.currentState.gamesCount !== 0 ||
+                   appDataResetState.currentState.selectedId !== ''))) {
+              throw new Error(
+                'Clear app data must restore a blank first-launch library and preserve preview-device settings: ' +
+                JSON.stringify(appDataResetState)
+              );
+            }
+
+            console.log('PROTOTYPE_APP_DATA_RESET_PASSED');
+            console.log('FRESH_VISITOR_EMPTY_LIBRARY_PASSED');
+
             console.log('DEVICE_PREVIEW_STATE_PERSISTENCE_PASSED');
             console.log('PROFILE_LIBRARY_ADD_BUTTON_VISIBILITY_PASSED');
             console.log('PROFILE_CARD_FLIP_SWAP_PASSED');
