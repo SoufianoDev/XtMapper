@@ -24,6 +24,7 @@ if (!app || !mainScroller) {
   let gesture = null;
   let inertiaTween = null;
   let suppressNextClick = false;
+  let cancelledPointerId = null;
 
   function setCursorPosition(event) {
     const rect = app.getBoundingClientRect();
@@ -121,6 +122,8 @@ if (!app || !mainScroller) {
       return;
     }
 
+    cancelledPointerId = null;
+    suppressNextClick = false;
     stopInertia();
     showCursor(event);
 
@@ -262,6 +265,7 @@ if (!app || !mainScroller) {
     }
 
     if (cancelled) {
+      cancelledPointerId = completedGesture.pointerId;
       stopInertia();
       hideCursor();
       window.parent.postMessage({
@@ -291,7 +295,16 @@ if (!app || !mainScroller) {
     passive: false
   });
   document.addEventListener("pointerdown", beginGesture, true);
-  document.addEventListener("pointerup", event => finishGesture(event), true);
+  document.addEventListener("pointerup", event => {
+    if (cancelledPointerId === event.pointerId) {
+      cancelledPointerId = null;
+      suppressNextClick = true;
+      window.setTimeout(() => {
+        suppressNextClick = false;
+      }, 0);
+    }
+    finishGesture(event);
+  }, true);
   document.addEventListener("pointercancel", event => {
     finishGesture(event, true, "pointer-cancelled");
   }, true);
