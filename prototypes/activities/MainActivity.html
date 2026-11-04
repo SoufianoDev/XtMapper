@@ -2105,6 +2105,11 @@ html.touch-preview-pressed #app :not(input):not(textarea):not(select):not([conte
   -webkit-user-select: none !important;
   user-select: none !important;
 }
+html.touch-preview-pressed #app :is(input, textarea, select, [contenteditable], [role="textbox"]),
+html.touch-preview-pressed #app [contenteditable] * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
 .touch-preview-cursor {
   position: absolute;
   z-index: 2147483647;
