@@ -60,20 +60,9 @@ if (!app || !mainScroller) {
 
   function hideCursor() {
     html.classList.remove("touch-preview-pointer");
-
-    if (gsap) {
-      gsap.to(cursor, {
-        autoAlpha: 0,
-        duration: reduceMotion ? 0 : 0.09,
-        overwrite: "auto",
-        onComplete: () => {
-          if (!html.classList.contains("touch-preview-pointer")) cursor.hidden = true;
-        }
-      });
-    } else {
-      cursor.style.opacity = "0";
-      cursor.hidden = true;
-    }
+    gsap?.killTweensOf(cursor, "autoAlpha");
+    cursor.hidden = true;
+    cursor.style.opacity = "0";
   }
 
   function stopInertia() {
