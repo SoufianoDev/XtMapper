@@ -644,13 +644,15 @@ jobs:
             );
 
             page.removeAllListeners('dialog');
-            const appDataResetDialogPromise = page.waitForEvent('dialog');
+            const appDataResetDialogPromise = page.waitForEvent('dialog').then(async dialog => {
+              if (dialog.type() !== 'confirm') {
+                throw new Error('Clear app data must ask for confirmation.');
+              }
+              await dialog.accept();
+              return dialog;
+            });
             await page.locator('#clearPrototypeAppDataButton').click();
-            const appDataResetDialog = await appDataResetDialogPromise;
-            if (appDataResetDialog.type() !== 'confirm') {
-              throw new Error('Clear app data must ask for confirmation.');
-            }
-            await appDataResetDialog.accept();
+            await appDataResetDialogPromise;
 
             await page.waitForFunction(() => {
               const frame = document.querySelector('#activityFrame');
