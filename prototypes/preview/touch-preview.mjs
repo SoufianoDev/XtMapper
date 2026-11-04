@@ -376,45 +376,46 @@ if (!app || !mainScroller) {
 
   if (gsap && ScrollTrigger) {
     gsap.registerPlugin(ScrollTrigger);
-    const revealContexts = [];
-    const revealedElements = new WeakSet();
     const revealSelector = ".section-heading, .service-row, .data-row, .game-profile-card--grid";
-
-    function addRevealTriggers(root = mainScroller) {
-      const candidates = [];
-      if (root instanceof Element && root.matches(revealSelector)) candidates.push(root);
-      if (root.querySelectorAll) candidates.push(...root.querySelectorAll(revealSelector));
-
-      for (const element of candidates) {
-        if (revealedElements.has(element)) continue;
-        revealedElements.add(element);
-
-        const context = gsap.context(() => {
-          gsap.fromTo(element, {
-            autoAlpha: 0,
-            y: 12
-          }, {
-            autoAlpha: 1,
-            y: 0,
-            duration: 0.42,
-            ease: "power2.out",
-            overwrite: "auto",
-            scrollTrigger: {
-              trigger: element,
-              scroller: mainScroller,
-              start: "top 93%",
-              toggleActions: "play none none none",
-              once: true
-            }
-          });
-        }, element);
-
-        revealContexts.push(context);
-      }
-    }
-
     const motionMedia = gsap.matchMedia();
+
     motionMedia.add("(prefers-reduced-motion: no-preference)", () => {
+      const revealContexts = [];
+      const revealedElements = new WeakSet();
+
+      function addRevealTriggers(root = mainScroller) {
+        const candidates = [];
+        if (root instanceof Element && root.matches(revealSelector)) candidates.push(root);
+        if (root.querySelectorAll) candidates.push(...root.querySelectorAll(revealSelector));
+
+        for (const element of candidates) {
+          if (revealedElements.has(element)) continue;
+          revealedElements.add(element);
+
+          const context = gsap.context(() => {
+            gsap.fromTo(element, {
+              autoAlpha: 0,
+              y: 12
+            }, {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.42,
+              ease: "power2.out",
+              overwrite: "auto",
+              scrollTrigger: {
+                trigger: element,
+                scroller: mainScroller,
+                start: "top 93%",
+                toggleActions: "play none none none",
+                once: true
+              }
+            });
+          }, element);
+
+          revealContexts.push(context);
+        }
+      }
+
       addRevealTriggers();
 
       let refreshFrame = 0;
@@ -435,7 +436,9 @@ if (!app || !mainScroller) {
         refreshFrame = requestAnimationFrame(() => ScrollTrigger.refresh());
       });
 
+      const handleImageLoad = () => ScrollTrigger.refresh();
       observer.observe(mainScroller, { childList: true, subtree: true });
+      document.addEventListener("load", handleImageLoad, true);
 
       if (document.fonts?.ready) {
         document.fonts.ready.then(() => {
@@ -443,10 +446,9 @@ if (!app || !mainScroller) {
         });
       }
 
-      mainScroller.addEventListener("load", () => ScrollTrigger.refresh(), true);
-
       return () => {
         observer.disconnect();
+        document.removeEventListener("load", handleImageLoad, true);
         cancelAnimationFrame(refreshFrame);
         revealContexts.splice(0).forEach(context => context.revert());
       };
