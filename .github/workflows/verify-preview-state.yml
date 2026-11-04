@@ -847,7 +847,55 @@ jobs:
             }
 
             const target = frame.locator('#touch-preview-regression-target');
-            await target.click();
+            const tapTargetBox = await target.boundingBox();
+            if (!tapTargetBox) {
+              throw new Error('The touch regression target is not visible for a tap.');
+            }
+
+            const tapReadiness = await target.evaluate(button => {
+              const rect = button.getBoundingClientRect();
+              const hit = button.ownerDocument.elementFromPoint(
+                rect.left + rect.width / 2,
+                rect.top + rect.height / 2
+              );
+              const style = getComputedStyle(button);
+              return {
+                visible: rect.width > 0 && rect.height > 0 &&
+                  style.display !== 'none' &&
+                  style.visibility !== 'hidden' &&
+                  Number.parseFloat(style.opacity) > 0,
+                enabled: !button.disabled,
+                receivesPointer: hit === button || button.contains(hit),
+                pointerEvents: style.pointerEvents
+              };
+            });
+            if (!tapReadiness.visible ||
+                !tapReadiness.enabled ||
+                !tapReadiness.receivesPointer ||
+                tapReadiness.pointerEvents === 'none') {
+              throw new Error(
+                'The tap target must be visible, enabled and receive pointer input: ' +
+                JSON.stringify(tapReadiness)
+              );
+            }
+
+            // This suite verifies the device's raw mouse-to-touch simulation.
+            // Use the mouse API directly so locator.click() does not add a second,
+            // unrelated bounding-box stability gate before sending the pointer input.
+            const tapPoint = {
+              x: tapTargetBox.x + tapTargetBox.width / 2,
+              y: tapTargetBox.y + tapTargetBox.height / 2
+            };
+            await page.mouse.move(tapPoint.x, tapPoint.y);
+            await page.mouse.down();
+            await page.mouse.up();
+
+            await page.waitForFunction(() => {
+              const button = document.querySelector('#activityFrame')?.contentDocument
+                ?.querySelector('#touch-preview-regression-target');
+              return button?.dataset.clickCount === '1';
+            }, null, { timeout: 5000 });
+
             const tapCount = await target.getAttribute('data-click-count');
             if (tapCount !== '1') {
               throw new Error('A short mouse press inside the device must remain a normal tap.');
