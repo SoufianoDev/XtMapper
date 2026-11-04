@@ -911,10 +911,12 @@ jobs:
               { steps: 5 }
             );
 
-            await page.waitForFunction(() => {
-              const win = document.querySelector('#activityFrame')?.contentWindow;
-              return win?.__xtmapperTouchPreview?.state === 'idle';
-            }, null, { timeout: 5000 });
+            const cursorHiddenOnExit = await frame.locator('#app').evaluate(app =>
+              app.querySelector('.touch-preview-cursor')?.hidden === true
+            );
+            if (!cursorHiddenOnExit) {
+              throw new Error('The touch cursor must disappear immediately after leaving the device screen.');
+            }
 
             await page.mouse.move(
               freshTargetBox.x + freshTargetBox.width / 2,
@@ -927,16 +929,16 @@ jobs:
 
             const exitResult = await frame.locator('#app').evaluate(app => ({
               state: window.__xtmapperTouchPreview.state,
-              cursorHidden: app.querySelector('.touch-preview-cursor')?.hidden === true,
+              pressedClassRemoved: !app.ownerDocument.documentElement.classList.contains('touch-preview-pressed'),
               clickCount: Number(app.querySelector('#touch-preview-regression-target')?.dataset.clickCount)
             }));
             if (stateWhileReentered !== 'idle' ||
                 exitResult.state !== 'idle' ||
-                !exitResult.cursorHidden ||
+                !exitResult.pressedClassRemoved ||
                 exitResult.clickCount !== 1) {
               throw new Error(
                 'Leaving the device screen must cancel the gesture and must not resume on re-entry: ' +
-                JSON.stringify({ stateWhileReentered, exitResult })
+                JSON.stringify({ cursorHiddenOnExit, stateWhileReentered, exitResult })
               );
             }
 
