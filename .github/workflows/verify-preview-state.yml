@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "ui/main-activity-premium-redesign"
+      - "feat/touch-preview-scrollbar"
     paths:
       - "prototypes/**"
       - ".github/workflows/verify-preview-state.yml"
@@ -733,6 +734,247 @@ jobs:
             }, null, 2));
           } finally {
             await context.close();
+            await browser.close();
+          }
+          NODE
+
+      - name: Verify touch simulation and scrollbar presentation
+        run: |
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+
+          const browser = await chromium.launch({
+            headless: true,
+            args: ['--no-sandbox']
+          });
+          const page = await browser.newPage({
+            viewport: { width: 1440, height: 1000 }
+          });
+          const pageErrors = [];
+          page.on('pageerror', error => pageErrors.push(error.message));
+
+          try {
+            await page.goto('http://127.0.0.1:4173/', {
+              waitUntil: 'domcontentloaded'
+            });
+
+            await page.waitForFunction(() => {
+              const frame = document.querySelector('#activityFrame');
+              const win = frame?.contentWindow;
+              return win?.__xtmapperTouchPreviewReady === true &&
+                win?.__xtmapperScrollTriggerReady === true;
+            }, null, { timeout: 20000 });
+
+            const frame = page.frameLocator('#activityFrame');
+            const workspaceScrollbar = await page.locator('.panel-content').evaluate(element => ({
+              width: getComputedStyle(element).scrollbarWidth,
+              webkitDisplay: getComputedStyle(element, '::-webkit-scrollbar').display
+            }));
+            if (workspaceScrollbar.width !== 'none' ||
+                workspaceScrollbar.webkitDisplay !== 'none') {
+              throw new Error(
+                'Workspace scrollbars must be hidden without disabling scrolling: ' +
+                JSON.stringify(workspaceScrollbar)
+              );
+            }
+
+            const activityScrollbars = await frame.locator('#app.phone > main').evaluate(element => ({
+              width: getComputedStyle(element).scrollbarWidth,
+              webkitWidth: getComputedStyle(element, '::-webkit-scrollbar').width,
+              webkitDisplay: getComputedStyle(element, '::-webkit-scrollbar').display,
+              overflowY: getComputedStyle(element).overflowY
+            }));
+            if (activityScrollbars.width !== 'thin' ||
+                activityScrollbars.webkitWidth !== '4px' ||
+                activityScrollbars.webkitDisplay !== 'block' ||
+                activityScrollbars.overflowY !== 'auto') {
+              throw new Error(
+                'Only the main Activity scroller should retain its visible scrollbar: ' +
+                JSON.stringify(activityScrollbars)
+              );
+            }
+
+            const hiddenActivityScrollbar = await frame.locator('#app').evaluate(app => {
+              const probe = document.createElement('div');
+              probe.style.cssText = 'width:40px;height:32px;overflow:auto;position:absolute;left:-10000px;';
+              probe.innerHTML = '<div style="height:120px;width:80px"></div>';
+              app.append(probe);
+              const result = {
+                width: getComputedStyle(probe).scrollbarWidth,
+                webkitDisplay: getComputedStyle(probe, '::-webkit-scrollbar').display
+              };
+              probe.remove();
+              return result;
+            });
+            if (hiddenActivityScrollbar.width !== 'none' ||
+                hiddenActivityScrollbar.webkitDisplay !== 'none') {
+              throw new Error(
+                'Nested Activity scrollbars must be hidden: ' +
+                JSON.stringify(hiddenActivityScrollbar)
+              );
+            }
+
+            const touchTarget = await frame.locator('#app.phone > main').evaluate(main => {
+              const button = document.createElement('button');
+              button.id = 'touch-preview-regression-target';
+              button.type = 'button';
+              button.textContent = 'Touch preview regression target';
+              button.style.cssText = 'display:block;width:100%;min-height:48px;margin:12px 0;padding:8px;';
+              button.dataset.clickCount = '0';
+              button.addEventListener('click', () => {
+                button.dataset.clickCount = String(Number(button.dataset.clickCount) + 1);
+              });
+              main.prepend(button);
+
+              const filler = document.createElement('div');
+              filler.id = 'touch-preview-regression-filler';
+              filler.setAttribute('aria-hidden', 'true');
+              filler.style.height = '900px';
+              main.append(filler);
+              main.scrollTop = 0;
+
+              return {
+                buttonText: button.textContent,
+                scrollHeight: main.scrollHeight,
+                clientHeight: main.clientHeight
+              };
+            });
+            if (touchTarget.scrollHeight <= touchTarget.clientHeight) {
+              throw new Error('The Activity main scroller must have a real scroll range for gesture tests.');
+            }
+
+            const target = frame.locator('#touch-preview-regression-target');
+            await target.click();
+            const tapCount = await target.getAttribute('data-click-count');
+            if (tapCount !== '1') {
+              throw new Error('A short mouse press inside the device must remain a normal tap.');
+            }
+
+            const targetBox = await target.boundingBox();
+            if (!targetBox) throw new Error('The touch regression target is not visible.');
+
+            await page.mouse.move(
+              targetBox.x + targetBox.width / 2,
+              targetBox.y + targetBox.height / 2
+            );
+            await page.waitForFunction(() => {
+              const frame = document.querySelector('#activityFrame');
+              return frame?.contentDocument?.documentElement.classList.contains('touch-preview-pointer') &&
+                frame.contentDocument.querySelector('.touch-preview-cursor')?.hidden === false;
+            }, null, { timeout: 5000 });
+
+            await page.mouse.down();
+            await page.mouse.move(
+              targetBox.x + targetBox.width / 2,
+              targetBox.y + targetBox.height / 2 - 110,
+              { steps: 8 }
+            );
+            await page.mouse.up();
+
+            await page.waitForFunction(() => {
+              const main = document.querySelector('#activityFrame')?.contentDocument
+                ?.querySelector('#app.phone > main');
+              return main && main.scrollTop > 8;
+            }, null, { timeout: 5000 });
+
+            const dragResult = await target.evaluate(button => ({
+              clickCount: Number(button.dataset.clickCount),
+              mainScrollTop: button.closest('main').scrollTop
+            }));
+            if (dragResult.clickCount !== 1 || dragResult.mainScrollTop <= 8) {
+              throw new Error(
+                'A swipe must scroll the Activity without generating a click: ' +
+                JSON.stringify(dragResult)
+              );
+            }
+
+            await frame.locator('#app.phone > main').evaluate(main => {
+              main.scrollTop = 0;
+            });
+            const freshTargetBox = await target.boundingBox();
+            const iframeBox = await page.locator('#activityFrame').boundingBox();
+            if (!freshTargetBox || !iframeBox) throw new Error('Device preview geometry is unavailable.');
+
+            await page.mouse.move(
+              freshTargetBox.x + freshTargetBox.width / 2,
+              freshTargetBox.y + freshTargetBox.height / 2
+            );
+            await page.mouse.down();
+            await page.waitForFunction(() => {
+              const win = document.querySelector('#activityFrame')?.contentWindow;
+              return win?.__xtmapperTouchPreview?.state === 'pressed';
+            }, null, { timeout: 5000 });
+
+            await page.mouse.move(
+              iframeBox.x + iframeBox.width + 45,
+              iframeBox.y + 120,
+              { steps: 5 }
+            );
+
+            await page.waitForFunction(() => {
+              const win = document.querySelector('#activityFrame')?.contentWindow;
+              return win?.__xtmapperTouchPreview?.state === 'idle';
+            }, null, { timeout: 5000 });
+
+            await page.mouse.move(
+              freshTargetBox.x + freshTargetBox.width / 2,
+              freshTargetBox.y + freshTargetBox.height / 2
+            );
+            const stateWhileReentered = await frame.locator('#app').evaluate(() =>
+              window.__xtmapperTouchPreview.state
+            );
+            await page.mouse.up();
+
+            const exitResult = await frame.locator('#app').evaluate(app => ({
+              state: window.__xtmapperTouchPreview.state,
+              cursorHidden: app.querySelector('.touch-preview-cursor')?.hidden === true,
+              clickCount: Number(app.querySelector('#touch-preview-regression-target')?.dataset.clickCount)
+            }));
+            if (stateWhileReentered !== 'idle' ||
+                exitResult.state !== 'idle' ||
+                !exitResult.cursorHidden ||
+                exitResult.clickCount !== 1) {
+              throw new Error(
+                'Leaving the device screen must cancel the gesture and must not resume on re-entry: ' +
+                JSON.stringify({ stateWhileReentered, exitResult })
+              );
+            }
+
+            const triggerState = await frame.locator('#app.phone > main').evaluate(main => ({
+              pluginRegistered: typeof window.ScrollTrigger?.refresh === 'function',
+              triggerCount: window.ScrollTrigger?.getAll().length || 0,
+              usesMainScroller: (window.ScrollTrigger?.getAll() || [])
+                .some(trigger => trigger.scroller === main)
+            }));
+            if (!triggerState.pluginRegistered ||
+                triggerState.triggerCount < 1 ||
+                !triggerState.usesMainScroller) {
+              throw new Error(
+                'ScrollTrigger must be registered and use the Activity main scroller: ' +
+                JSON.stringify(triggerState)
+              );
+            }
+
+            if (pageErrors.length) {
+              throw new Error('Browser page errors: ' + pageErrors.join(' | '));
+            }
+
+            console.log('WORKSPACE_SCROLLBARS_HIDDEN_PASSED');
+            console.log('ACTIVITY_SCROLLBAR_EXCEPTION_PASSED');
+            console.log('NESTED_ACTIVITY_SCROLLBARS_HIDDEN_PASSED');
+            console.log('TOUCH_TAP_AND_SWIPE_PASSED');
+            console.log('TOUCH_SCREEN_EXIT_CANCELLATION_PASSED');
+            console.log('SCROLLTRIGGER_SCROLLER_CONFIGURATION_PASSED');
+            console.log(JSON.stringify({
+              workspaceScrollbar,
+              activityScrollbars,
+              hiddenActivityScrollbar,
+              dragResult,
+              exitResult,
+              triggerState
+            }, null, 2));
+          } finally {
+            await page.close();
             await browser.close();
           }
           NODE
