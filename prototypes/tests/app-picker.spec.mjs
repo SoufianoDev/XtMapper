@@ -320,6 +320,8 @@ check("Discovery errors expose a retry that can recover", async () => {
   await setConfig({ duration: 0, outcome: "failure" });
   await openPicker();
   await app.getByText("Could not discover apps. Try again.").first().waitFor({ state: "visible" });
+  await page.locator("#appPickerOutcome").selectOption("success");
+  await page.waitForTimeout(50);
   await app.locator(".app-picker-retry").click();
   await waitForRows();
   await closePicker();
@@ -344,6 +346,7 @@ check("Added-app registry survives a full page reload", async () => {
   await openPicker();
   assert.equal(await app.locator(`.app-picker-row[data-package-name="${packageName}"]`).count(), 0);
   await closePicker();
+  await page.locator("#appPickerTestPackage").fill(packageName);
   await page.locator("#appPickerStorageRemoveButton").click();
 });
 
