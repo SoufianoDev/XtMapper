@@ -3115,13 +3115,28 @@ function runAppPickerSelfTests() {
     removePackage("com.example.shared", "profile-2", storage);
     assert(!getAddedPackages(storage).has("com.example.shared"), "Last profile removal did not release the package.");
   });
-  test("Disabled profile associations remain registered for filtering", () => {
-    const storage = fakeStorage();
+  test("The active profile collection is the source of truth, including disabled profiles", () => {
     const disabledProfile = { id: "disabled-profile", packageName: "com.example.disabled", enabled: false };
-    addPackage(disabledProfile.packageName, disabledProfile.id, storage);
     const discovered = [{ name: "Disabled game", packageName: disabledProfile.packageName }];
-    const available = getAvailableAppCatalog(discovered, "create", null, storage, [disabledProfile]);
+    const available = getAvailableAppCatalog(discovered, "create", null, localStorage, [disabledProfile]);
     assert(!available.length, "A disabled profile association was not filtered.");
+
+    const anotherProfile = { id: "second-profile", packageName: "com.example.shared", enabled: true };
+    const firstProfile = { id: "first-profile", packageName: "com.example.shared", enabled: false };
+    const both = getProfilePackageRecords([firstProfile, anotherProfile]);
+    assert(both.length === 1 && both[0].profileIds.length === 2,
+      "Profiles sharing a package were not grouped by packageName.");
+
+    const afterOneDeletion = getProfilePackageRecords([anotherProfile]);
+    assert(afterOneDeletion.length === 1 && afterOneDeletion[0].profileIds[0] === "second-profile",
+      "Deleting one of multiple profiles released a still-used package.");
+    const afterLastDeletion = getProfilePackageRecords([]);
+    assert(afterLastDeletion.length === 0, "Deleting the last profile left a stale package entry.");
+
+    const reassigned = { ...anotherProfile, packageName: "com.example.new" };
+    const reassignedPackages = new Set(getProfilePackageRecords([reassigned]).map(entry => entry.packageName));
+    assert(!reassignedPackages.has("com.example.shared") && reassignedPackages.has("com.example.new"),
+      "Changing a profile's package did not derive the old and new membership from current profiles.");
   });
   test("Removing a panel-only test marker preserves a real profile link", () => {
     const storage = fakeStorage();
