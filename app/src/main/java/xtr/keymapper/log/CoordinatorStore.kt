@@ -240,15 +240,16 @@ class CoordinatorStore(
                 "M1" -> {
                     val length = fields.getOrNull(2)?.toIntOrNull() ?: invalid()
                     val hash = fields.getOrNull(3) ?: invalid()
-                    var prior = states[fileName]
+                    if (fields.size != 4 || length <= 0 || !hash.matches(Regex("[0-9a-f]{64}"))) invalid()
+                    val prior = states[fileName]
                     if (prior?.deletionPending == true) {
-                        if (!legacyDeletionCompleted(fileName, prior.receipt!!)) invalid()
-                        prior = MigrationState(receipt = null, revoked = true)
-                        states[fileName] = prior
+                        // Legacy journals treated D1 as completed revocation. A later M1
+                        // proves pathname reuse; its file may still be at the pre-header
+                        // boundary because the new receipt is forced before migration writes.
+                        states[fileName] = MigrationState(receipt = null, revoked = true)
+                    } else if (prior != null && !prior.revoked) {
+                        invalid()
                     }
-                    if (fields.size != 4 || length <= 0 || !hash.matches(Regex("[0-9a-f]{64}")) ||
-                        (prior != null && !prior.revoked)
-                    ) invalid()
                     states[fileName] = MigrationState(MigrationReceipt(length, hash))
                 }
                 "D1" -> {
