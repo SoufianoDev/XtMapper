@@ -65,7 +65,16 @@ async function setConfig({
   await page.waitForTimeout(50);
 }
 
+async function waitForActivityFrame() {
+  await page.waitForFunction(() => {
+    const frame = document.querySelector("#activityFrame");
+    return frame?.contentDocument?.readyState === "complete" &&
+      !!frame.contentDocument.querySelector("#dialog");
+  }, null, { timeout: 10000 });
+}
+
 async function openPicker() {
+  await waitForActivityFrame();
   const dialog = app.locator("#dialog");
   if (await dialog.isVisible().catch(() => false)) {
     await page.locator("#appPickerCloseButton").click();
