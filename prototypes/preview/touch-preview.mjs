@@ -15,7 +15,6 @@ if (!app || !mainScroller) {
 
   const cursorLayer = document.createElement("div");
   cursorLayer.className = "touch-preview-cursor-layer";
-  cursorLayer.setAttribute("popover", "manual");
   cursorLayer.append(cursor);
   app.append(cursorLayer);
 
@@ -25,10 +24,14 @@ if (!app || !mainScroller) {
     const dialogIsOpen = Boolean(dialog?.open);
 
     if (dialogIsOpen && dialog) {
+      if (!cursorLayer.hasAttribute("popover")) {
+        cursorLayer.setAttribute("popover", "manual");
+      }
       if (cursorLayer.parentElement !== dialog) dialog.append(cursorLayer);
       if (!cursorLayer.matches(":popover-open")) cursorLayer.showPopover();
     } else {
       if (cursorLayer.matches(":popover-open")) cursorLayer.hidePopover();
+      cursorLayer.removeAttribute("popover");
       if (cursorLayer.parentElement !== app) app.append(cursorLayer);
     }
 
