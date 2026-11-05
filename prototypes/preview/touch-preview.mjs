@@ -20,7 +20,7 @@ if (!app || !mainScroller) {
 
   let lastPointerPosition = null;
 
-  function syncCursorLayer() {
+  function syncCursorLayer({ promote = false } = {}) {
     const dialogIsOpen = Boolean(dialog?.open);
 
     if (dialogIsOpen && dialog) {
@@ -28,6 +28,13 @@ if (!app || !mainScroller) {
         cursorLayer.setAttribute("popover", "manual");
       }
       if (cursorLayer.parentElement !== dialog) dialog.append(cursorLayer);
+
+      // A dialog may close and reopen in the same event handler. In that case
+      // the observer sees only the final open state, while the existing popover
+      // can remain below the newly promoted dialog in the browser top layer.
+      if (promote && cursorLayer.matches(":popover-open")) {
+        cursorLayer.hidePopover();
+      }
       if (!cursorLayer.matches(":popover-open")) cursorLayer.showPopover();
     } else {
       if (cursorLayer.matches(":popover-open")) cursorLayer.hidePopover();
@@ -39,6 +46,10 @@ if (!app || !mainScroller) {
 
     if (lastPointerPosition) setCursorPosition(lastPointerPosition);
   }
+
+  window.__xtmapperRefreshDialogCursorLayer = () => {
+    syncCursorLayer({ promote: true });
+  };
 
   if (dialog) {
     new MutationObserver(syncCursorLayer).observe(dialog, {
