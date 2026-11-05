@@ -3091,6 +3091,14 @@ function runAppPickerSelfTests() {
     removePackage("com.example.shared", "profile-2", storage);
     assert(!getAddedPackages(storage).has("com.example.shared"), "Last profile removal did not release the package.");
   });
+  test("Disabled profile associations remain registered for filtering", () => {
+    const storage = fakeStorage();
+    const disabledProfile = { id: "disabled-profile", packageName: "com.example.disabled", enabled: false };
+    addPackage(disabledProfile.packageName, disabledProfile.id, storage);
+    const discovered = [{ name: "Disabled game", packageName: disabledProfile.packageName }];
+    const available = getAvailableAppCatalog(discovered, "create", null, storage, [disabledProfile]);
+    assert(!available.length, "A disabled profile association was not filtered.");
+  });
   test("Removing a panel-only test marker preserves a real profile link", () => {
     const storage = fakeStorage();
     addPackage("com.example.shared-test", "profile-1", storage);
