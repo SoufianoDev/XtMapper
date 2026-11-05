@@ -667,6 +667,60 @@ button:focus-visible, select:focus-visible, input:focus-visible {
         </div>
       </section>
 
+      <section class="group" aria-labelledby="appPickerTestGroupTitle">
+        <h3 class="group-title" id="appPickerTestGroupTitle">App Picker · Discovery tests</h3>
+        <div class="capability">
+          <p class="capability-description">Browser-only simulation controls. These do not query installed Android packages and are not part of the app preview.</p>
+          <div class="app-picker-test-grid">
+            <label class="app-picker-test-field app-picker-test-field--wide" for="appPickerDurationPreset">Discovery duration
+              <select id="appPickerDurationPreset">
+                <option value="0">Instant · 0 ms</option><option value="50">Extremely fast · 50 ms</option>
+                <option value="100">Very fast · 100 ms</option><option value="150" selected>Fast · 150 ms</option>
+                <option value="200">Boundary · 200 ms</option><option value="300">Moderate · 300 ms</option>
+                <option value="500">Medium · 500 ms</option><option value="1000">Slow · 1,000 ms</option>
+                <option value="2000">Very slow · 2,000 ms</option><option value="custom">Custom…</option>
+              </select>
+            </label>
+            <label class="app-picker-test-field app-picker-test-field--wide" id="appPickerCustomDurationField" for="appPickerCustomDuration" hidden>Custom duration (ms)
+              <input id="appPickerCustomDuration" type="number" min="0" max="10000" step="10" value="150">
+            </label>
+            <label class="app-picker-test-field" for="appPickerSkeletonThreshold">Skeleton threshold (ms)
+              <input id="appPickerSkeletonThreshold" type="number" min="0" max="3000" step="10" value="180">
+            </label>
+            <label class="app-picker-test-field" for="appPickerMinimumDuration">Minimum feedback (ms)
+              <input id="appPickerMinimumDuration" type="number" min="0" max="3000" step="10" value="350">
+            </label>
+            <label class="app-picker-test-field app-picker-test-field--wide" for="appPickerOutcome">Discovery outcome
+              <select id="appPickerOutcome"><option value="success">Success · all apps</option><option value="partial">Partial · first 3</option><option value="empty">Empty · none</option><option value="failure">Failure · simulate error</option></select>
+            </label>
+          </div>
+          <div class="app-picker-test-subtitle">Loading behavior</div>
+          <label class="app-picker-test-toggle"><span>Minimum loading feedback · artificial hold</span><span class="switch"><input id="appPickerMinimumFeedback" type="checkbox"><span class="switch-track"></span></span></label>
+          <label class="app-picker-test-toggle"><span>Force Skeleton for inspection</span><span class="switch"><input id="appPickerForceSkeleton" type="checkbox"><span class="switch-track"></span></span></label>
+          <label class="app-picker-test-toggle"><span>Reduced motion simulation</span><span class="switch"><input id="appPickerReducedMotion" type="checkbox"><span class="switch-track"></span></span></label>
+          <div class="app-picker-test-subtitle">Dialog and discovery</div>
+          <div class="app-picker-test-actions">
+            <button type="button" id="appPickerOpenButton">Open App Picker</button><button type="button" id="appPickerCancelButton">Cancel discovery</button>
+            <button type="button" id="appPickerRetryButton">Retry discovery</button><button type="button" id="appPickerReopenButton">Close &amp; reopen</button>
+            <button type="button" id="appPickerCloseButton">Close dialog</button><button type="button" id="appPickerRunTestsButton">Run built-in tests</button>
+          </div>
+          <p class="app-picker-test-status" id="appPickerTestStatus" role="status" aria-live="polite">Waiting for Activity preview…</p>
+          <div class="app-picker-test-subtitle">Added-app registry</div>
+          <label class="app-picker-test-field app-picker-test-field--wide" for="appPickerTestPackage">Test packageName
+            <input class="app-picker-test-package-input" id="appPickerTestPackage" type="text" value="com.activision.callofduty.shooter" spellcheck="false" autocomplete="off">
+          </label>
+          <div class="app-picker-test-actions">
+            <button type="button" id="appPickerStorageAddButton">Add test entry</button><button type="button" id="appPickerStorageRemoveButton">Remove test entry</button>
+            <button type="button" id="appPickerStorageRefreshButton">Refresh registry</button><button type="button" id="appPickerStorageClearButton">Clear test entries</button>
+          </div>
+          <div class="app-picker-test-storage" id="appPickerTestStorage" aria-live="polite"><p class="capability-description">Registry entries will appear here.</p></div>
+          <div class="app-picker-test-subtitle">Automated checks</div>
+          <div class="capability-head"><span class="capability-title">Built-in behavior tests</span><span class="capability-state" id="appPickerTestResultSummary">Not run</span></div>
+          <ul class="app-picker-test-results" id="appPickerTestResults" aria-live="polite"></ul>
+          <p class="app-picker-test-footnote">The panel uses a test-only registry marker. Removing a test entry does not erase an app still linked to a prototype profile.</p>
+        </div>
+      </section>
+
       <section class="group" aria-labelledby="browserGroupTitle">
         <h3 class="group-title" id="browserGroupTitle">Browser capabilities · real</h3>
         <div class="capability" aria-live="polite">
