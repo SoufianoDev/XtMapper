@@ -901,6 +901,57 @@ jobs:
               throw new Error('A short mouse press inside the device must remain a normal tap.');
             }
 
+            await page.mouse.move(
+              tapTargetBox.x + tapTargetBox.width / 2,
+              tapTargetBox.y + tapTargetBox.height / 2
+            );
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const app = document?.querySelector('#app');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              const cursor = document?.querySelector('.touch-preview-cursor');
+              const target = document?.querySelector('#touch-preview-regression-target');
+              if (!app || !layer || !cursor || !target ||
+                  layer.parentElement !== app ||
+                  layer.hasAttribute('popover') ||
+                  layer.matches(':popover-open') ||
+                  cursor.parentElement !== layer ||
+                  cursor.hidden) {
+                return false;
+              }
+              const rect = cursor.getBoundingClientRect();
+              const targetRect = target.getBoundingClientRect();
+              const style = getComputedStyle(cursor);
+              return style.display !== 'none' &&
+                style.visibility === 'visible' &&
+                Number.parseFloat(style.opacity) > 0 &&
+                Math.abs(rect.left + rect.width / 2 - (targetRect.left + targetRect.width / 2)) < 3 &&
+                Math.abs(rect.top + rect.height / 2 - (targetRect.top + targetRect.height / 2)) < 3;
+            }, null, { timeout: 5000 });
+
+            const mainCursorState = await frame.locator('#app').evaluate(app => {
+              const layer = app.querySelector('.touch-preview-cursor-layer');
+              const cursor = layer?.querySelector('.touch-preview-cursor');
+              const style = getComputedStyle(cursor);
+              return {
+                layerIsVisible: !!layer && style.display !== 'none',
+                layerIsInApp: layer?.parentElement === app,
+                layerHasNoPopoverAttribute: !layer?.hasAttribute('popover'),
+                cursorIsVisible: !!cursor && !cursor.hidden &&
+                  style.visibility === 'visible' &&
+                  Number.parseFloat(style.opacity) > 0
+              };
+            });
+            if (!mainCursorState.layerIsVisible ||
+                !mainCursorState.layerIsInApp ||
+                !mainCursorState.layerHasNoPopoverAttribute ||
+                !mainCursorState.cursorIsVisible) {
+              throw new Error(
+                'The touch cursor must remain visible on the main Activity screen when no dialog is open: ' +
+                JSON.stringify(mainCursorState)
+              );
+            }
+
             const dialog = frame.locator('#dialog');
             await dialog.evaluate(element => element.showModal());
             await page.waitForFunction(() => {
@@ -1047,6 +1098,7 @@ jobs:
               const app = document?.querySelector('#app');
               return !document?.querySelector('#dialog')?.open &&
                 layer?.parentElement === app &&
+                !layer.hasAttribute('popover') &&
                 !layer.matches(':popover-open') &&
                 cursor?.parentElement === layer;
             }, null, { timeout: 5000 });
@@ -1059,9 +1111,20 @@ jobs:
               targetBox.y + targetBox.height / 2
             );
             await page.waitForFunction(() => {
-              const frame = document.querySelector('#activityFrame');
-              return frame?.contentDocument?.documentElement.classList.contains('touch-preview-pointer') &&
-                frame.contentDocument.querySelector('.touch-preview-cursor')?.hidden === false;
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const app = document?.querySelector('#app');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              const cursor = document?.querySelector('.touch-preview-cursor');
+              const style = getComputedStyle(cursor);
+              return document?.documentElement.classList.contains('touch-preview-pointer') &&
+                layer?.parentElement === app &&
+                !layer.hasAttribute('popover') &&
+                !layer.matches(':popover-open') &&
+                cursor?.parentElement === layer &&
+                !cursor.hidden &&
+                style.display !== 'none' &&
+                style.visibility === 'visible' &&
+                Number.parseFloat(style.opacity) > 0;
             }, null, { timeout: 5000 });
 
             await page.mouse.down();
