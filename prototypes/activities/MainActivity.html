@@ -2110,6 +2110,29 @@ html.touch-preview-pressed #app [contenteditable] * {
   -webkit-user-select: text !important;
   user-select: text !important;
 }
+.touch-preview-cursor-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2147483646;
+  display: block !important;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+.touch-preview-cursor-layer:popover-open {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+}
 .touch-preview-cursor {
   position: absolute;
   z-index: 2147483647;
