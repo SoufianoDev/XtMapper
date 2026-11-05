@@ -2913,6 +2913,9 @@ function renderAppPickerResults(list, status, discoveredApps, query, flow, profi
         const previousPackage = game.packageName;
         if (previousPackage !== app.packageName) {
           unregisterProfilePackage(previousPackage, game.id);
+          if (state.designatedProfiles[previousPackage] === game.profileName) {
+            delete state.designatedProfiles[previousPackage];
+          }
           registerProfilePackage(app.packageName, game.id);
         }
         game.packageName = app.packageName;
@@ -2939,10 +2942,11 @@ function renderAppPickerResults(list, status, discoveredApps, query, flow, profi
 
 function cancelAppPickerDiscovery(showCancelledState = false) {
   const sessionId = activeAppPickerSession;
+  const wasRunning = Boolean(activeAppPickerController && sessionId);
   if (activeAppPickerController) activeAppPickerController.abort();
   activeAppPickerController = null;
   activeAppPickerSession = 0;
-  if (showCancelledState && byId("dialog")?.open) {
+  if (showCancelledState && wasRunning && byId("dialog")?.open) {
     const status = byId("appPickerStatus");
     const list = byId("appPickerList");
     if (status && list) {
