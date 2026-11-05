@@ -904,13 +904,15 @@ jobs:
             const dialog = frame.locator('#dialog');
             await dialog.evaluate(element => element.showModal());
             await page.waitForFunction(() => {
-              const frame = document.querySelector('#activityFrame');
-              const document = frame?.contentDocument;
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
               const dialog = document?.querySelector('#dialog');
+              const cursorLayer = document?.querySelector('.touch-preview-cursor-layer');
               const cursor = document?.querySelector('.touch-preview-cursor');
               return dialog?.matches(':modal') &&
                 document.querySelector('#app')?.contains(dialog) &&
-                cursor?.parentElement === dialog;
+                cursorLayer?.parentElement === dialog &&
+                cursorLayer.matches(':popover-open') &&
+                cursor?.parentElement === cursorLayer;
             }, null, { timeout: 5000 });
 
             const dialogButton = frame.locator('#dialogConfirm');
@@ -919,64 +921,125 @@ jobs:
             if (!dialogButtonBox || !activityFrameBox) {
               throw new Error('The dialog action button and Activity iframe must be visible for cursor testing.');
             }
+
+            async function verifyDialogCursorAt(pagePoint, pointName) {
+              const localPoint = {
+                x: pagePoint.x - activityFrameBox.x,
+                y: pagePoint.y - activityFrameBox.y
+              };
+              await page.mouse.move(pagePoint.x, pagePoint.y);
+              await page.waitForFunction(({ x, y }) => {
+                const document = window.document.querySelector('#activityFrame')?.contentDocument;
+                const dialog = document?.querySelector('#dialog');
+                const layer = document?.querySelector('.touch-preview-cursor-layer');
+                const cursor = document?.querySelector('.touch-preview-cursor');
+                if (!dialog?.matches(':modal') ||
+                    !layer?.matches(':popover-open') ||
+                    layer.parentElement !== dialog ||
+                    cursor?.parentElement !== layer ||
+                    cursor.hidden) {
+                  return false;
+                }
+                const rect = cursor.getBoundingClientRect();
+                const style = getComputedStyle(cursor);
+                return style.pointerEvents === 'none' &&
+                  Number.parseFloat(style.opacity) > 0 &&
+                  Math.abs(rect.left + rect.width / 2 - x) < 3 &&
+                  Math.abs(rect.top + rect.height / 2 - y) < 3;
+              }, localPoint, { timeout: 5000 });
+            }
+
             const dialogPointer = {
               x: dialogButtonBox.x + dialogButtonBox.width / 2,
               y: dialogButtonBox.y + dialogButtonBox.height / 2
             };
-            const dialogCursorLocalPoint = {
-              x: dialogPointer.x - activityFrameBox.x,
-              y: dialogPointer.y - activityFrameBox.y
-            };
-            await page.mouse.move(dialogPointer.x, dialogPointer.y);
+            await verifyDialogCursorAt(dialogPointer, 'dialog content');
 
-            await page.waitForFunction(({ x, y }) => {
-              const document = window.document.querySelector('#activityFrame')?.contentDocument;
-              const dialog = document?.querySelector('#dialog');
-              const cursor = document?.querySelector('.touch-preview-cursor');
-              if (!dialog?.matches(':modal') || cursor?.parentElement !== dialog || cursor.hidden) {
-                return false;
-              }
-              const rect = cursor.getBoundingClientRect();
-              const style = getComputedStyle(cursor);
-              return style.pointerEvents === 'none' &&
-                Number.parseFloat(style.opacity) > 0 &&
-                Math.abs(rect.left + rect.width / 2 - x) < 3 &&
-                Math.abs(rect.top + rect.height / 2 - y) < 3;
-            }, dialogCursorLocalPoint, { timeout: 5000 });
+            const backdropLocalPoint = await dialog.evaluate(element => {
+              const appRect = document.querySelector('#app').getBoundingClientRect();
+              const dialogRect = element.getBoundingClientRect();
+              const centerX = dialogRect.left + dialogRect.width / 2;
+              const centerY = dialogRect.top + dialogRect.height / 2;
+              const candidates = [
+                {
+                  x: centerX,
+                  y: (appRect.top + dialogRect.top) / 2,
+                  gap: dialogRect.top - appRect.top
+                },
+                {
+                  x: centerX,
+                  y: (dialogRect.bottom + appRect.bottom) / 2,
+                  gap: appRect.bottom - dialogRect.bottom
+                },
+                {
+                  x: (appRect.left + dialogRect.left) / 2,
+                  y: centerY,
+                  gap: dialogRect.left - appRect.left
+                },
+                {
+                  x: (dialogRect.right + appRect.right) / 2,
+                  y: centerY,
+                  gap: appRect.right - dialogRect.right
+                }
+              ].filter(point => point.gap >= 12);
+              candidates.sort((a, b) => b.gap - a.gap);
+              return candidates[0] ? { x: candidates[0].x, y: candidates[0].y } : null;
+            });
+            if (!backdropLocalPoint) {
+              throw new Error('The modal must leave a usable backdrop margin inside the Activity viewport.');
+            }
+            await verifyDialogCursorAt({
+              x: backdropLocalPoint.x + activityFrameBox.x,
+              y: backdropLocalPoint.y + activityFrameBox.y
+            }, 'blurred backdrop');
 
-            const dialogCursorState = await frame.locator('#dialog').evaluate(dialog => {
-              const cursor = dialog.querySelector('.touch-preview-cursor');
+            const dialogCursorState = await dialog.evaluate(dialog => {
+              const layer = dialog.querySelector('.touch-preview-cursor-layer');
+              const cursor = layer?.querySelector('.touch-preview-cursor');
+              const layerRect = layer?.getBoundingClientRect();
               return {
-                cursorIsInDialog: cursor?.parentElement === dialog,
+                cursorIsInLayer: cursor?.parentElement === layer,
+                layerIsPopover: layer?.matches(':popover-open'),
+                layerCoversIframeViewport: layerRect?.left <= 1 &&
+                  layerRect?.top <= 1 &&
+                  Math.abs(layerRect?.width - window.innerWidth) <= 2 &&
+                  Math.abs(layerRect?.height - window.innerHeight) <= 2,
                 dialogIsModal: dialog.matches(':modal'),
                 dialogRemainsInsideActivity: document.querySelector('#app').contains(dialog),
                 activityFrameId: window.frameElement?.id,
                 cursorZIndex: getComputedStyle(cursor).zIndex,
-                pointerEvents: getComputedStyle(cursor).pointerEvents
+                layerPointerEvents: getComputedStyle(layer).pointerEvents,
+                cursorPointerEvents: getComputedStyle(cursor).pointerEvents
               };
             });
-            if (!dialogCursorState.cursorIsInDialog ||
+            if (!dialogCursorState.cursorIsInLayer ||
+                !dialogCursorState.layerIsPopover ||
+                !dialogCursorState.layerCoversIframeViewport ||
                 !dialogCursorState.dialogIsModal ||
                 !dialogCursorState.dialogRemainsInsideActivity ||
                 dialogCursorState.activityFrameId !== 'activityFrame' ||
                 dialogCursorState.cursorZIndex !== '2147483647' ||
-                dialogCursorState.pointerEvents !== 'none') {
+                dialogCursorState.layerPointerEvents !== 'none' ||
+                dialogCursorState.cursorPointerEvents !== 'none') {
               throw new Error(
-                'The touch cursor must render above the modal dialog inside the Activity iframe: ' +
+                'The touch cursor layer must cover the iframe and remain non-interactive above the modal: ' +
                 JSON.stringify(dialogCursorState)
               );
             }
 
             await dialog.evaluate(element => element.close());
             await page.waitForFunction(() => {
-              const document = document.querySelector('#activityFrame')?.contentDocument;
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
               const cursor = document?.querySelector('.touch-preview-cursor');
               const app = document?.querySelector('#app');
               return !document?.querySelector('#dialog')?.open &&
-                cursor?.parentElement === app;
+                layer?.parentElement === app &&
+                !layer.matches(':popover-open') &&
+                cursor?.parentElement === layer;
             }, null, { timeout: 5000 });
 
-            const targetBox = await target.boundingBox();
+                        const targetBox = await target.boundingBox();
             if (!targetBox) throw new Error('The touch regression target is not visible.');
 
             await page.mouse.move(
