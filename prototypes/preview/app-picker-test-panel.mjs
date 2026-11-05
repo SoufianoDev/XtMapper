@@ -5,6 +5,7 @@ export class AppPickerTestPanel {
     this.frame = document.getElementById("activityFrame");
     this.durationPreset = document.getElementById("appPickerDurationPreset");
     this.customDuration = document.getElementById("appPickerCustomDuration");
+    this.customDurationField = document.getElementById("appPickerCustomDurationField");
     this.threshold = document.getElementById("appPickerSkeletonThreshold");
     this.minimumFeedback = document.getElementById("appPickerMinimumFeedback");
     this.minimumDuration = document.getElementById("appPickerMinimumDuration");
@@ -49,7 +50,7 @@ export class AppPickerTestPanel {
     }
 
     this.durationPreset.addEventListener("change", () => {
-      this.customDuration.hidden = this.durationPreset.value !== "custom";
+      if (this.customDurationField) this.customDurationField.hidden = this.durationPreset.value !== "custom";
       this.sendConfiguration();
     });
 
@@ -112,6 +113,7 @@ export class AppPickerTestPanel {
       this.setStatus("Clearing test-only registry entries…");
     });
 
+    if (this.customDurationField) this.customDurationField.hidden = this.durationPreset.value !== "custom";
     this.sendConfiguration();
     window.setTimeout(() => this.send("snapshot"), 150);
   }
