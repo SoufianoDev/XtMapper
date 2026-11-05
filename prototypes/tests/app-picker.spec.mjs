@@ -49,9 +49,17 @@ async function setConfig({
   }
   await page.locator("#appPickerSkeletonThreshold").fill(String(threshold));
   await page.locator("#appPickerMinimumDuration").fill(String(minimumDuration));
-  await page.locator("#appPickerMinimumFeedback").setChecked(minimumFeedback);
-  await page.locator("#appPickerForceSkeleton").setChecked(forceSkeleton);
-  await page.locator("#appPickerReducedMotion").setChecked(reducedMotion);
+  const setToggle = async (selector, checked) => {
+    await page.locator(selector).evaluate((input, nextValue) => {
+      if (input.checked === nextValue) return;
+      input.checked = nextValue;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }, checked);
+  };
+  await setToggle("#appPickerMinimumFeedback", minimumFeedback);
+  await setToggle("#appPickerForceSkeleton", forceSkeleton);
+  await setToggle("#appPickerReducedMotion", reducedMotion);
   await page.locator("#appPickerOutcome").selectOption(outcome);
   await page.waitForTimeout(50);
 }
@@ -229,7 +237,7 @@ check("Force Skeleton and reduced-motion preference work together", async () => 
 check("Empty, partial, all-added and search-empty states are distinct", async () => {
   await setConfig({ duration: 0, outcome: "empty" });
   await openPicker();
-  await app.getByText("No sample apps were discovered.").waitFor({ state: "visible" });
+  await app.locator("#appPickerStatus").filter({ hasText: "No sample apps were discovered." }).waitFor({ state: "visible" });
   await closePicker();
 
   await setConfig({ duration: 0, outcome: "partial" });
