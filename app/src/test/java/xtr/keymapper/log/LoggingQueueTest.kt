@@ -132,22 +132,32 @@ class LoggingQueueTest {
     fun `single record offer does not block while drained concurrently`() {
         val queue = LoggingQueue(1)
         val processedCount = AtomicInteger(0)
+        val consumerStarted = CountDownLatch(1)
+        val firstProcessed = CountDownLatch(1)
         val done = CountDownLatch(1)
         val stop = AtomicBoolean(false)
         val consumer = Thread {
+            consumerStarted.countDown()
             while (!stop.get()) {
                 val first = queue.poll(25)
                 if (first != null) {
                     queue.drainUpTo(8)?.let { queue.markProcessed(it.size) }
                     queue.markProcessed(1)
                     processedCount.incrementAndGet()
+                    firstProcessed.countDown()
                 }
             }
             done.countDown()
         }
         consumer.isDaemon = true
         consumer.start()
-        repeat(500) { queue.offer(record(it)) }
+        assertTrue("consumer started", consumerStarted.await(2, TimeUnit.SECONDS))
+        repeat(500) {
+            queue.offer(record(it))
+            if (it == 0) {
+                assertTrue("consumer drains while the producer is still active", firstProcessed.await(3, TimeUnit.SECONDS))
+            }
+        }
         stop.set(true)
         assertTrue(done.await(3, TimeUnit.SECONDS))
         assertTrue(processedCount.get() > 0)
