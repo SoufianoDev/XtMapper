@@ -306,6 +306,47 @@ check("Test registry entries filter an app and can be removed without deleting p
   await closePicker();
 });
 
+check("Custom discovery durations are accepted by the side panel", async () => {
+  await setConfig({ duration: 275 });
+  assert.equal(await page.locator("#appPickerDurationPreset").inputValue(), "custom");
+  assert.equal(await page.locator("#appPickerCustomDuration").inputValue(), "275");
+  await openPicker();
+  await app.locator(".app-picker-skeleton-row").first().waitFor({ state: "visible" });
+  await waitForRows();
+  await closePicker();
+});
+
+check("Discovery errors expose a retry that can recover", async () => {
+  await setConfig({ duration: 0, outcome: "failure" });
+  await openPicker();
+  await app.getByText("Could not discover apps. Try again.").first().waitFor({ state: "visible" });
+  await app.locator(".app-picker-retry").click();
+  await waitForRows();
+  await closePicker();
+});
+
+check("Added-app registry survives a full page reload", async () => {
+  const packageName = APP_PACKAGES[2];
+  await page.locator("#appPickerTestPackage").fill(packageName);
+  await page.locator("#appPickerStorageAddButton").click();
+  await page.waitForFunction(({ key, pkg }) => {
+    const data = JSON.parse(localStorage.getItem(key) || "null");
+    return data?.packages?.some(entry => entry.packageName === pkg);
+  }, { key: REGISTRY_KEY, pkg: packageName });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#appPickerOpenButton").waitFor({ state: "visible" });
+  await page.waitForFunction(({ key, pkg }) => {
+    const data = JSON.parse(localStorage.getItem(key) || "null");
+    return data?.packages?.some(entry => entry.packageName === pkg);
+  }, { key: REGISTRY_KEY, pkg: packageName });
+  await setConfig({ duration: 0 });
+  await openPicker();
+  assert.equal(await app.locator(`.app-picker-row[data-package-name="${packageName}"]`).count(), 0);
+  await closePicker();
+  await page.locator("#appPickerStorageRemoveButton").click();
+});
+
 check("Creating and deleting a profile updates the independent app registry", async () => {
   await setConfig({ duration: 0 });
   await openPicker();
