@@ -513,6 +513,25 @@ button:focus-visible, select:focus-visible, input:focus-visible {
   height: 0 !important;
 }
 
+
+.app-picker-test-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.app-picker-test-field{min-width:0;display:flex;flex-direction:column;gap:5px;color:#d9d2dc;font-size:10px}
+.app-picker-test-field input,.app-picker-test-field select,.app-picker-test-package-input{width:100%;min-width:0;min-height:37px;padding:0 9px;border:1px solid rgba(255,255,255,.12);border-radius:8px;color:var(--text);background:#22232b;font:11px Roboto,sans-serif}
+.app-picker-test-field--wide{grid-column:1/-1}
+.app-picker-test-toggle{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:9px;padding:8px 9px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(255,255,255,.025);color:#e7e2e9;font-size:10px}
+.app-picker-test-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px}
+.app-picker-test-actions button{min-width:0;min-height:37px;padding:6px 8px;border:1px solid rgba(239,82,106,.28);border-radius:8px;color:#ffe8ec;background:rgba(160,30,59,.2);font-size:10px;cursor:pointer}
+.app-picker-test-status{margin:9px 0 0;padding:9px;min-height:34px;border-radius:8px;color:#e8cbd1;background:rgba(123,25,51,.13);font-size:10px;line-height:1.45;overflow-wrap:anywhere}
+.app-picker-test-storage{display:flex;flex-direction:column;gap:5px;margin-top:8px}
+.app-picker-test-storage-row{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border:1px solid rgba(255,255,255,.06);border-radius:8px}
+.app-picker-test-storage-row code{min-width:0;color:#e8e1e9;font-size:9px;overflow-wrap:anywhere}
+.app-picker-test-storage-row span{color:#aaa2ad;font-size:9px}
+.app-picker-test-results{display:flex;flex-direction:column;gap:5px;padding:0;margin:8px 0 0;list-style:none}
+.app-picker-test-results li{display:flex;gap:7px;font-size:9px;line-height:1.45;overflow-wrap:anywhere}
+.app-picker-test-pass>span:first-child{color:#8bd4a6;font-weight:800}
+.app-picker-test-fail>span:first-child{color:#ff8994;font-weight:800}
+.app-picker-test-subtitle{margin:11px 0 6px;color:#ff9aaa;font-size:9px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+@media(max-width:390px){.app-picker-test-grid{grid-template-columns:1fr}.app-picker-test-field--wide{grid-column:auto}}
 </style>
 </head>
 <body>
