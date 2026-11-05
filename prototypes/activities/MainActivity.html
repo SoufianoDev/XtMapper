@@ -1114,6 +1114,23 @@ dialog[open] { overscroll-behavior: contain; }
 html:not(.touch-preview-pointer) .app-picker-row:hover, .app-picker-row:focus-visible{ border-color: rgba(241,91,119,.55); background: rgba(167,37,68,.18); }
 .app-picker-row img { width: 42px; height: 42px; object-fit: contain; border-radius: 11px; background: #191a21; flex: 0 0 auto; }
 .app-picker-row .material-symbols-rounded { margin-left: auto; color: #ff91a5; }
+.app-picker-status { min-height: 18px; margin: 8px 1px; color: var(--md-sys-color-on-surface-variant); font-size: 11px; line-height: 16px; }
+.app-picker-empty { margin: 8px 0; padding: 16px 12px; border: 1px dashed var(--md-sys-color-outline-variant); border-radius: 12px; color: var(--md-sys-color-on-surface-variant); font-size: 12px; line-height: 18px; text-align: center; }
+.app-picker-retry { width: 100%; margin-top: 8px; }
+.app-picker-skeleton-row { display:flex; align-items:center; gap:10px; min-width:0; min-height:64px; padding:10px 11px; border:1px solid rgba(255,255,255,.07); border-radius:12px; background:rgba(255,255,255,.025); }
+.app-picker-skeleton-icon, .app-picker-skeleton-line { position:relative; overflow:hidden; background:rgba(255,255,255,.09); }
+.app-picker-skeleton-icon { width:42px; height:42px; flex:0 0 42px; border-radius:11px; }
+.app-picker-skeleton-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:7px; }
+.app-picker-skeleton-line { display:block; height:9px; border-radius:99px; }
+.app-picker-skeleton-line--name { width:58%; height:11px; }
+.app-picker-skeleton-line--package { width:84%; height:8px; }
+.app-picker-skeleton-icon::after, .app-picker-skeleton-line::after { content:""; position:absolute; inset:0; transform:translateX(-100%); background:linear-gradient(90deg,transparent,rgba(255,255,255,.17),transparent); animation:app-picker-shimmer 1.35s ease-in-out infinite; }
+@keyframes app-picker-shimmer { to { transform:translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .app-picker-skeleton-icon::after, .app-picker-skeleton-line::after { animation:none; transform:none; background:rgba(255,255,255,.055); }
+}
+html[data-app-picker-reduced-motion="true"] .app-picker-skeleton-icon::after,
+html[data-app-picker-reduced-motion="true"] .app-picker-skeleton-line::after { animation:none; transform:none; background:rgba(255,255,255,.055); }
 .backup-row { padding: 9px 10px; }
 .backup-row label { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 12px; }
 .backup-row span { overflow-wrap: anywhere; }
@@ -2365,6 +2382,7 @@ const APP_CATALOG = [
 const STORAGE_KEY = "xtmapper-main-prototype-v10";
 const LEGACY_STORAGE_KEY = "xtmapper-main-prototype-v9";
 const OLDER_STORAGE_KEY = "xtmapper-main-prototype-v8";
+const ADDED_PACKAGES_STORAGE_KEY = "xtmapper.app-picker.added-packages.v1";
 const defaultGames = APP_CATALOG.map((app, index) => ({
   id: `sample-${index + 1}`,
   name: app.name,
@@ -2496,6 +2514,20 @@ let backupInputMode = "import";
 let lastTestMessage = "";
 let prototypeReady = false;
 let storageWarningShown = false;
+const APP_PICKER_DEFAULT_TEST_CONFIG = Object.freeze({
+  discoveryDurationMs: 150,
+  skeletonThresholdMs: 160,
+  minimumFeedbackEnabled: false,
+  minimumFeedbackMs: 350,
+  forceSkeleton: false,
+  reducedMotion: false,
+  outcome: "success"
+});
+let appPickerTestConfig = { ...APP_PICKER_DEFAULT_TEST_CONFIG };
+let appPickerSessionCounter = 0;
+let activeAppPickerSession = 0;
+let activeAppPickerController = null;
+let activeAppPickerRetry = null;
 
 const byId = id => document.getElementById(id);
 const profileCollection = () => state.libraryScenario === "samples" ? state.previewGames : state.games;
@@ -2523,6 +2555,626 @@ function byPackage(packageName) {
     name: packageName || "Unknown app", packageName, image: ""
   };
 }
+
+function readAddedPackageRecords(storage = localStorage) {
+  try {
+    const parsed = JSON.parse(storage.getItem(ADDED_PACKAGES_STORAGE_KEY) || "null");
+    if (!parsed || parsed.version !== 1 || !Array.isArray(parsed.packages)) return [];
+    const records = new Map();
+    for (const entry of parsed.packages) {
+      const packageName = typeof entry?.packageName === "string" ? entry.packageName.trim() : "";
+      if (!packageName) continue;
+      const profileIds = Array.isArray(entry.profileIds)
+        ? [...new Set(entry.profileIds.filter(id => typeof id === "string" && id.trim()))]
+        : [];
+      const existing = records.get(packageName);
+      if (existing) {
+        existing.profileIds = [...new Set([...existing.profileIds, ...profileIds])];
+      } else {
+        records.set(packageName, { packageName, profileIds });
+      }
+    }
+    return [...records.values()];
+  } catch (_) {
+    return [];
+  }
+}
+
+function writeAddedPackageRecords(records, storage = localStorage) {
+  const normalized = [];
+  const seen = new Map();
+  for (const entry of records) {
+    const packageName = typeof entry?.packageName === "string" ? entry.packageName.trim() : "";
+    if (!packageName) continue;
+    const profileIds = Array.isArray(entry.profileIds)
+      ? [...new Set(entry.profileIds.filter(id => typeof id === "string" && id.trim()))]
+      : [];
+    if (seen.has(packageName)) {
+      const current = normalized[seen.get(packageName)];
+      current.profileIds = [...new Set([...current.profileIds, ...profileIds])];
+    } else {
+      seen.set(packageName, normalized.length);
+      normalized.push({ packageName, profileIds });
+    }
+  }
+  try {
+    storage.setItem(ADDED_PACKAGES_STORAGE_KEY, JSON.stringify({
+      version: 1,
+      packages: normalized
+    }));
+    return true;
+  } catch (error) {
+    if (storage === localStorage && prototypeReady && !storageWarningShown) {
+      storageWarningShown = true;
+      showToast("App picker storage is unavailable. Added-app state may not persist.");
+    }
+    return false;
+  }
+}
+
+function getAddedPackageRecords(storage = localStorage) {
+  return readAddedPackageRecords(storage);
+}
+
+function getAddedPackages(storage = localStorage) {
+  return new Set(readAddedPackageRecords(storage).map(record => record.packageName));
+}
+
+function addPackage(packageName, profileId = "__manual__", storage = localStorage) {
+  const normalizedPackage = typeof packageName === "string" ? packageName.trim() : "";
+  if (!normalizedPackage) return false;
+  const normalizedProfileId = typeof profileId === "string" && profileId.trim()
+    ? profileId.trim()
+    : "__manual__";
+  const records = readAddedPackageRecords(storage);
+  const record = records.find(entry => entry.packageName === normalizedPackage);
+  if (record) {
+    if (!record.profileIds.includes(normalizedProfileId)) record.profileIds.push(normalizedProfileId);
+  } else {
+    records.push({ packageName: normalizedPackage, profileIds: [normalizedProfileId] });
+  }
+  const saved = writeAddedPackageRecords(records, storage);
+  if (saved && storage === localStorage) notifyAppPickerStorageSnapshot();
+  return saved;
+}
+
+function removePackage(packageName, profileId = null, storage = localStorage) {
+  const normalizedPackage = typeof packageName === "string" ? packageName.trim() : "";
+  if (!normalizedPackage) return false;
+  let records = readAddedPackageRecords(storage);
+  const target = records.find(entry => entry.packageName === normalizedPackage);
+  if (!target) return false;
+  if (profileId === null || profileId === undefined) {
+    records = records.filter(entry => entry.packageName !== normalizedPackage);
+  } else {
+    target.profileIds = target.profileIds.filter(id => id !== profileId);
+    if (!target.profileIds.length) {
+      records = records.filter(entry => entry.packageName !== normalizedPackage);
+    }
+  }
+  const saved = writeAddedPackageRecords(records, storage);
+  if (saved && storage === localStorage) notifyAppPickerStorageSnapshot();
+  return saved;
+}
+
+function registerProfilePackage(packageName, profileId) {
+  return addPackage(packageName, profileId);
+}
+
+function unregisterProfilePackage(packageName, profileId) {
+  return removePackage(packageName, profileId);
+}
+
+/* One-time migration only: after this record is created, the independent app
+   registry is authoritative. Android will use a Room repository over SQLite. */
+function initializeAddedPackageRegistry() {
+  try {
+    const raw = localStorage.getItem(ADDED_PACKAGES_STORAGE_KEY);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.version === 1 && Array.isArray(parsed.packages)) return;
+      localStorage.removeItem(ADDED_PACKAGES_STORAGE_KEY);
+    }
+    const existingProfiles = [
+      ...(Array.isArray(state.games) ? state.games : []),
+      ...(state.libraryScenario === "samples" && Array.isArray(state.previewGames)
+        ? state.previewGames
+        : [])
+    ];
+    const records = new Map();
+    for (const profile of existingProfiles) {
+      const packageName = typeof profile?.packageName === "string" ? profile.packageName.trim() : "";
+      const profileId = typeof profile?.id === "string" ? profile.id : "";
+      if (!packageName || !profileId) continue;
+      if (!records.has(packageName)) records.set(packageName, { packageName, profileIds: [] });
+      records.get(packageName).profileIds.push(profileId);
+    }
+    writeAddedPackageRecords([...records.values()]);
+  } catch (_) {
+    // The prototype remains usable when storage is blocked or malformed.
+  }
+}
+
+function getAvailableAppCatalog(discoveredApps, flow, profileId, storage = localStorage) {
+  const registeredPackages = getAddedPackages(storage);
+  const currentProfile = flow === "change"
+    ? games().find(profile => profile.id === profileId)
+    : null;
+  const currentPackage = currentProfile?.packageName || "";
+  return discoveredApps.filter(app =>
+    !registeredPackages.has(app.packageName) ||
+    (flow === "change" && app.packageName === currentPackage)
+  );
+}
+
+function filterAppPickerSearchResults(apps, query) {
+  const normalizedQuery = String(query || "").trim().toLocaleLowerCase();
+  if (!normalizedQuery) return apps;
+  return apps.filter(app =>
+    `${app.name} ${app.packageName}`.toLocaleLowerCase().includes(normalizedQuery)
+  );
+}
+
+function getAppPickerEmptyState(discovered, available, matching) {
+  if (!discovered.length) return "no-discovered-apps";
+  if (!available.length) return "all-apps-added";
+  if (!matching.length) return "no-search-results";
+  return "available";
+}
+
+function getAppPickerLoadingPolicy(durationMs, config = appPickerTestConfig) {
+  const showSkeleton = Boolean(
+    config.forceSkeleton ||
+    config.minimumFeedbackEnabled ||
+    Number(durationMs) > Number(config.skeletonThresholdMs)
+  );
+  return {
+    showSkeleton,
+    minimumVisibleMs: config.minimumFeedbackEnabled
+      ? Math.max(0, Number(config.minimumFeedbackMs) || 0)
+      : 180
+  };
+}
+
+function isAppPickerSessionCurrent(sessionId) {
+  return sessionId === activeAppPickerSession && sessionId !== 0;
+}
+
+function publishAppPickerTestState(phase, details = {}) {
+  if (window.parent === window) return;
+  window.parent.postMessage({
+    type: "xtmapper-app-picker-state",
+    phase,
+    addedPackages: [...getAddedPackages()],
+    ...details
+  }, window.location.origin);
+}
+
+function notifyAppPickerStorageSnapshot() {
+  publishAppPickerTestState("storage-updated", {
+    addedPackageRecords: getAddedPackageRecords()
+  });
+}
+
+function configureAppPickerTests(config = {}) {
+  const nextDuration = Number(config.discoveryDurationMs);
+  const nextThreshold = Number(config.skeletonThresholdMs);
+  const nextMinimum = Number(config.minimumFeedbackMs);
+  appPickerTestConfig = {
+    discoveryDurationMs: Number.isFinite(nextDuration)
+      ? Math.min(10000, Math.max(0, nextDuration))
+      : APP_PICKER_DEFAULT_TEST_CONFIG.discoveryDurationMs,
+    skeletonThresholdMs: Number.isFinite(nextThreshold)
+      ? Math.min(3000, Math.max(0, nextThreshold))
+      : APP_PICKER_DEFAULT_TEST_CONFIG.skeletonThresholdMs,
+    minimumFeedbackEnabled: Boolean(config.minimumFeedbackEnabled),
+    minimumFeedbackMs: Number.isFinite(nextMinimum)
+      ? Math.min(3000, Math.max(0, nextMinimum))
+      : APP_PICKER_DEFAULT_TEST_CONFIG.minimumFeedbackMs,
+    forceSkeleton: Boolean(config.forceSkeleton),
+    reducedMotion: Boolean(config.reducedMotion),
+    outcome: ["success", "empty", "partial", "failure"].includes(config.outcome)
+      ? config.outcome
+      : "success"
+  };
+  document.documentElement.dataset.appPickerReducedMotion =
+    appPickerTestConfig.reducedMotion ? "true" : "false";
+  return { ...appPickerTestConfig };
+}
+
+function waitForAppPickerDelay(durationMs, signal) {
+  const duration = Math.max(0, Number(durationMs) || 0);
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException("Discovery cancelled.", "AbortError"));
+  }
+  if (duration === 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, duration);
+    const onAbort = () => {
+      window.clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(new DOMException("Discovery cancelled.", "AbortError"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function simulateAppDiscovery(config, signal) {
+  await waitForAppPickerDelay(config.discoveryDurationMs, signal);
+  if (signal.aborted) throw new DOMException("Discovery cancelled.", "AbortError");
+  if (config.outcome === "failure") throw new Error("The simulated app discovery failed.");
+  if (config.outcome === "empty") return [];
+  if (config.outcome === "partial") return APP_CATALOG.slice(0, 3);
+  return [...APP_CATALOG];
+}
+
+function showAppPickerSkeleton(list, status) {
+  list.replaceChildren();
+  list.setAttribute("aria-busy", "true");
+  list.dataset.loading = "true";
+  status.textContent = "Discovering available apps…";
+  for (let index = 0; index < 4; index += 1) {
+    const row = document.createElement("div");
+    row.className = "app-picker-skeleton-row";
+    row.setAttribute("aria-hidden", "true");
+    row.inert = true;
+    const icon = document.createElement("span");
+    icon.className = "app-picker-skeleton-icon";
+    const copy = document.createElement("span");
+    copy.className = "app-picker-skeleton-copy";
+    const name = document.createElement("span");
+    name.className = "app-picker-skeleton-line app-picker-skeleton-line--name";
+    const packageName = document.createElement("span");
+    packageName.className = "app-picker-skeleton-line app-picker-skeleton-line--package";
+    copy.append(name, packageName);
+    row.append(icon, copy);
+    list.append(row);
+  }
+}
+
+function renderAppPickerEmptyState(list, status, state, retry) {
+  list.replaceChildren();
+  list.removeAttribute("aria-busy");
+  delete list.dataset.loading;
+  const message = document.createElement("p");
+  message.className = "app-picker-empty";
+  const messages = {
+    "no-discovered-apps": "No sample apps were discovered.",
+    "all-apps-added": "All discovered apps have already been added to XtMapper.",
+    "no-search-results": "No apps match your search.",
+    "discovery-error": "Could not discover apps. Try again."
+  };
+  message.textContent = messages[state] || "No apps are available.";
+  list.append(message);
+  status.textContent = messages[state] || "No apps are available.";
+  if (state === "discovery-error") {
+    const retryButton = document.createElement("button");
+    retryButton.type = "button";
+    retryButton.className = "outlined-button app-picker-retry";
+    retryButton.textContent = "Try again";
+    retryButton.addEventListener("click", retry);
+    list.append(retryButton);
+  }
+}
+
+function renderAppPickerResults(list, status, discoveredApps, query, flow, profileId) {
+  const available = getAvailableAppCatalog(discoveredApps, flow, profileId);
+  const matching = filterAppPickerSearchResults(available, query);
+  const emptyState = getAppPickerEmptyState(discoveredApps, available, matching);
+  if (emptyState !== "available") {
+    renderAppPickerEmptyState(list, status, emptyState);
+    publishAppPickerTestState("empty", {
+      discoveredCount: discoveredApps.length,
+      availableCount: available.length,
+      matchingCount: matching.length,
+      emptyState
+    });
+    return;
+  }
+
+  list.replaceChildren();
+  list.removeAttribute("aria-busy");
+  delete list.dataset.loading;
+  matching.forEach(app => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "app-picker-row";
+    button.dataset.packageName = app.packageName;
+    const img = document.createElement("img");
+    img.alt = "";
+    setAppIconSource(img, app.image);
+    const copy = document.createElement("span");
+    copy.className = "app-picker-copy";
+    const name = document.createElement("span");
+    name.className = "app-picker-name";
+    name.textContent = app.name;
+    const pkg = document.createElement("span");
+    pkg.className = "app-picker-package";
+    pkg.textContent = app.packageName;
+    copy.append(name, pkg);
+    button.append(img, copy);
+    const icon = document.createElement("span");
+    icon.className = "material-symbols-rounded";
+    icon.textContent = "chevron_right";
+    button.append(icon);
+    button.addEventListener("click", () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      const dialog = byId("dialog");
+      if (dialog.open) dialog.close();
+      if (flow === "create") {
+        showCreateProfileConfirmation(app);
+      } else {
+        const game = games().find(profile => profile.id === profileId);
+        if (!game) return;
+        const previousPackage = game.packageName;
+        if (previousPackage !== app.packageName) {
+          unregisterProfilePackage(previousPackage, game.id);
+          registerProfilePackage(app.packageName, game.id);
+        }
+        game.packageName = app.packageName;
+        game.name = app.name;
+        game.image = app.image;
+        game.lines = profileRawLines(game);
+        if (!Object.prototype.hasOwnProperty.call(state.designatedProfiles, app.packageName)) {
+          state.designatedProfiles[app.packageName] = game.profileName;
+        }
+        updateAll();
+        showToast("Assigned app changed");
+      }
+    });
+    list.append(button);
+  });
+  status.textContent = `${matching.length} available app${matching.length === 1 ? "" : "s"}.`;
+  publishAppPickerTestState("results", {
+    discoveredCount: discoveredApps.length,
+    availableCount: available.length,
+    matchingCount: matching.length,
+    visiblePackages: matching.map(app => app.packageName)
+  });
+}
+
+function cancelAppPickerDiscovery(showCancelledState = false) {
+  const sessionId = activeAppPickerSession;
+  if (activeAppPickerController) activeAppPickerController.abort();
+  activeAppPickerController = null;
+  activeAppPickerSession = 0;
+  if (showCancelledState && byId("dialog")?.open) {
+    const status = byId("appPickerStatus");
+    const list = byId("appPickerList");
+    if (status && list) {
+      list.replaceChildren();
+      list.removeAttribute("aria-busy");
+      delete list.dataset.loading;
+      status.textContent = "Discovery cancelled.";
+    }
+    publishAppPickerTestState("cancelled", { sessionId });
+  }
+}
+
+async function runAppPickerDiscovery(sessionId, elements, flow, profileId) {
+  const config = { ...appPickerTestConfig };
+  const controller = new AbortController();
+  activeAppPickerController = controller;
+  activeAppPickerSession = sessionId;
+  const startedAt = performance.now();
+  let skeletonShownAt = 0;
+  let skeletonVisible = false;
+  let thresholdTimer = 0;
+  const { search, list, status } = elements;
+  const showSkeleton = () => {
+    if (!isAppPickerSessionCurrent(sessionId) || !byId("dialog")?.open) return;
+    if (skeletonVisible) return;
+    skeletonVisible = true;
+    skeletonShownAt = performance.now();
+    showAppPickerSkeleton(list, status);
+    publishAppPickerTestState("loading", {
+      skeletonVisible: true,
+      elapsedMs: Math.round(skeletonShownAt - startedAt)
+    });
+  };
+
+  if (config.minimumFeedbackEnabled || config.forceSkeleton) {
+    showSkeleton();
+  } else {
+    thresholdTimer = window.setTimeout(showSkeleton, config.skeletonThresholdMs);
+  }
+  publishAppPickerTestState("discovering", {
+    sessionId,
+    discoveryDurationMs: config.discoveryDurationMs,
+    skeletonThresholdMs: config.skeletonThresholdMs,
+    minimumFeedbackEnabled: config.minimumFeedbackEnabled
+  });
+
+  try {
+    const discoveredApps = await simulateAppDiscovery(config, controller.signal);
+    if (!isAppPickerSessionCurrent(sessionId)) return;
+    window.clearTimeout(thresholdTimer);
+    const minimumVisibleMs = skeletonVisible
+      ? getAppPickerLoadingPolicy(config.discoveryDurationMs, config).minimumVisibleMs
+      : 0;
+    const visibleFor = skeletonVisible ? performance.now() - skeletonShownAt : minimumVisibleMs;
+    const remainingFeedback = Math.max(0, minimumVisibleMs - visibleFor);
+    if (remainingFeedback > 0) {
+      await waitForAppPickerDelay(remainingFeedback, controller.signal);
+    }
+    if (!isAppPickerSessionCurrent(sessionId)) return;
+    activeAppPickerController = null;
+    activeAppPickerSession = 0;
+    renderAppPickerResults(
+      list,
+      status,
+      discoveredApps,
+      search.value,
+      flow,
+      profileId
+    );
+    publishAppPickerTestState("complete", {
+      durationMs: Math.round(performance.now() - startedAt),
+      skeletonVisible: skeletonVisible,
+      discoveredCount: discoveredApps.length
+    });
+  } catch (error) {
+    window.clearTimeout(thresholdTimer);
+    if (!isAppPickerSessionCurrent(sessionId)) return;
+    activeAppPickerController = null;
+    activeAppPickerSession = 0;
+    if (error?.name === "AbortError") {
+      list.replaceChildren();
+      list.removeAttribute("aria-busy");
+      delete list.dataset.loading;
+      status.textContent = "Discovery cancelled.";
+      publishAppPickerTestState("cancelled", { sessionId });
+      return;
+    }
+    renderAppPickerEmptyState(list, status, "discovery-error", startDiscovery);
+    publishAppPickerTestState("error", {
+      message: error?.message || "Discovery failed.",
+      durationMs: Math.round(performance.now() - startedAt)
+    });
+  }
+
+  function startDiscovery() {
+    const nextSession = ++appPickerSessionCounter;
+    activeAppPickerSession = nextSession;
+    const retryController = new AbortController();
+    activeAppPickerController = retryController;
+    runAppPickerDiscovery(nextSession, elements, flow, profileId);
+  }
+}
+
+function runAppPickerSelfTests() {
+  const tests = [];
+  const assert = (condition, message) => {
+    if (!condition) throw new Error(message);
+  };
+  const fakeStorage = () => {
+    const values = new Map();
+    return {
+      getItem: key => values.has(key) ? values.get(key) : null,
+      setItem: (key, value) => values.set(key, String(value)),
+      removeItem: key => values.delete(key)
+    };
+  };
+  const test = (name, callback) => {
+    try {
+      callback();
+      tests.push({ name, passed: true });
+    } catch (error) {
+      tests.push({ name, passed: false, error: error?.message || String(error) });
+    }
+  };
+
+  test("Added package is stored by packageName", () => {
+    const storage = fakeStorage();
+    assert(addPackage("com.example.game", "profile-1", storage), "Package was not saved.");
+    assert(getAddedPackages(storage).has("com.example.game"), "Stored package was not readable.");
+  });
+  test("Registered packages are filtered; unknown packages remain available", () => {
+    const storage = fakeStorage();
+    addPackage("com.example.added", "profile-1", storage);
+    const apps = [
+      { name: "Added", packageName: "com.example.added" },
+      { name: "Available", packageName: "com.example.available" }
+    ];
+    const filtered = apps.filter(app => !getAddedPackages(storage).has(app.packageName));
+    assert(filtered.length === 1 && filtered[0].packageName === "com.example.available",
+      "Filtering did not use packageName correctly.");
+  });
+  test("Multiple profiles retain one package record until the last link is removed", () => {
+    const storage = fakeStorage();
+    addPackage("com.example.shared", "profile-1", storage);
+    addPackage("com.example.shared", "profile-2", storage);
+    removePackage("com.example.shared", "profile-1", storage);
+    assert(getAddedPackages(storage).has("com.example.shared"), "Removing one link removed a shared package.");
+    removePackage("com.example.shared", "profile-2", storage);
+    assert(!getAddedPackages(storage).has("com.example.shared"), "Last profile removal did not release the package.");
+  });
+  test("Changing profile assignment releases the old package and registers the new one", () => {
+    const storage = fakeStorage();
+    addPackage("com.example.old", "profile-1", storage);
+    removePackage("com.example.old", "profile-1", storage);
+    addPackage("com.example.new", "profile-1", storage);
+    assert(!getAddedPackages(storage).has("com.example.old"), "Old package is still registered.");
+    assert(getAddedPackages(storage).has("com.example.new"), "New package was not registered.");
+  });
+  test("Search matches both app name and packageName", () => {
+    const apps = [
+      { name: "Call of Duty Mobile", packageName: "com.activision.callofduty" },
+      { name: "Free Fire", packageName: "com.dts.freefireth" }
+    ];
+    assert(filterAppPickerSearchResults(apps, "call of duty").length === 1, "Name search failed.");
+    assert(filterAppPickerSearchResults(apps, "com.dts.freefireth").length === 1, "Package search failed.");
+  });
+  test("Empty states distinguish discovery, filtering, and search", () => {
+    assert(getAppPickerEmptyState([], [], []) === "no-discovered-apps", "Empty discovery state is wrong.");
+    assert(getAppPickerEmptyState([{ packageName: "a" }], [], []) === "all-apps-added", "All-added state is wrong.");
+    assert(getAppPickerEmptyState([{ packageName: "a" }], [{ packageName: "a" }], []) === "no-search-results",
+      "Search-empty state is wrong.");
+  });
+  test("Fast discovery under 100–200 ms skips the adaptive Skeleton", () => {
+    const config = { ...APP_PICKER_DEFAULT_TEST_CONFIG, skeletonThresholdMs: 160 };
+    for (const duration of [0, 50, 100, 150, 160]) {
+      assert(!getAppPickerLoadingPolicy(duration, config).showSkeleton,
+        `Skeleton unexpectedly shown at ${duration} ms.`);
+    }
+    assert(getAppPickerLoadingPolicy(200, config).showSkeleton, "Skeleton did not appear after the threshold.");
+  });
+  test("Minimum loading feedback forces a visible Skeleton for instant discovery", () => {
+    const config = {
+      ...APP_PICKER_DEFAULT_TEST_CONFIG,
+      minimumFeedbackEnabled: true,
+      minimumFeedbackMs: 350
+    };
+    const policy = getAppPickerLoadingPolicy(0, config);
+    assert(policy.showSkeleton, "Minimum feedback did not show the Skeleton.");
+    assert(policy.minimumVisibleMs === 350, "Minimum feedback duration was not applied.");
+  });
+  test("Forced Skeleton is available for visual inspection", () => {
+    const config = { ...APP_PICKER_DEFAULT_TEST_CONFIG, forceSkeleton: true };
+    assert(getAppPickerLoadingPolicy(0, config).showSkeleton, "Forced Skeleton did not appear.");
+  });
+  test("Discovery outcomes can represent empty, partial, and failed scans", () => {
+    assert(simulatedOutcomeForTest("empty").length === 0, "Empty scan is not empty.");
+    assert(simulatedOutcomeForTest("partial").length > 0, "Partial scan returned no apps.");
+    assert(simulatedOutcomeForTest("failure") === "failure", "Failure scenario is missing.");
+  });
+  test("Session identity rejects stale results after cancellation or reopen", () => {
+    const previous = activeAppPickerSession;
+    activeAppPickerSession = 101;
+    assert(isAppPickerSessionCurrent(101), "Active session was rejected.");
+    activeAppPickerSession = 102;
+    assert(!isAppPickerSessionCurrent(101), "A stale session was accepted.");
+    activeAppPickerSession = previous;
+  });
+  test("Malformed registry data does not crash reads", () => {
+    const storage = fakeStorage();
+    storage.setItem(ADDED_PACKAGES_STORAGE_KEY, "{broken");
+    assert(getAddedPackages(storage).size === 0, "Malformed data was not handled safely.");
+  });
+
+  const passed = tests.filter(result => result.passed).length;
+  const summary = { passed, failed: tests.length - passed, total: tests.length, tests };
+  if (window.parent !== window) {
+    window.parent.postMessage({
+      type: "xtmapper-app-picker-test-results",
+      summary
+    }, window.location.origin);
+  }
+  return summary;
+}
+
+function simulatedOutcomeForTest(outcome) {
+  if (outcome === "empty") return [];
+  if (outcome === "partial") return APP_CATALOG.slice(0, 3);
+  if (outcome === "failure") return "failure";
+  return [...APP_CATALOG];
+}
+
+initializeAddedPackageRegistry();
 
 function showToast(message) {
   const toast = byId("toast");
@@ -3211,6 +3863,7 @@ function addProfile(app, name) {
   };
   if (state.libraryScenario === "empty") state.libraryScenario = "current";
   profileCollection().push(created);
+  registerProfilePackage(created.packageName, created.id);
   state.selectedId = created.id;
   state.designatedProfiles[app.packageName] = profileName;
   updateAll();
@@ -3294,65 +3947,62 @@ function openProfileZipPicker() {
 }
 
 function openAppPicker(flow, profileId = null) {
+  if (activeAppPickerController) cancelAppPickerDiscovery(false);
   selectedProfileForPicker = profileId;
   const host = document.createElement("div");
-  host.innerHTML = `<input class="app-search" id="appSearch" type="search" placeholder="Search apps" aria-label="Search sample apps"><div class="sim-desc" style="margin:7px 1px 9px">Sample launcher catalogue. A browser cannot query Android PackageManager for installed apps.</div><div class="app-picker-list" id="appPickerList"></div>`;
-  openCustomDialog(flow === "create" ? "Choose an app" : "Change assigned app", "Select a launcher app to associate with this profile.", host, { confirm: false, cancelText: "Cancel" });
+  host.innerHTML = `
+    <input class="app-search" id="appSearch" type="search" placeholder="Search apps" aria-label="Search sample apps">
+    <div class="sim-desc" style="margin:7px 1px 9px">Sample launcher catalogue for this browser prototype. Android PackageManager is not available here.</div>
+    <p class="app-picker-status" id="appPickerStatus" role="status" aria-live="polite">Preparing app discovery…</p>
+    <div class="app-picker-list" id="appPickerList" aria-busy="true"></div>`;
+  const dialog = byId("dialog");
   const list = host.querySelector("#appPickerList");
-  const renderList = query => {
-    list.replaceChildren();
-    const filtered = APP_CATALOG.filter(app => `${app.name} ${app.packageName}`.toLowerCase().includes(query.toLowerCase()));
-    if (!filtered.length) {
-      const empty = document.createElement("p");
-      empty.className = "sim-desc";
-      empty.textContent = "No matching sample app.";
-      list.append(empty);
-      return;
+  const status = host.querySelector("#appPickerStatus");
+  const search = host.querySelector("#appSearch");
+  const elements = { list, status, search };
+  let discoveredApps = null;
+  let query = "";
+
+  const renderReadyResults = () => {
+    if (!discoveredApps) return;
+    renderAppPickerResults(list, status, discoveredApps, query, flow, profileId);
+  };
+  const startDiscovery = () => {
+    const sessionId = ++appPickerSessionCounter;
+    activeAppPickerSession = sessionId;
+    const controller = new AbortController();
+    activeAppPickerController = controller;
+    discoveredApps = null;
+    showAppPickerSkeleton(list, status);
+    if (!appPickerTestConfig.minimumFeedbackEnabled && !appPickerTestConfig.forceSkeleton) {
+      list.replaceChildren();
+      list.setAttribute("aria-busy", "true");
+      list.dataset.loading = "true";
+      status.textContent = "Preparing app discovery…";
     }
-    filtered.forEach(app => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "app-picker-row";
-      const img = document.createElement("img");
-      img.alt = "";
-      setAppIconSource(img, app.image);
-      const copy = document.createElement("span");
-      copy.className = "app-picker-copy";
-      const name = document.createElement("span");
-      name.className = "app-picker-name";
-      name.textContent = app.name;
-      const pkg = document.createElement("span");
-      pkg.className = "app-picker-package";
-      pkg.textContent = app.packageName;
-      copy.append(name, pkg);
-      button.append(img, copy);
-      const icon = document.createElement("span");
-      icon.className = "material-symbols-rounded";
-      icon.textContent = "chevron_right";
-      button.append(icon);
-      button.addEventListener("click", () => {
-        if (byId("dialog").open) byId("dialog").close();
-        if (flow === "create") {
-          showCreateProfileConfirmation(app);
-        } else {
-          const game = games().find(g => g.id === selectedProfileForPicker);
-          if (!game) return;
-          game.packageName = app.packageName;
-          game.name = app.name;
-          game.image = app.image;
-          game.lines = profileRawLines(game);
-          if (!Object.prototype.hasOwnProperty.call(state.designatedProfiles, app.packageName)) {
-            state.designatedProfiles[app.packageName] = game.profileName;
-          }
-          updateAll();
-          showToast("Assigned app changed");
-        }
-      });
-      list.append(button);
+    runAppPickerDiscovery(sessionId, elements, flow, profileId).then(() => {
+      if (isAppPickerSessionCurrent(sessionId)) return;
     });
   };
-  renderList("");
-  host.querySelector("#appSearch").addEventListener("input", event => renderList(event.target.value));
+
+  activeAppPickerRetry = startDiscovery;
+  dialog.addEventListener("close", () => {
+    if (activeAppPickerSession) cancelAppPickerDiscovery(false);
+  }, { once: true });
+
+  openCustomDialog(
+    flow === "create" ? "Choose an app" : "Change assigned app",
+    "Discover sample launcher apps, then select one to associate with this profile.",
+    host,
+    { confirm: false, cancelText: "Cancel" }
+  );
+
+  search.addEventListener("input", event => {
+    query = event.target.value;
+    if (discoveredApps) renderReadyResults();
+  });
+
+  startDiscovery();
 }
 function showProfileActions(id) {
   const game = games().find(g => g.id === id);
@@ -3402,6 +4052,7 @@ function deleteProfile(game) {
     confirmText: "Delete",
     onConfirm: () => {
       const remaining = profileCollection().filter(item => item.id !== game.id);
+      unregisterProfilePackage(game.packageName, game.id);
       if (state.libraryScenario === "samples") state.previewGames = remaining;
       else state.games = remaining;
       Object.keys(state.designatedProfiles).forEach(pkg => { if (state.designatedProfiles[pkg] === game.profileName) delete state.designatedProfiles[pkg]; });
@@ -3574,7 +4225,9 @@ byId("backupFile").addEventListener("change", async event => {
       const appLine = lines.find(line => line.startsWith("APPLICATION "));
       const packageName = appLine?.slice("APPLICATION ".length).trim() || "xtr.keymapper";
       const app = byPackage(packageName);
-      state.games.push({ id: uid(), name: app.name, profileName: entry.name, packageName, image: app.image, enabled: lines.includes("ENABLED"), lines });
+      const importedProfile = { id: uid(), name: app.name, profileName: entry.name, packageName, image: app.image, enabled: lines.includes("ENABLED"), lines };
+      state.games.push(importedProfile);
+      registerProfilePackage(packageName, importedProfile.id);
       imported++;
     }
     if (imported) {
@@ -4003,6 +4656,35 @@ window.addEventListener("message", event => {
     renderPrototypeDevices(message.devices);
     return;
   }
+  if (message.type === "xtmapper-app-picker-test-control") {
+    if (message.action === "configure") {
+      configureAppPickerTests(message.config || {});
+      publishAppPickerTestState("configured", { config: { ...appPickerTestConfig } });
+    } else if (message.action === "open") {
+      openAppPicker("create");
+    } else if (message.action === "close") {
+      if (byId("dialog").open) byId("dialog").close();
+    } else if (message.action === "cancel") {
+      cancelAppPickerDiscovery(true);
+    } else if (message.action === "retry") {
+      activeAppPickerRetry?.();
+    } else if (message.action === "run-tests") {
+      runAppPickerSelfTests();
+    } else if (message.action === "storage-add") {
+      addPackage(message.packageName, "__prototype_test__");
+    } else if (message.action === "storage-remove") {
+      removePackage(message.packageName, "__prototype_test__");
+    } else if (message.action === "storage-clear-tests") {
+      for (const record of getAddedPackageRecords()) {
+        if (record.profileIds.includes("__prototype_test__")) {
+          removePackage(record.packageName, "__prototype_test__");
+        }
+      }
+    } else if (message.action === "snapshot") {
+      notifyAppPickerStorageSnapshot();
+    }
+    return;
+  }
   if (message.type === "xtmapper-prototype-sync") {
     notifyPrototypeParent();
     return;
@@ -4017,6 +4699,8 @@ window.addEventListener("message", event => {
   }
 });
 window.addEventListener("load", () => {
+  configureAppPickerTests(APP_PICKER_DEFAULT_TEST_CONFIG);
+  notifyAppPickerStorageSnapshot();
   notifyPrototypeParent();
   if (window.parent !== window) {
     window.parent.postMessage(
