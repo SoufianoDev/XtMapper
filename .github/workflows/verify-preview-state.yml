@@ -917,15 +917,27 @@ jobs:
 
             const dialogButton = frame.locator('#dialogConfirm');
             const dialogButtonBox = await dialogButton.boundingBox();
-            const activityFrameBox = await page.locator('#activityFrame').boundingBox();
-            if (!dialogButtonBox || !activityFrameBox) {
-              throw new Error('The dialog action button and Activity iframe must be visible for cursor testing.');
+            const activityFrameGeometry = await page.locator('#activityFrame').evaluate(frame => {
+              const rect = frame.getBoundingClientRect();
+              return {
+                left: rect.left,
+                top: rect.top,
+                scaleX: rect.width / frame.contentWindow.innerWidth,
+                scaleY: rect.height / frame.contentWindow.innerHeight
+              };
+            });
+            if (!dialogButtonBox ||
+                !Number.isFinite(activityFrameGeometry.scaleX) ||
+                !Number.isFinite(activityFrameGeometry.scaleY) ||
+                activityFrameGeometry.scaleX <= 0 ||
+                activityFrameGeometry.scaleY <= 0) {
+              throw new Error('The dialog action button and Activity iframe geometry must be available for cursor testing.');
             }
 
             async function verifyDialogCursorAt(pagePoint, pointName) {
               const localPoint = {
-                x: pagePoint.x - activityFrameBox.x,
-                y: pagePoint.y - activityFrameBox.y
+                x: (pagePoint.x - activityFrameGeometry.left) / activityFrameGeometry.scaleX,
+                y: (pagePoint.y - activityFrameGeometry.top) / activityFrameGeometry.scaleY
               };
               await page.mouse.move(pagePoint.x, pagePoint.y);
               await page.waitForFunction(({ x, y }) => {
@@ -989,8 +1001,8 @@ jobs:
               throw new Error('The modal must leave a usable backdrop margin inside the Activity viewport.');
             }
             await verifyDialogCursorAt({
-              x: backdropLocalPoint.x + activityFrameBox.x,
-              y: backdropLocalPoint.y + activityFrameBox.y
+              x: activityFrameGeometry.left + backdropLocalPoint.x * activityFrameGeometry.scaleX,
+              y: activityFrameGeometry.top + backdropLocalPoint.y * activityFrameGeometry.scaleY
             }, 'blurred backdrop');
 
             const dialogCursorState = await dialog.evaluate(dialog => {
