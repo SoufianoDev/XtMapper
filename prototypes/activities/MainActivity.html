@@ -2695,10 +2695,10 @@ function initializeAddedPackageRegistry() {
   }
 }
 
-function getAvailableAppCatalog(discoveredApps, flow, profileId, storage = localStorage) {
+function getAvailableAppCatalog(discoveredApps, flow, profileId, storage = localStorage, profiles = games()) {
   const registeredPackages = getAddedPackages(storage);
   const currentProfile = flow === "change"
-    ? games().find(profile => profile.id === profileId)
+    ? profiles.find(profile => profile.id === profileId)
     : null;
   const currentPackage = currentProfile?.packageName || "";
   return discoveredApps.filter(app =>
@@ -3094,6 +3094,22 @@ function runAppPickerSelfTests() {
     addPackage("com.example.new", "profile-1", storage);
     assert(!getAddedPackages(storage).has("com.example.old"), "Old package is still registered.");
     assert(getAddedPackages(storage).has("com.example.new"), "New package was not registered.");
+  });
+  test("The current profile app remains selectable during reassignment", () => {
+    const storage = fakeStorage();
+    addPackage("com.example.current", "profile-1", storage);
+    addPackage("com.example.other", "profile-2", storage);
+    const profiles = [{ id: "profile-1", packageName: "com.example.current" }];
+    const apps = [
+      { name: "Current", packageName: "com.example.current" },
+      { name: "Other", packageName: "com.example.other" },
+      { name: "New", packageName: "com.example.new" }
+    ];
+    const available = getAvailableAppCatalog(apps, "change", "profile-1", storage, profiles);
+    assert(available.some(app => app.packageName === "com.example.current"),
+      "The current assigned package disappeared from the change flow.");
+    assert(!available.some(app => app.packageName === "com.example.other"),
+      "A package assigned to another profile was not filtered.");
   });
   test("Search matches both app name and packageName", () => {
     const apps = [
@@ -3601,6 +3617,9 @@ function updateAll() {
 function setLibraryScenario(scenario) {
   if (!["samples", "empty", "current"].includes(scenario)) return;
   state.libraryScenario = scenario;
+  if (scenario === "samples") {
+    state.previewGames.forEach(profile => registerProfilePackage(profile.packageName, profile.id));
+  }
   const visible = games();
   if (!visible.some(game => game.id === state.selectedId)) state.selectedId = visible[0]?.id || "";
   if (!visible.length) activeProfileId = null;
