@@ -100,11 +100,9 @@ async function readRegistry() {
   return page.evaluate(key => {
     const state = JSON.parse(localStorage.getItem(key) || "null");
     if (!state) return [];
-    const profiles = state.libraryScenario === "empty"
-      ? []
-      : state.libraryScenario === "samples"
-        ? (state.previewGames || [])
-        : (state.games || []);
+    const profiles = state.libraryScenario === "samples"
+      ? (state.previewGames || [])
+      : (state.games || []);
     const records = new Map();
     for (const profile of profiles) {
       const packageName = typeof profile?.packageName === "string" ? profile.packageName.trim() : "";
