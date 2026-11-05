@@ -314,7 +314,7 @@ class CoordinatorStore(
             RandomAccessFile(file, "r").use { migrationOffset(readBytes(it), receipt, name) }
             false
         } catch (_: DayIntegrityBlockedException) {
-            RandomAccessFile(file, "r").use { hasDayHeader(readBytes(it)) }
+            RandomAccessFile(file, "r").use { containsFrameRegion(readBytes(it)) }
         }
     }
 
