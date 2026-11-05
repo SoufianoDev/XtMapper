@@ -2606,26 +2606,63 @@ function writeAddedPackageRecords(records, storage = localStorage) {
   } catch (error) {
     if (storage === localStorage && prototypeReady && !storageWarningShown) {
       storageWarningShown = true;
-      showToast("App picker storage is unavailable. Added-app state may not persist.");
+      showToast("App Picker test data could not be saved.");
     }
     return false;
   }
 }
 
-function getAddedPackageRecords(storage = localStorage) {
-  return readAddedPackageRecords(storage);
+function getProfilePackageRecords(profiles = games()) {
+  const records = new Map();
+  for (const profile of profiles || []) {
+    const packageName = typeof profile?.packageName === "string" ? profile.packageName.trim() : "";
+    if (!packageName) continue;
+    const profileId = typeof profile?.id === "string" && profile.id.trim()
+      ? profile.id.trim()
+      : "";
+    if (!records.has(packageName)) records.set(packageName, { packageName, profileIds: [] });
+    if (profileId) {
+      const ids = records.get(packageName).profileIds;
+      if (!ids.includes(profileId)) ids.push(profileId);
+    }
+  }
+  return [...records.values()];
 }
 
-function getAddedPackages(storage = localStorage) {
-  return new Set(readAddedPackageRecords(storage).map(record => record.packageName));
+/* The active profile collection is the sole source of real added apps.
+   localStorage below contains only temporary entries created by the test panel. */
+function getAddedPackageRecords(storage = localStorage, profiles = games()) {
+  const records = new Map();
+  const merge = (entry, allowedIds = null) => {
+    const packageName = entry.packageName;
+    const profileIds = allowedIds
+      ? entry.profileIds.filter(id => allowedIds.has(id))
+      : entry.profileIds;
+    if (!records.has(packageName)) records.set(packageName, { packageName, profileIds: [] });
+    const target = records.get(packageName);
+    target.profileIds = [...new Set([...target.profileIds, ...profileIds])];
+  };
+
+  if (storage === localStorage) {
+    getProfilePackageRecords(profiles).forEach(entry => merge(entry));
+    const testOnly = new Set(["__prototype_test__"]);
+    readAddedPackageRecords(storage).forEach(entry => merge(entry, testOnly));
+  } else {
+    readAddedPackageRecords(storage).forEach(entry => merge(entry));
+  }
+  return [...records.values()];
 }
 
-function addPackage(packageName, profileId = "__manual__", storage = localStorage) {
+function getAddedPackages(storage = localStorage, profiles = games()) {
+  return new Set(getAddedPackageRecords(storage, profiles).map(record => record.packageName));
+}
+
+function addPackage(packageName, profileId = "__prototype_test__", storage = localStorage) {
   const normalizedPackage = typeof packageName === "string" ? packageName.trim() : "";
   if (!normalizedPackage) return false;
   const normalizedProfileId = typeof profileId === "string" && profileId.trim()
     ? profileId.trim()
-    : "__manual__";
+    : "__prototype_test__";
   const records = readAddedPackageRecords(storage);
   const record = records.find(entry => entry.packageName === normalizedPackage);
   if (record) {
@@ -2638,7 +2675,7 @@ function addPackage(packageName, profileId = "__manual__", storage = localStorag
   return saved;
 }
 
-function removePackage(packageName, profileId = null, storage = localStorage) {
+function removePackage(packageName, profileId = "__prototype_test__", storage = localStorage) {
   const normalizedPackage = typeof packageName === "string" ? packageName.trim() : "";
   if (!normalizedPackage) return false;
   let records = readAddedPackageRecords(storage);
@@ -2657,46 +2694,36 @@ function removePackage(packageName, profileId = null, storage = localStorage) {
   return saved;
 }
 
-function registerProfilePackage(packageName, profileId) {
-  return addPackage(packageName, profileId);
-}
-
-function unregisterProfilePackage(packageName, profileId) {
-  return removePackage(packageName, profileId);
-}
-
-/* One-time migration only: after this record is created, the independent app
-   registry is authoritative. Android will use a Room repository over SQLite. */
 function initializeAddedPackageRegistry() {
   try {
     const raw = localStorage.getItem(ADDED_PACKAGES_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.version === 1 && Array.isArray(parsed.packages)) return;
+    if (raw === null) return;
+    const parsed = JSON.parse(raw);
+    if (parsed?.version !== 1 || !Array.isArray(parsed.packages)) {
       localStorage.removeItem(ADDED_PACKAGES_STORAGE_KEY);
+      return;
     }
-    const existingProfiles = [
-      ...(Array.isArray(state.games) ? state.games : []),
-      ...(state.libraryScenario === "samples" && Array.isArray(state.previewGames)
-        ? state.previewGames
-        : [])
-    ];
-    const records = new Map();
-    for (const profile of existingProfiles) {
-      const packageName = typeof profile?.packageName === "string" ? profile.packageName.trim() : "";
-      const profileId = typeof profile?.id === "string" ? profile.id : "";
-      if (!packageName || !profileId) continue;
-      if (!records.has(packageName)) records.set(packageName, { packageName, profileIds: [] });
-      records.get(packageName).profileIds.push(profileId);
+    const legacyEntries = readAddedPackageRecords(localStorage);
+    const testEntries = legacyEntries
+      .map(entry => ({
+        packageName: entry.packageName,
+        profileIds: entry.profileIds.filter(id => id === "__prototype_test__")
+      }))
+      .filter(entry => entry.profileIds.length);
+    if (JSON.stringify(legacyEntries) !== JSON.stringify(testEntries)) {
+      writeAddedPackageRecords(testEntries);
     }
-    writeAddedPackageRecords([...records.values()]);
   } catch (_) {
-    // The prototype remains usable when storage is blocked or malformed.
+    try {
+      localStorage.removeItem(ADDED_PACKAGES_STORAGE_KEY);
+    } catch (_) {
+      // A blocked storage API must not prevent the prototype from starting.
+    }
   }
 }
 
 function getAvailableAppCatalog(discoveredApps, flow, profileId, storage = localStorage, profiles = games()) {
-  const registeredPackages = getAddedPackages(storage);
+  const registeredPackages = getAddedPackages(storage, profiles);
   const currentProfile = flow === "change"
     ? profiles.find(profile => profile.id === profileId)
     : null;
@@ -2911,12 +2938,9 @@ function renderAppPickerResults(list, status, discoveredApps, query, flow, profi
         const game = games().find(profile => profile.id === profileId);
         if (!game) return;
         const previousPackage = game.packageName;
-        if (previousPackage !== app.packageName) {
-          unregisterProfilePackage(previousPackage, game.id);
-          if (state.designatedProfiles[previousPackage] === game.profileName) {
-            delete state.designatedProfiles[previousPackage];
-          }
-          registerProfilePackage(app.packageName, game.id);
+        if (previousPackage !== app.packageName &&
+            state.designatedProfiles[previousPackage] === game.profileName) {
+          delete state.designatedProfiles[previousPackage];
         }
         game.packageName = app.packageName;
         game.name = app.name;
@@ -3639,9 +3663,6 @@ function updateAll() {
 function setLibraryScenario(scenario) {
   if (!["samples", "empty", "current"].includes(scenario)) return;
   state.libraryScenario = scenario;
-  if (scenario === "samples") {
-    state.previewGames.forEach(profile => registerProfilePackage(profile.packageName, profile.id));
-  }
   const visible = games();
   if (!visible.some(game => game.id === state.selectedId)) state.selectedId = visible[0]?.id || "";
   if (!visible.length) activeProfileId = null;
@@ -3898,7 +3919,6 @@ function addProfile(app, name) {
   };
   if (state.libraryScenario === "empty") state.libraryScenario = "current";
   profileCollection().push(created);
-  registerProfilePackage(created.packageName, created.id);
   state.selectedId = created.id;
   state.designatedProfiles[app.packageName] = profileName;
   updateAll();
@@ -4089,7 +4109,6 @@ function deleteProfile(game) {
     confirmText: "Delete",
     onConfirm: () => {
       const remaining = profileCollection().filter(item => item.id !== game.id);
-      unregisterProfilePackage(game.packageName, game.id);
       if (state.libraryScenario === "samples") state.previewGames = remaining;
       else state.games = remaining;
       Object.keys(state.designatedProfiles).forEach(pkg => { if (state.designatedProfiles[pkg] === game.profileName) delete state.designatedProfiles[pkg]; });
@@ -4264,7 +4283,6 @@ byId("backupFile").addEventListener("change", async event => {
       const app = byPackage(packageName);
       const importedProfile = { id: uid(), name: app.name, profileName: entry.name, packageName, image: app.image, enabled: lines.includes("ENABLED"), lines };
       state.games.push(importedProfile);
-      registerProfilePackage(packageName, importedProfile.id);
       imported++;
     }
     if (imported) {
