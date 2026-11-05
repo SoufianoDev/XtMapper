@@ -241,16 +241,18 @@ class CoordinatorStore(
                     val length = fields.getOrNull(2)?.toIntOrNull() ?: invalid()
                     val hash = fields.getOrNull(3) ?: invalid()
                     if (fields.size != 4 || length <= 0 || !hash.matches(Regex("[0-9a-f]{64}"))) invalid()
+                    val nextReceipt = MigrationReceipt(length, hash)
                     val prior = states[fileName]
                     if (prior?.deletionPending == true) {
                         // Legacy journals treated D1 as completed revocation. A later M1
-                        // proves pathname reuse; its file may still be at the pre-header
-                        // boundary because the new receipt is forced before migration writes.
+                        // is accepted only when its own receipt matches the reused path;
+                        // the file may still be at the pre-header boundary after a crash.
+                        if (!matchesReceiptPrefix(fileName, nextReceipt)) invalid()
                         states[fileName] = MigrationState(receipt = null, revoked = true)
                     } else if (prior != null && !prior.revoked) {
                         invalid()
                     }
-                    states[fileName] = MigrationState(MigrationReceipt(length, hash))
+                    states[fileName] = MigrationState(nextReceipt)
                 }
                 "D1" -> {
                     val prior = states[fileName]
@@ -305,6 +307,15 @@ class CoordinatorStore(
             }
         }
         return states
+    }
+
+    private fun matchesReceiptPrefix(name: String, receipt: MigrationReceipt): Boolean {
+        val file = target(name)
+        if (!file.isFile) return false
+        return RandomAccessFile(file, "r").use { raf ->
+            val bytes = readBytes(raf)
+            bytes.size >= receipt.length && prefixHash(bytes, receipt.length) == receipt.hash
+        }
     }
 
     private fun legacyDeletionCompleted(name: String, receipt: MigrationReceipt): Boolean {
