@@ -13,6 +13,26 @@ if (!app || !mainScroller) {
   cursor.hidden = true;
   app.append(cursor);
 
+  const dialog = document.getElementById("dialog");
+  let lastPointerPosition = null;
+
+  function syncCursorLayer() {
+    const dialogIsOpen = Boolean(dialog?.open);
+    const layer = dialogIsOpen ? dialog : app;
+    if (cursor.parentElement !== layer) layer.append(cursor);
+    cursor.classList.toggle("touch-preview-cursor--dialog", dialogIsOpen);
+
+    if (lastPointerPosition) setCursorPosition(lastPointerPosition);
+  }
+
+  if (dialog) {
+    new MutationObserver(syncCursorLayer).observe(dialog, {
+      attributes: true,
+      attributeFilter: ["open"]
+    });
+    dialog.addEventListener("close", syncCursorLayer);
+  }
+
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const cursorX = gsap?.quickTo
     ? gsap.quickTo(cursor, "x", { duration: reduceMotion ? 0 : 0.075, ease: "power3.out" })
@@ -27,10 +47,20 @@ if (!app || !mainScroller) {
   let cancelledPointerId = null;
 
   function setCursorPosition(event) {
-    const rect = app.getBoundingClientRect();
+    lastPointerPosition = {
+      clientX: event.clientX,
+      clientY: event.clientY
+    };
+
+    const dialogIsOpen = Boolean(dialog?.open);
+    const layerRect = (dialogIsOpen ? dialog : app).getBoundingClientRect();
     const size = cursor.offsetWidth || 28;
-    const x = Math.max(0, Math.min(rect.width - size, event.clientX - rect.left - size / 2));
-    const y = Math.max(0, Math.min(rect.height - size, event.clientY - rect.top - size / 2));
+    const x = dialogIsOpen
+      ? event.clientX - layerRect.left - size / 2
+      : Math.max(0, Math.min(layerRect.width - size, event.clientX - layerRect.left - size / 2));
+    const y = dialogIsOpen
+      ? event.clientY - layerRect.top - size / 2
+      : Math.max(0, Math.min(layerRect.height - size, event.clientY - layerRect.top - size / 2));
 
     if (gsap?.quickTo) {
       cursorX(x);
@@ -44,6 +74,7 @@ if (!app || !mainScroller) {
   function showCursor(event) {
     if (event.pointerType !== "mouse" || !app.contains(event.target)) return;
 
+    syncCursorLayer();
     html.classList.add("touch-preview-pointer");
     cursor.hidden = false;
     setCursorPosition(event);
