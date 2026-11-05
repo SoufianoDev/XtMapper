@@ -901,6 +901,76 @@ jobs:
               throw new Error('A short mouse press inside the device must remain a normal tap.');
             }
 
+            const dialog = frame.locator('#dialog');
+            await dialog.evaluate(element => element.showModal());
+            await page.waitForFunction(() => {
+              const frame = document.querySelector('#activityFrame');
+              const document = frame?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const cursor = document?.querySelector('.touch-preview-cursor');
+              return dialog?.matches(':modal') &&
+                document.querySelector('#app')?.contains(dialog) &&
+                cursor?.parentElement === dialog;
+            }, null, { timeout: 5000 });
+
+            const dialogButton = frame.locator('#dialogConfirm');
+            const dialogButtonBox = await dialogButton.boundingBox();
+            if (!dialogButtonBox) {
+              throw new Error('The dialog action button must be visible for cursor testing.');
+            }
+            const dialogPointer = {
+              x: dialogButtonBox.x + dialogButtonBox.width / 2,
+              y: dialogButtonBox.y + dialogButtonBox.height / 2
+            };
+            await page.mouse.move(dialogPointer.x, dialogPointer.y);
+
+            await page.waitForFunction(({ x, y }) => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const cursor = document?.querySelector('.touch-preview-cursor');
+              if (!dialog?.matches(':modal') || cursor?.parentElement !== dialog || cursor.hidden) {
+                return false;
+              }
+              const rect = cursor.getBoundingClientRect();
+              const style = getComputedStyle(cursor);
+              return style.pointerEvents === 'none' &&
+                Number.parseFloat(style.opacity) > 0 &&
+                Math.abs(rect.left + rect.width / 2 - x) < 3 &&
+                Math.abs(rect.top + rect.height / 2 - y) < 3;
+            }, dialogPointer, { timeout: 5000 });
+
+            const dialogCursorState = await frame.locator('#dialog').evaluate(dialog => {
+              const cursor = dialog.querySelector('.touch-preview-cursor');
+              return {
+                cursorIsInDialog: cursor?.parentElement === dialog,
+                dialogIsModal: dialog.matches(':modal'),
+                dialogRemainsInsideActivity: document.querySelector('#app').contains(dialog),
+                activityFrameId: window.frameElement?.id,
+                cursorZIndex: getComputedStyle(cursor).zIndex,
+                pointerEvents: getComputedStyle(cursor).pointerEvents
+              };
+            });
+            if (!dialogCursorState.cursorIsInDialog ||
+                !dialogCursorState.dialogIsModal ||
+                !dialogCursorState.dialogRemainsInsideActivity ||
+                dialogCursorState.activityFrameId !== 'activityFrame' ||
+                dialogCursorState.cursorZIndex !== '2147483647' ||
+                dialogCursorState.pointerEvents !== 'none') {
+              throw new Error(
+                'The touch cursor must render above the modal dialog inside the Activity iframe: ' +
+                JSON.stringify(dialogCursorState)
+              );
+            }
+
+            await dialog.evaluate(element => element.close());
+            await page.waitForFunction(() => {
+              const document = document.querySelector('#activityFrame')?.contentDocument;
+              const cursor = document?.querySelector('.touch-preview-cursor');
+              const app = document?.querySelector('#app');
+              return !document?.querySelector('#dialog')?.open &&
+                cursor?.parentElement === app;
+            }, null, { timeout: 5000 });
+
             const targetBox = await target.boundingBox();
             if (!targetBox) throw new Error('The touch regression target is not visible.');
 
