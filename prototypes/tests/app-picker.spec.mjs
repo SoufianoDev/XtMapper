@@ -3,6 +3,7 @@ import { chromium } from "playwright";
 
 const BASE_URL = process.env.PROTOTYPE_URL || "http://127.0.0.1:4173/";
 const REGISTRY_KEY = "xtmapper.app-picker.added-packages.v1";
+const MAIN_STATE_KEY = "xtmapper-main-prototype-v10";
 const APP_PACKAGES = [
   "com.activision.callofduty.shooter",
   "com.dts.freefiremax",
@@ -88,9 +89,22 @@ async function waitForRows() {
 
 async function readRegistry() {
   return page.evaluate(key => {
-    const parsed = JSON.parse(localStorage.getItem(key) || "null");
-    return Array.isArray(parsed?.packages) ? parsed.packages : [];
-  }, REGISTRY_KEY);
+    const state = JSON.parse(localStorage.getItem(key) || "null");
+    if (!state) return [];
+    const profiles = state.libraryScenario === "empty"
+      ? []
+      : state.libraryScenario === "samples"
+        ? (state.previewGames || [])
+        : (state.games || []);
+    const records = new Map();
+    for (const profile of profiles) {
+      const packageName = typeof profile?.packageName === "string" ? profile.packageName.trim() : "";
+      if (!packageName) continue;
+      if (!records.has(packageName)) records.set(packageName, { packageName, profileIds: [] });
+      if (profile.id) records.get(packageName).profileIds.push(profile.id);
+    }
+    return [...records.values()];
+  }, MAIN_STATE_KEY);
 }
 
 function crc32(bytes) {
@@ -246,26 +260,52 @@ check("Empty, partial, all-added and search-empty states are distinct", async ()
   assert.equal(await app.locator(".app-picker-row").count(), 3);
   await closePicker();
 
-  await page.evaluate(({ key, packages }) => {
-    localStorage.setItem(key, JSON.stringify({
-      version: 1,
-      packages: packages.map((packageName, index) => ({
+  const previousProfileState = await page.evaluate(key => localStorage.getItem(key), MAIN_STATE_KEY);
+  try {
+    await page.evaluate(({ key, packages }) => {
+      const previous = JSON.parse(localStorage.getItem(key) || "{}");
+      const profiles = packages.map((packageName, index) => ({
+        id: `test-profile-${index}`,
+        name: `Test game ${index}`,
+        profileName: `Test profile ${index}`,
         packageName,
-        profileIds: [`seed-${index}`]
-      }))
-    }));
-  }, { key: REGISTRY_KEY, packages: APP_PACKAGES });
-  await setConfig({ duration: 0, outcome: "success" });
-  await openPicker();
-  await app.getByText("All discovered apps have already been added to XtMapper.").waitFor({ state: "visible" });
-  await closePicker();
+        image: "",
+        enabled: index % 2 === 0,
+        lines: [`APPLICATION ${packageName}`]
+      }));
+      localStorage.setItem(key, JSON.stringify({
+        ...previous,
+        version: 10,
+        games: profiles,
+        previewGames: [],
+        libraryScenario: "current",
+        selectedId: profiles[0]?.id || ""
+      }));
+    }, { key: MAIN_STATE_KEY, packages: APP_PACKAGES });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#appPickerOpenButton").waitFor({ state: "visible" });
+    await setConfig({ duration: 0, outcome: "success" });
+    await openPicker();
+    await app.locator("#appPickerStatus")
+      .filter({ hasText: "All discovered apps have already been added to XtMapper." })
+      .waitFor({ state: "visible" });
+    await closePicker();
+  } finally {
+    await page.evaluate(({ key, value }) => {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    }, { key: MAIN_STATE_KEY, value: previousProfileState });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#appPickerOpenButton").waitFor({ state: "visible" });
+  }
 
-  await page.evaluate(key => localStorage.removeItem(key), REGISTRY_KEY);
   await setConfig({ duration: 0, outcome: "success" });
   await openPicker();
   await waitForRows();
   await app.locator("#appSearch").fill("not-a-real-game");
-  await app.getByText("No apps match your search.").waitFor({ state: "visible" });
+  await app.locator("#appPickerStatus")
+    .filter({ hasText: "No apps match your search." })
+    .waitFor({ state: "visible" });
   await closePicker();
 });
 
@@ -362,18 +402,18 @@ check("Creating and deleting a profile updates the independent app registry", as
   await app.locator(".game-profile-card").waitFor({ state: "visible" });
 
   let registry = await readRegistry();
-  assert.ok(registry.some(entry => entry.packageName === packageName), "Created profile was not registered.");
+  assert.ok(registry.some(entry => entry.packageName === packageName), "Created profile was not present in the active profile collection.");
 
   await app.locator(".game-profile-card__menu").first().click();
   await app.locator('[data-profile-action="delete"]').click();
   await app.locator("#dialogConfirm").click();
   await page.waitForFunction(({ key, pkg }) => {
-    const data = JSON.parse(localStorage.getItem(key) || "null");
-    return !data?.packages?.some(entry => entry.packageName === pkg);
-  }, { key: REGISTRY_KEY, pkg: packageName });
+    const state = JSON.parse(localStorage.getItem(key) || "null");
+    return !(state?.games || []).some(profile => profile.packageName === pkg);
+  }, { key: MAIN_STATE_KEY, pkg: packageName });
 
   registry = await readRegistry();
-  assert.ok(!registry.some(entry => entry.packageName === packageName), "Deleting the last profile did not unregister its app.");
+  assert.ok(!registry.some(entry => entry.packageName === packageName), "Deleting the last profile did not release its package.");
 });
 
 check("Changing assigned app releases the old package and registers the new one", async () => {
@@ -390,10 +430,10 @@ check("Changing assigned app releases the old package and registers the new one"
   await app.locator(`.app-picker-row[data-package-name="${newPackage}"]`).click();
 
   await page.waitForFunction(({ key, oldPkg, newPkg }) => {
-    const data = JSON.parse(localStorage.getItem(key) || "null");
-    const packages = new Set((data?.packages || []).map(entry => entry.packageName));
+    const state = JSON.parse(localStorage.getItem(key) || "null");
+    const packages = new Set((state?.games || []).map(profile => profile.packageName));
     return !packages.has(oldPkg) && packages.has(newPkg);
-  }, { key: REGISTRY_KEY, oldPkg: oldPackage, newPkg: newPackage });
+  }, { key: MAIN_STATE_KEY, oldPkg: oldPackage, newPkg: newPackage });
 
   await app.locator(".game-profile-card__menu").first().click();
   await app.locator('[data-profile-action="delete"]').click();
@@ -412,9 +452,9 @@ check("Modified imported backup package names enter the independent registry", a
     buffer: zip
   });
   await page.waitForFunction(({ key, pkg }) => {
-    const data = JSON.parse(localStorage.getItem(key) || "null");
-    return data?.packages?.some(entry => entry.packageName === pkg);
-  }, { key: REGISTRY_KEY, pkg: importedPackage });
+    const state = JSON.parse(localStorage.getItem(key) || "null");
+    return (state?.games || []).some(profile => profile.packageName === pkg);
+  }, { key: MAIN_STATE_KEY, pkg: importedPackage });
 
   await setConfig({ duration: 0 });
   await openPicker();
