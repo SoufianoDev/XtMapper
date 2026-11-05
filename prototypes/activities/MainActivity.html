@@ -3087,6 +3087,16 @@ function runAppPickerSelfTests() {
     removePackage("com.example.shared", "profile-2", storage);
     assert(!getAddedPackages(storage).has("com.example.shared"), "Last profile removal did not release the package.");
   });
+  test("Removing a panel-only test marker preserves a real profile link", () => {
+    const storage = fakeStorage();
+    addPackage("com.example.shared-test", "profile-1", storage);
+    addPackage("com.example.shared-test", "__prototype_test__", storage);
+    removePackage("com.example.shared-test", "__prototype_test__", storage);
+    assert(getAddedPackages(storage).has("com.example.shared-test"),
+      "Removing the test marker erased a package still linked to a profile.");
+    assert(getAddedPackageRecords(storage)[0].profileIds.includes("profile-1"),
+      "The profile link was not preserved.");
+  });
   test("Changing profile assignment releases the old package and registers the new one", () => {
     const storage = fakeStorage();
     addPackage("com.example.old", "profile-1", storage);
