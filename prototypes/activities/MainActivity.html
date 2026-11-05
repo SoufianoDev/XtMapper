@@ -2612,7 +2612,7 @@ function writeAddedPackageRecords(records, storage = localStorage) {
   }
 }
 
-function getProfilePackageRecords(profiles = games()) {
+function getProfilePackageRecords(profiles = profileCollection()) {
   const records = new Map();
   for (const profile of profiles || []) {
     const packageName = typeof profile?.packageName === "string" ? profile.packageName.trim() : "";
@@ -2631,7 +2631,7 @@ function getProfilePackageRecords(profiles = games()) {
 
 /* The active profile collection is the sole source of real added apps.
    localStorage below contains only temporary entries created by the test panel. */
-function getAddedPackageRecords(storage = localStorage, profiles = games()) {
+function getAddedPackageRecords(storage = localStorage, profiles = profileCollection()) {
   const records = new Map();
   const merge = (entry, allowedIds = null) => {
     const packageName = entry.packageName;
@@ -2653,7 +2653,7 @@ function getAddedPackageRecords(storage = localStorage, profiles = games()) {
   return [...records.values()];
 }
 
-function getAddedPackages(storage = localStorage, profiles = games()) {
+function getAddedPackages(storage = localStorage, profiles = profileCollection()) {
   return new Set(getAddedPackageRecords(storage, profiles).map(record => record.packageName));
 }
 
@@ -2722,7 +2722,7 @@ function initializeAddedPackageRegistry() {
   }
 }
 
-function getAvailableAppCatalog(discoveredApps, flow, profileId, storage = localStorage, profiles = games()) {
+function getAvailableAppCatalog(discoveredApps, flow, profileId, storage = localStorage, profiles = profileCollection()) {
   const registeredPackages = getAddedPackages(storage, profiles);
   const currentProfile = flow === "change"
     ? profiles.find(profile => profile.id === profileId)
