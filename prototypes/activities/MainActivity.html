@@ -1446,6 +1446,20 @@ html.icons-unavailable .material-symbols-rounded {
 }
 
 
+/* Dialog text fields share one focus ring and corner geometry across all dialog flows. */
+#dialog .dialog-input,
+#dialog .app-search {
+  border-radius: var(--shape-small);
+}
+#dialog .dialog-input:focus,
+#dialog .dialog-input:focus-visible,
+#dialog .app-search:focus,
+#dialog .app-search:focus-visible {
+  outline: 2px solid rgba(241,91,119,.62);
+  outline-offset: 0;
+  border-color: #f15b77;
+}
+
 /* Create-profile confirmation: identify the selected app and keep its package immutable. */
 .create-profile-confirmation { display:flex; flex-direction:column; gap:12px; }
 .create-profile-app-summary {
@@ -2535,6 +2549,12 @@ function resetDialogContent() {
   dialogAction = null;
   dialogCancelAction = null;
 }
+function presentActivityDialog() {
+  const dialog = byId("dialog");
+  if (!dialog.open) dialog.showModal();
+  window.__xtmapperRefreshDialogCursorLayer?.();
+}
+
 function openDialog(title, message, options = {}) {
   resetDialogContent();
   byId("dialogTitle").textContent = title;
@@ -2549,7 +2569,7 @@ function openDialog(title, message, options = {}) {
   byId("dialogCancel").hidden = options.cancel === false;
   dialogAction = options.onConfirm || null;
   dialogCancelAction = options.onCancel || null;
-  if (!byId("dialog").open) byId("dialog").showModal();
+  presentActivityDialog();
   requestAnimationFrame(() => {
     const activeDialog = byId("dialog");
     if (!activeDialog.open) return;
@@ -3357,7 +3377,7 @@ function showProfileActions(id) {
     if (action === "change") openAppPicker("change", game.id);
     if (action === "delete") deleteProfile(game);
   }));
-  byId("dialog").showModal();
+  presentActivityDialog();
   requestAnimationFrame(() => byId("dialogCancel").focus({ preventScroll:true }));
 }
 function renameProfile(game) {
