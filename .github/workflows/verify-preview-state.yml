@@ -1188,6 +1188,28 @@ jobs:
                 cursor?.parentElement === layer;
             }, null, { timeout: 5000 });
 
+            const confirmGeometry = await frame.locator('#dialogConfirm').evaluate(button => {
+              const target = button.getBoundingClientRect();
+              const surface = getComputedStyle(button, '::before');
+              return {
+                targetWidth: target.width,
+                targetHeight: target.height,
+                surfaceWidth: Number.parseFloat(surface.width),
+                surfaceHeight: Number.parseFloat(surface.height),
+                surfaceRadius: Number.parseFloat(surface.borderTopLeftRadius)
+              };
+            });
+            if (confirmGeometry.targetWidth < 96 ||
+                confirmGeometry.targetHeight < 48 ||
+                confirmGeometry.surfaceWidth < 96 ||
+                confirmGeometry.surfaceHeight !== 40 ||
+                confirmGeometry.surfaceRadius < confirmGeometry.surfaceHeight / 2) {
+              throw new Error(
+                'The shared dialog confirmation action must keep a 96×48 touch target and a 96×40 Material 3 pill surface: ' +
+                JSON.stringify(confirmGeometry)
+              );
+            }
+
             const profileNameInput = frame.locator('#dialogInput');
             await profileNameInput.focus();
             const profileInputBox = await profileNameInput.boundingBox();
