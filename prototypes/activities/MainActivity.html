@@ -1083,6 +1083,29 @@ dialog[open] { overscroll-behavior: contain; }
 .dialog-custom, .profile-actions { min-width: 0; max-height: min(54dvh, 440px); overflow: auto; overscroll-behavior: contain; margin-top: 14px; }
 .dialog-actions { position: sticky; bottom: 0; z-index: 2; flex-wrap: wrap; background: linear-gradient(120deg, #34212e, #24232e); }
 .dialog-actions button { min-width: 76px; }
+/* Material 3 dialog action: 40dp visible container inside a 48dp touch target. */
+#dialogConfirm {
+  position:relative;
+  isolation:isolate;
+  min-width:96px;
+  min-height:48px;
+  padding-inline:24px;
+  background:transparent;
+  box-shadow:none;
+}
+#dialogConfirm::before {
+  content:"";
+  position:absolute;
+  z-index:-1;
+  inset:4px 0;
+  border-radius:var(--shape-full);
+  background:var(--brand-gradient-control);
+  box-shadow:0 5px 16px rgba(188,32,66,.25), inset 0 1px 0 rgba(255,255,255,.2);
+  pointer-events:none;
+}
+#dialogConfirm:focus-visible {
+  border-radius:var(--shape-full);
+}
 .dialog-input { min-width: 0; }
 .toast { left: 50%; width: max-content; max-width: calc(100vw - 24px); overflow-wrap: anywhere; }
 .device-footnote { margin-top: 7px; color: var(--md-sys-color-on-surface-variant); font-size: 10px; line-height: 15px; }
