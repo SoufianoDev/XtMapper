@@ -915,12 +915,17 @@ jobs:
 
             const dialogButton = frame.locator('#dialogConfirm');
             const dialogButtonBox = await dialogButton.boundingBox();
-            if (!dialogButtonBox) {
-              throw new Error('The dialog action button must be visible for cursor testing.');
+            const activityFrameBox = await page.locator('#activityFrame').boundingBox();
+            if (!dialogButtonBox || !activityFrameBox) {
+              throw new Error('The dialog action button and Activity iframe must be visible for cursor testing.');
             }
             const dialogPointer = {
               x: dialogButtonBox.x + dialogButtonBox.width / 2,
               y: dialogButtonBox.y + dialogButtonBox.height / 2
+            };
+            const dialogCursorLocalPoint = {
+              x: dialogPointer.x - activityFrameBox.x,
+              y: dialogPointer.y - activityFrameBox.y
             };
             await page.mouse.move(dialogPointer.x, dialogPointer.y);
 
@@ -937,7 +942,7 @@ jobs:
                 Number.parseFloat(style.opacity) > 0 &&
                 Math.abs(rect.left + rect.width / 2 - x) < 3 &&
                 Math.abs(rect.top + rect.height / 2 - y) < 3;
-            }, dialogPointer, { timeout: 5000 });
+            }, dialogCursorLocalPoint, { timeout: 5000 });
 
             const dialogCursorState = await frame.locator('#dialog').evaluate(dialog => {
               const cursor = dialog.querySelector('.touch-preview-cursor');
