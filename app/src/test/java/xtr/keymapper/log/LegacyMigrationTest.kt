@@ -201,6 +201,51 @@ class LegacyMigrationTest {
         assertTrue(file.isFile)
     }
 
+    @Test fun `complete corrupt journal line is never discarded with a partial suffix`() {
+        val dir = tmp.newFolder()
+        val prefix = "legacy\n".encodeToByteArray()
+        val gate = File(dir, FileSystemLogStore.LIFECYCLE_LOCK_NAME)
+        val beforeJournal = receipt(prefix) + "corrupt complete receipt\npartial receipt".encodeToByteArray()
+        gate.writeBytes(beforeJournal)
+        val file = File(dir, name).apply { writeBytes(prefix) }
+        assertThrows(DayIntegrityBlockedException::class.java) { CoordinatorStore(dir).append(name, listOf(next)) }
+        assertArrayEquals(beforeJournal, gate.readBytes())
+        assertArrayEquals(prefix, file.readBytes())
+    }
+
+    @Test fun `legacy completed D1 permits a later migration of the same pathname`() {
+        val dir = tmp.newFolder()
+        val firstPrefix = "first legacy\n".encodeToByteArray()
+        val secondPrefix = "replacement legacy\n".encodeToByteArray()
+        val journal = File(dir, FileSystemLogStore.LIFECYCLE_LOCK_NAME)
+        journal.writeBytes(
+            receipt(firstPrefix) +
+                FrameCodec.encode(0, "migration", "D1|$name") +
+                receipt(secondPrefix),
+        )
+        val file = File(dir, name).apply { writeBytes(secondPrefix + header + next) }
+        val otherDay = "xtmapper-2026-10-02.log"
+        val store = CoordinatorStore(dir)
+        store.append(otherDay, listOf(FrameCodec.encode(1, "next", "other day")))
+        assertEquals(listOf("P1", "after migration"), store.readFrames(name).map { it.payload })
+        assertEquals("other day", store.readFrames(otherDay).last().payload)
+        assertTrue(file.isFile)
+    }
+
+    @Test fun `duplicate legacy D1 revocations remain readable across unrelated dates`() {
+        val dir = tmp.newFolder()
+        val prefix = "legacy\n".encodeToByteArray()
+        File(dir, FileSystemLogStore.LIFECYCLE_LOCK_NAME).writeBytes(
+            receipt(prefix) +
+                FrameCodec.encode(0, "migration", "D1|$name") +
+                FrameCodec.encode(0, "migration", "D1|$name"),
+        )
+        val otherDay = "xtmapper-2026-10-02.log"
+        val store = CoordinatorStore(dir)
+        store.append(otherDay, listOf(FrameCodec.encode(1, "next", "other day")))
+        assertEquals("other day", store.readFrames(otherDay).last().payload)
+    }
+
     @Test fun `migration forces the actual receipt on the stable gate before changing legacy bytes`() {
         val dir = tmp.newFolder()
         val prefix = "legacy\n".encodeToByteArray()
