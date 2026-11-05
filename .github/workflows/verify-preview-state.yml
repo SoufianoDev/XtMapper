@@ -1173,9 +1173,7 @@ jobs:
             });
 
             const firstAppRow = frame.locator('#appPickerList .app-picker-row').first();
-            if (!await firstAppRow.count()) {
-              throw new Error('The app picker must expose at least one selectable app.');
-            }
+            await firstAppRow.waitFor({ state: 'visible', timeout: 5000 });
             await firstAppRow.click();
 
             await page.waitForFunction(() => {
