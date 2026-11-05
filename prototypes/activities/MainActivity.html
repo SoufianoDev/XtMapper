@@ -2516,7 +2516,7 @@ let prototypeReady = false;
 let storageWarningShown = false;
 const APP_PICKER_DEFAULT_TEST_CONFIG = Object.freeze({
   discoveryDurationMs: 150,
-  skeletonThresholdMs: 160,
+  skeletonThresholdMs: 180,
   minimumFeedbackEnabled: false,
   minimumFeedbackMs: 350,
   forceSkeleton: false,
@@ -2955,7 +2955,7 @@ function cancelAppPickerDiscovery(showCancelledState = false) {
   }
 }
 
-async function runAppPickerDiscovery(sessionId, elements, flow, profileId) {
+async function runAppPickerDiscovery(sessionId, elements, flow, profileId, onDiscovered, retry) {
   const config = { ...appPickerTestConfig };
   const controller = new AbortController();
   activeAppPickerController = controller;
@@ -2979,7 +2979,7 @@ async function runAppPickerDiscovery(sessionId, elements, flow, profileId) {
 
   if (config.minimumFeedbackEnabled || config.forceSkeleton) {
     showSkeleton();
-  } else {
+  } else if (config.discoveryDurationMs > config.skeletonThresholdMs) {
     thresholdTimer = window.setTimeout(showSkeleton, config.skeletonThresholdMs);
   }
   publishAppPickerTestState("discovering", {
@@ -2992,12 +2992,13 @@ async function runAppPickerDiscovery(sessionId, elements, flow, profileId) {
   try {
     const discoveredApps = await simulateAppDiscovery(config, controller.signal);
     if (!isAppPickerSessionCurrent(sessionId)) return;
+    onDiscovered?.(discoveredApps);
     window.clearTimeout(thresholdTimer);
     const minimumVisibleMs = skeletonVisible
       ? getAppPickerLoadingPolicy(config.discoveryDurationMs, config).minimumVisibleMs
       : 0;
-    const visibleFor = skeletonVisible ? performance.now() - skeletonShownAt : minimumVisibleMs;
-    const remainingFeedback = Math.max(0, minimumVisibleMs - visibleFor);
+    const visibleFor = skeletonVisible ? performance.now() - skeletonShownAt : 0;
+    const remainingFeedback = skeletonVisible ? Math.max(0, minimumVisibleMs - visibleFor) : 0;
     if (remainingFeedback > 0) {
       await waitForAppPickerDelay(remainingFeedback, controller.signal);
     }
@@ -3030,20 +3031,13 @@ async function runAppPickerDiscovery(sessionId, elements, flow, profileId) {
       publishAppPickerTestState("cancelled", { sessionId });
       return;
     }
-    renderAppPickerEmptyState(list, status, "discovery-error", startDiscovery);
+    renderAppPickerEmptyState(list, status, "discovery-error", retry);
     publishAppPickerTestState("error", {
       message: error?.message || "Discovery failed.",
       durationMs: Math.round(performance.now() - startedAt)
     });
   }
 
-  function startDiscovery() {
-    const nextSession = ++appPickerSessionCounter;
-    activeAppPickerSession = nextSession;
-    const retryController = new AbortController();
-    activeAppPickerController = retryController;
-    runAppPickerDiscovery(nextSession, elements, flow, profileId);
-  }
 }
 
 function runAppPickerSelfTests() {
@@ -3116,8 +3110,8 @@ function runAppPickerSelfTests() {
       "Search-empty state is wrong.");
   });
   test("Fast discovery under 100–200 ms skips the adaptive Skeleton", () => {
-    const config = { ...APP_PICKER_DEFAULT_TEST_CONFIG, skeletonThresholdMs: 160 };
-    for (const duration of [0, 50, 100, 150, 160]) {
+    const config = { ...APP_PICKER_DEFAULT_TEST_CONFIG, skeletonThresholdMs: 180 };
+    for (const duration of [0, 50, 100, 150, 160, 180]) {
       assert(!getAppPickerLoadingPolicy(duration, config).showSkeleton,
         `Skeleton unexpectedly shown at ${duration} ms.`);
     }
@@ -3968,26 +3962,28 @@ function openAppPicker(flow, profileId = null) {
     renderAppPickerResults(list, status, discoveredApps, query, flow, profileId);
   };
   const startDiscovery = () => {
+    if (activeAppPickerController) cancelAppPickerDiscovery(false);
     const sessionId = ++appPickerSessionCounter;
     activeAppPickerSession = sessionId;
-    const controller = new AbortController();
-    activeAppPickerController = controller;
     discoveredApps = null;
-    showAppPickerSkeleton(list, status);
-    if (!appPickerTestConfig.minimumFeedbackEnabled && !appPickerTestConfig.forceSkeleton) {
-      list.replaceChildren();
-      list.setAttribute("aria-busy", "true");
-      list.dataset.loading = "true";
-      status.textContent = "Preparing app discovery…";
-    }
-    runAppPickerDiscovery(sessionId, elements, flow, profileId).then(() => {
-      if (isAppPickerSessionCurrent(sessionId)) return;
-    });
+    list.replaceChildren();
+    list.setAttribute("aria-busy", "true");
+    list.dataset.loading = "true";
+    status.textContent = "Preparing app discovery…";
+    runAppPickerDiscovery(
+      sessionId,
+      elements,
+      flow,
+      profileId,
+      apps => { discoveredApps = apps; },
+      startDiscovery
+    );
   };
 
   activeAppPickerRetry = startDiscovery;
   dialog.addEventListener("close", () => {
     if (activeAppPickerSession) cancelAppPickerDiscovery(false);
+    activeAppPickerRetry = null;
   }, { once: true });
 
   openCustomDialog(
