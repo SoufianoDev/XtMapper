@@ -232,6 +232,23 @@ class LegacyMigrationTest {
         assertTrue(file.isFile)
     }
 
+    @Test fun `legacy D1 permits interrupted remigration before the new header is written`() {
+        val dir = tmp.newFolder()
+        val firstPrefix = "first legacy\n".encodeToByteArray()
+        val replacementPrefix = "replacement legacy\n".encodeToByteArray()
+        File(dir, FileSystemLogStore.LIFECYCLE_LOCK_NAME).writeBytes(
+            receipt(firstPrefix) +
+                FrameCodec.encode(0, "migration", "D1|$name") +
+                receipt(replacementPrefix),
+        )
+        val file = File(dir, name).apply { writeBytes(replacementPrefix) }
+
+        CoordinatorStore(dir).append(name, listOf(next))
+
+        assertArrayEquals(replacementPrefix + header + next, file.readBytes())
+        assertEquals(listOf("P1", "after migration"), CoordinatorStore(dir).readFrames(name).map { it.payload })
+    }
+
     @Test fun `duplicate legacy D1 revocations remain readable across unrelated dates`() {
         val dir = tmp.newFolder()
         val prefix = "legacy\n".encodeToByteArray()
