@@ -1020,7 +1020,8 @@ refreshBrowserDevices();
 const APP_DATA_STORAGE_KEYS = [
   "xtmapper-main-prototype-v10",
   "xtmapper-main-prototype-v9",
-  "xtmapper-main-prototype-v8"
+  "xtmapper-main-prototype-v8",
+  "xtmapper.app-picker.added-packages.v1"
 ];
 const clearPrototypeAppDataButton = document.getElementById("clearPrototypeAppDataButton");
 const prototypeAppDataStatus = document.getElementById("prototypeAppDataStatus");
@@ -1139,10 +1140,13 @@ refreshBrowserCapabilities();
 <script type="module">
 import { DevicePreview } from "./preview/device-preview.mjs";
 import { TouchPreviewBridge } from "./preview/touch-preview-bridge.mjs";
+import { AppPickerTestPanel } from "./preview/app-picker-test-panel.mjs";
 
 const devicePreview = new DevicePreview();
 const touchPreviewBridge = new TouchPreviewBridge();
+const appPickerTestPanel = new AppPickerTestPanel();
 touchPreviewBridge.init();
+appPickerTestPanel.init();
 devicePreview.init().catch(function (error) {
   console.error("Device preview initialization failed.", error);
 });
