@@ -7,19 +7,31 @@ const ScrollTrigger = window.ScrollTrigger;
 if (!app || !mainScroller) {
   console.error("XtMapper touch preview could not find its device viewport.");
 } else {
+  const dialog = document.getElementById("dialog");
   const cursor = document.createElement("div");
   cursor.className = "touch-preview-cursor";
   cursor.setAttribute("aria-hidden", "true");
   cursor.hidden = true;
-  app.append(cursor);
 
-  const dialog = document.getElementById("dialog");
+  const cursorLayer = document.createElement("div");
+  cursorLayer.className = "touch-preview-cursor-layer";
+  cursorLayer.setAttribute("popover", "manual");
+  cursorLayer.append(cursor);
+  app.append(cursorLayer);
+
   let lastPointerPosition = null;
 
   function syncCursorLayer() {
     const dialogIsOpen = Boolean(dialog?.open);
-    const layer = dialogIsOpen ? dialog : app;
-    if (cursor.parentElement !== layer) layer.append(cursor);
+
+    if (dialogIsOpen && dialog) {
+      if (cursorLayer.parentElement !== dialog) dialog.append(cursorLayer);
+      if (!cursorLayer.matches(":popover-open")) cursorLayer.showPopover();
+    } else {
+      if (cursorLayer.matches(":popover-open")) cursorLayer.hidePopover();
+      if (cursorLayer.parentElement !== app) app.append(cursorLayer);
+    }
+
     cursor.classList.toggle("touch-preview-cursor--dialog", dialogIsOpen);
 
     if (lastPointerPosition) setCursorPosition(lastPointerPosition);
@@ -53,7 +65,7 @@ if (!app || !mainScroller) {
     };
 
     const dialogIsOpen = Boolean(dialog?.open);
-    const layerRect = (dialogIsOpen ? dialog : app).getBoundingClientRect();
+    const layerRect = cursorLayer.getBoundingClientRect();
     const size = cursor.offsetWidth || 28;
     const x = dialogIsOpen
       ? event.clientX - layerRect.left - size / 2
