@@ -1012,11 +1012,38 @@ jobs:
               }, localPoint, { timeout: 5000 });
             }
 
+            async function verifyDialogCursorLayerTopmost(pagePoint, description) {
+              const localPoint = {
+                x: (pagePoint.x - activityFrameGeometry.left) / activityFrameGeometry.scaleX,
+                y: (pagePoint.y - activityFrameGeometry.top) / activityFrameGeometry.scaleY
+              };
+              const result = await dialog.evaluate((element, point) => {
+                const layer = element.querySelector('.touch-preview-cursor-layer');
+                if (!layer?.matches(':popover-open')) return { layerIsPopover: false };
+                const previousPointerEvents = layer.style.pointerEvents;
+                layer.style.pointerEvents = 'auto';
+                const hit = document.elementFromPoint(point.x, point.y);
+                layer.style.pointerEvents = previousPointerEvents;
+                return {
+                  layerIsPopover: layer.matches(':popover-open'),
+                  layerReceivesTopmostHit: hit === layer || layer.contains(hit),
+                  hitElement: hit?.id || hit?.className || hit?.tagName || null
+                };
+              }, localPoint);
+              if (!result.layerIsPopover || !result.layerReceivesTopmostHit) {
+                throw new Error(
+                  'The touch cursor must be above the dialog and backdrop at ' +
+                  description + ': ' + JSON.stringify(result)
+                );
+              }
+            }
+
             const dialogPointer = {
               x: dialogButtonBox.x + dialogButtonBox.width / 2,
               y: dialogButtonBox.y + dialogButtonBox.height / 2
             };
             await verifyDialogCursorAt(dialogPointer, 'dialog content');
+            await verifyDialogCursorLayerTopmost(dialogPointer, 'dialog content');
 
             const backdropLocalPoint = await dialog.evaluate(element => {
               const appRect = document.querySelector('#app').getBoundingClientRect();
@@ -1052,6 +1079,10 @@ jobs:
               throw new Error('The modal must leave a usable backdrop margin inside the Activity viewport.');
             }
             await verifyDialogCursorAt({
+              x: activityFrameGeometry.left + backdropLocalPoint.x * activityFrameGeometry.scaleX,
+              y: activityFrameGeometry.top + backdropLocalPoint.y * activityFrameGeometry.scaleY
+            }, 'blurred backdrop');
+            await verifyDialogCursorLayerTopmost({
               x: activityFrameGeometry.left + backdropLocalPoint.x * activityFrameGeometry.scaleX,
               y: activityFrameGeometry.top + backdropLocalPoint.y * activityFrameGeometry.scaleY
             }, 'blurred backdrop');
@@ -1102,6 +1133,271 @@ jobs:
                 !layer.matches(':popover-open') &&
                 cursor?.parentElement === layer;
             }, null, { timeout: 5000 });
+
+            // Exercise the real Choose an app -> Create profile hand-off.
+            // The same native dialog closes and reopens synchronously in this path.
+            await frame.locator('#app').evaluate(() => {
+              if (typeof window.openAppPicker !== 'function') {
+                throw new Error('The app picker entry point is not available.');
+              }
+              window.openAppPicker('create');
+            });
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              return document?.querySelector('#dialog')?.open &&
+                document.querySelector('#dialogTitle')?.textContent === 'Choose an app';
+            }, null, { timeout: 5000 });
+
+            const appSearch = frame.locator('#appSearch');
+            await appSearch.focus();
+            const searchBox = await appSearch.boundingBox();
+            if (!searchBox) throw new Error('The app search input is not visible.');
+            const centerOf = box => ({
+              x: box.x + box.width / 2,
+              y: box.y + box.height / 2
+            });
+            const appSearchPoint = centerOf(searchBox);
+            await verifyDialogCursorAt(appSearchPoint, 'Choose an app search field');
+            await verifyDialogCursorLayerTopmost(appSearchPoint, 'Choose an app search field');
+
+            const appSearchFocusStyle = await appSearch.evaluate(element => {
+              const style = getComputedStyle(element);
+              return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: style.outlineWidth,
+                outlineColor: style.outlineColor,
+                outlineOffset: style.outlineOffset,
+                borderRadius: style.borderRadius,
+                borderColor: style.borderColor
+              };
+            });
+
+            const firstAppRow = frame.locator('#appPickerList .app-picker-row').first();
+            if (!await firstAppRow.count()) {
+              throw new Error('The app picker must expose at least one selectable app.');
+            }
+            await firstAppRow.click();
+
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              const cursor = document?.querySelector('.touch-preview-cursor');
+              return dialog?.open &&
+                dialog.querySelector('#dialogTitle')?.textContent === 'Create profile' &&
+                layer?.parentElement === dialog &&
+                layer.matches(':popover-open') &&
+                cursor?.parentElement === layer;
+            }, null, { timeout: 5000 });
+
+            const profileNameInput = frame.locator('#dialogInput');
+            await profileNameInput.focus();
+            const profileInputBox = await profileNameInput.boundingBox();
+            const profileInputFocusStyle = await profileNameInput.evaluate(element => {
+              const style = getComputedStyle(element);
+              return {
+                outlineStyle: style.outlineStyle,
+                outlineWidth: style.outlineWidth,
+                outlineColor: style.outlineColor,
+                outlineOffset: style.outlineOffset,
+                borderRadius: style.borderRadius,
+                borderColor: style.borderColor,
+                focused: element.ownerDocument.activeElement === element
+              };
+            });
+            const sharedFocusKeys = [
+              'outlineStyle',
+              'outlineWidth',
+              'outlineColor',
+              'outlineOffset',
+              'borderRadius',
+              'borderColor'
+            ];
+            const focusRingMismatch = sharedFocusKeys.filter(key =>
+              appSearchFocusStyle[key] !== profileInputFocusStyle[key]
+            );
+            if (!profileInputBox ||
+                !profileInputFocusStyle.focused ||
+                focusRingMismatch.length) {
+              throw new Error(
+                'Choose an app and Create profile fields must share the same focused outline: ' +
+                JSON.stringify({ appSearchFocusStyle, profileInputFocusStyle, focusRingMismatch })
+              );
+            }
+
+            const profileSummary = frame.locator('.create-profile-app-summary');
+            const createButton = frame.locator('#dialogConfirm');
+            const cancelButton = frame.locator('#dialogCancel');
+            const profileSummaryBox = await profileSummary.boundingBox();
+            const createButtonBox = await createButton.boundingBox();
+            const cancelButtonBox = await cancelButton.boundingBox();
+            if (!profileSummaryBox || !createButtonBox || !cancelButtonBox) {
+              throw new Error('All Create profile content sections and actions must be visible.');
+            }
+
+            for (const [description, box] of [
+              ['selected app summary', profileSummaryBox],
+              ['profile name input', profileInputBox],
+              ['Create profile action', createButtonBox],
+              ['Cancel action', cancelButtonBox]
+            ]) {
+              const point = centerOf(box);
+              await verifyDialogCursorAt(point, description);
+              await verifyDialogCursorLayerTopmost(point, description);
+            }
+
+            const profileBackdropLocalPoint = await dialog.evaluate(element => {
+              const appRect = document.querySelector('#app').getBoundingClientRect();
+              const dialogRect = element.getBoundingClientRect();
+              const centerX = dialogRect.left + dialogRect.width / 2;
+              const centerY = dialogRect.top + dialogRect.height / 2;
+              const candidates = [
+                { x: centerX, y: (appRect.top + dialogRect.top) / 2, gap: dialogRect.top - appRect.top },
+                { x: centerX, y: (dialogRect.bottom + appRect.bottom) / 2, gap: appRect.bottom - dialogRect.bottom },
+                { x: (appRect.left + dialogRect.left) / 2, y: centerY, gap: dialogRect.left - appRect.left },
+                { x: (dialogRect.right + appRect.right) / 2, y: centerY, gap: appRect.right - dialogRect.right }
+              ].filter(point => point.gap >= 12);
+              candidates.sort((a, b) => b.gap - a.gap);
+              return candidates[0] ? { x: candidates[0].x, y: candidates[0].y } : null;
+            });
+            if (!profileBackdropLocalPoint) {
+              throw new Error('Create profile must leave a usable blurred backdrop margin.');
+            }
+            const profileBackdropPoint = {
+              x: activityFrameGeometry.left + profileBackdropLocalPoint.x * activityFrameGeometry.scaleX,
+              y: activityFrameGeometry.top + profileBackdropLocalPoint.y * activityFrameGeometry.scaleY
+            };
+            await verifyDialogCursorAt(profileBackdropPoint, 'Create profile blurred backdrop');
+            await verifyDialogCursorLayerTopmost(profileBackdropPoint, 'Create profile blurred backdrop');
+
+            await profileNameInput.fill('CI Test Profile');
+            await createButton.click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              return !document?.querySelector('#dialog')?.open &&
+                document?.querySelector('.game-profile-card');
+            }, null, { timeout: 5000 });
+
+            // The profile actions dialog opens the same modal through a separate path.
+            const createdProfile = frame.locator('.game-profile-card').first();
+            const profileMenu = createdProfile.locator('.game-profile-card__menu');
+            await profileMenu.click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return dialog?.open &&
+                dialog.querySelector('[data-profile-action="rename"]') &&
+                layer?.parentElement === dialog &&
+                layer.matches(':popover-open');
+            }, null, { timeout: 5000 });
+
+            const renameAction = frame.locator('[data-profile-action="rename"]');
+            const renameActionBox = await renameAction.boundingBox();
+            if (!renameActionBox) throw new Error('Rename profile action is not visible.');
+            const renameActionPoint = centerOf(renameActionBox);
+            await verifyDialogCursorAt(renameActionPoint, 'profile actions dialog');
+            await verifyDialogCursorLayerTopmost(renameActionPoint, 'profile actions dialog');
+
+            await renameAction.click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return dialog?.open &&
+                dialog.querySelector('#dialogTitle')?.textContent === 'Rename profile' &&
+                layer?.parentElement === dialog &&
+                layer.matches(':popover-open');
+            }, null, { timeout: 5000 });
+
+            const renameInput = frame.locator('#dialogInput');
+            const renameInputBox = await renameInput.boundingBox();
+            if (!renameInputBox) throw new Error('Rename profile input is not visible.');
+            await verifyDialogCursorAt(centerOf(renameInputBox), 'Rename profile input');
+            await verifyDialogCursorLayerTopmost(centerOf(renameInputBox), 'Rename profile input');
+            await frame.locator('#dialogCancel').click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return !document?.querySelector('#dialog')?.open &&
+                layer?.parentElement === document?.querySelector('#app') &&
+                !layer.hasAttribute('popover');
+            }, null, { timeout: 5000 });
+
+            // Change assigned app closes the profile actions dialog and immediately opens the picker.
+            await profileMenu.click();
+            await frame.locator('[data-profile-action="change"]').click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return dialog?.open &&
+                dialog.querySelector('#dialogTitle')?.textContent === 'Change assigned app' &&
+                layer?.parentElement === dialog &&
+                layer.matches(':popover-open');
+            }, null, { timeout: 5000 });
+
+            const changeSearch = frame.locator('#appSearch');
+            await changeSearch.focus();
+            const changeSearchBox = await changeSearch.boundingBox();
+            if (!changeSearchBox) throw new Error('Change assigned app search is not visible.');
+            await verifyDialogCursorAt(centerOf(changeSearchBox), 'Change assigned app search');
+            await verifyDialogCursorLayerTopmost(centerOf(changeSearchBox), 'Change assigned app search');
+            await frame.locator('#appPickerList .app-picker-row').nth(1).click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return !document?.querySelector('#dialog')?.open &&
+                layer?.parentElement === document?.querySelector('#app') &&
+                !layer.hasAttribute('popover');
+            }, null, { timeout: 5000 });
+
+            // Verify the remaining profile-action dialog branches use the same cursor layer.
+            await profileMenu.click();
+            await frame.locator('[data-profile-action="edit"]').click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return dialog?.open &&
+                dialog.querySelector('#dialogTitle')?.textContent === 'Keymap editor' &&
+                layer?.parentElement === dialog &&
+                layer.matches(':popover-open');
+            }, null, { timeout: 5000 });
+            const editorButtonBox = await frame.locator('#dialogConfirm').boundingBox();
+            if (!editorButtonBox) throw new Error('Keymap editor dialog action is not visible.');
+            await verifyDialogCursorAt(centerOf(editorButtonBox), 'Keymap editor dialog');
+            await verifyDialogCursorLayerTopmost(centerOf(editorButtonBox), 'Keymap editor dialog');
+            await frame.locator('#dialogCancel').click();
+
+            await profileMenu.click();
+            await frame.locator('[data-profile-action="delete"]').click();
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const dialog = document?.querySelector('#dialog');
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return dialog?.open &&
+                dialog.querySelector('#dialogTitle')?.textContent === 'Delete profile?' &&
+                layer?.parentElement === dialog &&
+                layer.matches(':popover-open');
+            }, null, { timeout: 5000 });
+            const deleteButtonBox = await frame.locator('#dialogConfirm').boundingBox();
+            if (!deleteButtonBox) throw new Error('Delete profile dialog action is not visible.');
+            await verifyDialogCursorAt(centerOf(deleteButtonBox), 'Delete profile dialog');
+            await verifyDialogCursorLayerTopmost(centerOf(deleteButtonBox), 'Delete profile dialog');
+            await frame.locator('#dialogCancel').click();
+
+            await page.waitForFunction(() => {
+              const document = window.document.querySelector('#activityFrame')?.contentDocument;
+              const layer = document?.querySelector('.touch-preview-cursor-layer');
+              return !document?.querySelector('#dialog')?.open &&
+                layer?.parentElement === document?.querySelector('#app') &&
+                !layer.hasAttribute('popover');
+            }, null, { timeout: 5000 });
+
+            console.log('CREATE_PROFILE_DIALOG_CURSOR_PASSED');
+            console.log('DIALOG_INPUT_FOCUS_RING_CONSISTENT_PASSED');
+            console.log('PROFILE_ACTION_DIALOG_TRANSITIONS_PASSED');
 
                         const targetBox = await target.boundingBox();
             if (!targetBox) throw new Error('The touch regression target is not visible.');
