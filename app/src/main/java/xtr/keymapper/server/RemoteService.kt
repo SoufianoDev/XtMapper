@@ -27,6 +27,7 @@ import xtr.keymapper.activity.MainActivity
 import xtr.keymapper.databinding.CursorBinding
 import xtr.keymapper.keymap.KeymapConfig
 import xtr.keymapper.keymap.KeymapProfile
+import xtr.keymapper.log.DeviceTelemetry
 import xtr.keymapper.log.Role
 import xtr.keymapper.log.SessionStates
 import xtr.keymapper.log.XtLogger
@@ -300,13 +301,16 @@ class RemoteService @JvmOverloads constructor(
     private val mClientDeathRegistrations = ClientDeathRegistry<IBinder>()
     private val mStartRequestLock = Any()
     private val mStartRequestSequence = AtomicLong()
+    @Volatile
+    private var destroyRequested = false
 
     private fun isCurrentStartRequest(
         clientBinder: IBinder,
         deathRecipient: IBinder.DeathRecipient,
         requestId: Long
     ): Boolean {
-        return requestId == mStartRequestSequence.get() &&
+        return !destroyRequested &&
+            requestId == mStartRequestSequence.get() &&
             clientBinder.isBinderAlive &&
             mClientDeathRegistrations.isCurrent(clientBinder, deathRecipient)
     }
@@ -365,16 +369,24 @@ class RemoteService @JvmOverloads constructor(
                 notifyClientDeath(clientBinder, this)
             }
         }
-        val (requestId, superseded) = synchronized(mStartRequestLock) {
-            val previous = mClientDeathRegistrations.registerAndLink(
-                clientBinder,
-                deathRecipient
-            ) {
-                clientBinder.linkToDeath(deathRecipient, 0)
+        val request = synchronized(mStartRequestLock) {
+            if (destroyRequested) {
+                null
+            } else {
+                val previous = mClientDeathRegistrations.registerAndLink(
+                    clientBinder,
+                    deathRecipient
+                ) {
+                    clientBinder.linkToDeath(deathRecipient, 0)
+                }
+                // A failed link must not supersede a still-valid pending request.
+                mStartRequestSequence.incrementAndGet() to previous
             }
-            // A failed link must not supersede a still-valid pending request.
-            mStartRequestSequence.incrementAndGet() to previous
+        } ?: run {
+            XtLogger.info(TAG, "ignored start request after service destruction")
+            return
         }
+        val (requestId, superseded) = request
         superseded?.let { clientBinder.unlinkToDeath(it, 0) }
 
         mHandler.post {
@@ -477,16 +489,22 @@ class RemoteService @JvmOverloads constructor(
             }
         }
 
+        val session = ClientSession(clientBinder, deathRecipient)
+
         startTouchpadFor(newService)
 
-        val admitted = mClientDeathRegistrations.runIfCurrent(
-            clientBinder,
-            deathRecipient,
-            isAlive = {
-                requestId == mStartRequestSequence.get() && clientBinder.isBinderAlive
+        val admitted = synchronized(mStartRequestLock) {
+            !destroyRequested && mClientDeathRegistrations.runIfCurrent(
+                clientBinder,
+                deathRecipient,
+                isAlive = {
+                    !destroyRequested &&
+                        requestId == mStartRequestSequence.get() &&
+                        clientBinder.isBinderAlive
+                }
+            ) {
+                mInputService.install(session, newService)
             }
-        ) {
-            mInputService.install(ClientSession(clientBinder, deathRecipient), newService)
         }
         if (!admitted) {
             discardUninstalledService(newService)
@@ -496,6 +514,14 @@ class RemoteService @JvmOverloads constructor(
                 }
             }
             XtLogger.warn(TAG, "startServer admission rejected; stale requests are discarded and blocked requests are deferred")
+            return
+        }
+
+        if (!mInputService.runIfOwner(session) {
+            // Telemetry must not outlive the exact session that admitted it.
+            DeviceTelemetry.start(context)
+        }) {
+            XtLogger.warn(TAG, "session committed for shutdown or replaced after admission; telemetry startup withheld")
             return
         }
 
@@ -544,8 +570,40 @@ class RemoteService @JvmOverloads constructor(
 
     override fun destroy() {
         enforceCaller()
+        synchronized(mStartRequestLock) {
+            destroyRequested = true
+            mStartRequestSequence.incrementAndGet()
+        }
         if (isWaylandClient) {
-            stopServer(true)
+            val session = mInputService.owner()
+            if (session == null) {
+                stopServer(true)
+                return
+            }
+
+            val (service, superseded) = mInputService.claimForShutdown(session)
+            if (superseded) {
+                XtLogger.info(TAG, "ignored destroy request for a replaced client session")
+                return
+            }
+            try {
+                if (service != null) {
+                    try {
+                        service.callback.disablePointer()
+                    } catch (e: RemoteException) {
+                        XtLogger.warn(TAG, "Client Binder unavailable during Wayland destroy; continuing cleanup", e)
+                    }
+                    try {
+                        service.stop()
+                    } catch (e: Exception) {
+                        XtLogger.error(TAG, "Failed to stop input service during Wayland destroy", e)
+                    }
+                }
+                mouseDeviceLifecycle.onInputServiceStopped()
+                stopServer(true, clientAlive = false)
+            } finally {
+                mInputService.releaseTerminal()
+            }
         } else {
             mHandler.post { stopServer(true) }
         }
@@ -557,6 +615,7 @@ class RemoteService @JvmOverloads constructor(
     }
 
     private fun stopServer(exitProcess: Boolean, clientAlive: Boolean = true) {
+        DeviceTelemetry.stop()
         if (exitProcess && !Selinux.real.restore()) {
             XtLogger.error(TAG, "Failed to restore SELinux enforcing mode")
         }
@@ -591,6 +650,9 @@ class RemoteService @JvmOverloads constructor(
                 }
             )
         }
+        // A shell-started process survives stopServer: admission reopens only after the
+        // non-exit cleanup completes, never where the destroy request was recorded.
+        synchronized(mStartRequestLock) { destroyRequested = false }
     }
 
     private val mKeyEventListenerDeathRecipient = IBinder.DeathRecipient {
